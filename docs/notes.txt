@@ -1,0 +1,12 @@
+Single Stepping:
+
+thread_dbg[set_single_step]: set_single_step(thread_vic, true)
+
+thread_vic[0x100]: add x0, #42
+
+thread_dbg[exc_raise]: set_single_step(thread_vic, false)
+
+thread_vic[0x100]: add x0, #42
+thread_vic[0x104]: add x0, #7
+
+// whoops, runaway thread. how to trap again after instruction finishes?
