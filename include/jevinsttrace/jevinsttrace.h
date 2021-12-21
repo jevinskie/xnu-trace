@@ -18,7 +18,5 @@
 using exc_handler_callback_t = size_t (*)(mach_port_t task, mach_port_t thread,
                                           exception_type_t type, mach_exception_data_t codes);
 
-void foo();
-
 mach_port_t create_exception_port(exception_mask_t exception_mask);
 void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback);

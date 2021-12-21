@@ -6,6 +6,7 @@
 #include <mach/exc.h>
 #include <mach/exception.h>
 #include <mach/mach.h>
+#include <mach/thread_status.h>
 #include <pthread.h>
 
 #include "mach_exc.h"
@@ -61,10 +62,22 @@ extern "C" kern_return_t catch_mach_exception_raise_state_identity(
     mach_exception_data_t code, mach_msg_type_number_t code_count, int *flavor,
     thread_state_t old_state, mach_msg_type_number_t old_state_count, thread_state_t new_state,
     mach_msg_type_number_t *new_state_count) {
-#pragma unused(exception_port, thread, task, exception, code, code_count, flavor, old_state,       \
-               old_state_count, new_state, new_state_count)
-    assert(!"catch_mach_exception_raise_state_identity not to be called");
-    return KERN_NOT_SUPPORTED;
+#pragma unused(exception_port, thread, task, exception, code, code_count, flavor)
+
+    auto os = (const _STRUCT_ARM_THREAD_STATE64 *)old_state;
+    auto ns = (_STRUCT_ARM_THREAD_STATE64 *)new_state;
+
+    const auto opc = arm_thread_state64_get_pc(*os);
+    const auto npc = opc + 4;
+
+    fprintf(stderr, "exc pc: %p\n", (void *)opc);
+
+    *new_state_count = old_state_count;
+    *ns              = *os;
+
+    ns->__pc = npc;
+
+    return KERN_SUCCESS;
 }
 
 // Handle EXCEPTION_DEFAULT behavior
@@ -72,12 +85,9 @@ extern "C" kern_return_t catch_mach_exception_raise(mach_port_t exception_port, 
                                                     mach_port_t task, exception_type_t exception,
                                                     mach_exception_data_t code,
                                                     mach_msg_type_number_t code_count) {
-    // Do smart stuff here.
-    fprintf(stderr, "My exception handler was called by exception_raise()\n");
-
-    // Inform the kernel that we haven't handled the exception, and the
-    // next handler should be called.
-    return KERN_FAILURE;
+#pragma unused(exception_port, thread, task, exception, code, code_count)
+    assert(!"catch_mach_exception_raise not to be called");
+    return KERN_NOT_SUPPORTED;
 }
 
 /**
