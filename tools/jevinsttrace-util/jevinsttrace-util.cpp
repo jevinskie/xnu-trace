@@ -21,7 +21,7 @@ int main(void) {
     auto crash_ptr = (volatile uint8_t *)0xdeadbeef;
     *crash_ptr     = 42;
 
-    // fmt::print(stderr, "crash_ptr: %hhu\n", *crash_ptr);
+    fmt::print(stderr, "crash_ptr: {:d}\n", *crash_ptr);
 
     fmt::print(stderr, "jevinsttrace-util end\n");
     return 0;

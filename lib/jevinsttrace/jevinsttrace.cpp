@@ -105,7 +105,7 @@ static void *exc_server_thread(void *arg) {
      * sends a reply based on the return value of mach_exc_server().
      */
 #define MACH_MSG_REPLY_SIZE 4096
-    kern_return_t kr = mach_msg_server_once(mach_exc_server, MACH_MSG_REPLY_SIZE, exc_port, 0);
+    kern_return_t kr = mach_msg_server(mach_exc_server, MACH_MSG_REPLY_SIZE, exc_port, 0);
     assert(kr == KERN_SUCCESS && "Received mach exception message");
 
     pthread_exit((void *)0);
