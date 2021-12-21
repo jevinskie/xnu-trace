@@ -20,3 +20,5 @@ using exc_handler_callback_t = size_t (*)(mach_port_t task, mach_port_t thread,
 
 mach_port_t create_exception_port(exception_mask_t exception_mask);
 void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback);
+// void single_step_me();
+void set_single_step(thread_t thread, bool do_ss);

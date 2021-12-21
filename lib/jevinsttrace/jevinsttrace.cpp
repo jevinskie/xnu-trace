@@ -1,6 +1,7 @@
 #include "jevinsttrace/jevinsttrace.h"
 
 #include <cassert>
+#include <cstdlib>
 #include <cstdio>
 
 #include <mach/exc.h>
@@ -71,6 +72,8 @@ void set_single_step(thread_t thread, bool do_ss) {
     assert(kret_set == KERN_SUCCESS);
 }
 
+static unsigned int num_exc;
+
 extern "C" kern_return_t catch_mach_exception_raise_state_identity(
     mach_port_t exception_port, mach_port_t thread, mach_port_t task, exception_type_t exception,
     mach_exception_data_t code, mach_msg_type_number_t code_count, int *flavor,
@@ -84,14 +87,20 @@ extern "C" kern_return_t catch_mach_exception_raise_state_identity(
     const auto opc = arm_thread_state64_get_pc(*os);
     const auto npc = opc + 4;
 
-    // fprintf(stderr, "exc pc: %p\n", (void *)opc);
+    fprintf(stderr, "exc pc: %p\n", (void *)opc);
 
-    *new_state_count = old_state_count;
-    *ns              = *os;
+    // *new_state_count = old_state_count;
+    // *ns              = *os;
 
-    ns->__pc = npc;
+    // ns->__pc = npc;
 
     set_single_step(thread, true);
+
+    ++num_exc;
+
+    if (num_exc > 16) {
+        exit(0);
+    }
 
     return KERN_SUCCESS;
 }
@@ -134,10 +143,32 @@ void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback
     pthread_t exc_thread;
 
     /* Spawn the exception server's thread. */
-    int err = pthread_create(&exc_thread, (pthread_attr_t *)0, exc_server_thread,
+    const auto err = pthread_create(&exc_thread, (pthread_attr_t *)0, exc_server_thread,
                              (void *)(uintptr_t)exc_port);
     assert(!err && "Spawned exception server thread");
 
     /* No need to wait for the exception server to be joined when it exits. */
     pthread_detach(exc_thread);
 }
+
+#if 0
+void single_stepper_thread(void *arg) {
+    thread_t vic_thread = (thread_t)(uintptr_t)arg;
+    set_single_step(vic_thread, true);
+    pthread_exit((void *)0);
+    __builtin_unreachable();
+}
+
+void single_step_me() {
+    thread_t thread_self = mach_thread_self();
+
+    pthread_t ss_thread;
+
+    const auto err = pthread_create(&ss_thread, (pthread_attr_t *)0, single_stepper_thread,
+                             (void *)(uintptr_t)thread_self);
+    assert(!err && "Spawned exception server thread");
+
+    /* No need to wait for the exception server to be joined when it exits. */
+    pthread_detach(exc_thread);
+}
+#endif
