@@ -18,6 +18,8 @@ foreach(SRC ${INSTTRACE_SRC})
     list(APPEND INSTTRACE_HDR ${HDR})
 endforeach()
 
+list(APPEND INSTTRACE_SRC mach_excServer.c)
+
 # INSTTRACE_HDR added for Xcode project generation
 add_library(jevinsttrace ${INSTTRACE_SRC} ${INSTTRACE_HDR})
 
