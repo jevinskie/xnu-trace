@@ -57,6 +57,20 @@ extern "C" kern_return_t catch_mach_exception_raise_state(
     return KERN_NOT_SUPPORTED;
 }
 
+void set_single_step(thread_t thread, bool do_ss) {
+    arm_debug_state64_t dbg_state;
+    mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
+    const auto kret_get =
+        thread_get_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, &dbg_cnt);
+    assert(kret_get == KERN_SUCCESS);
+
+    dbg_state.__mdscr_el1 = (dbg_state.__mdscr_el1 & ~1) | do_ss;
+
+    const auto kret_set =
+        thread_set_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
+    assert(kret_set == KERN_SUCCESS);
+}
+
 extern "C" kern_return_t catch_mach_exception_raise_state_identity(
     mach_port_t exception_port, mach_port_t thread, mach_port_t task, exception_type_t exception,
     mach_exception_data_t code, mach_msg_type_number_t code_count, int *flavor,
@@ -64,18 +78,20 @@ extern "C" kern_return_t catch_mach_exception_raise_state_identity(
     mach_msg_type_number_t *new_state_count) {
 #pragma unused(exception_port, thread, task, exception, code, code_count, flavor)
 
-    auto os = (const _STRUCT_ARM_THREAD_STATE64 *)old_state;
-    auto ns = (_STRUCT_ARM_THREAD_STATE64 *)new_state;
+    auto os = (const arm_thread_state64_t *)old_state;
+    auto ns = (arm_thread_state64_t *)new_state;
 
     const auto opc = arm_thread_state64_get_pc(*os);
     const auto npc = opc + 4;
 
-    fprintf(stderr, "exc pc: %p\n", (void *)opc);
+    // fprintf(stderr, "exc pc: %p\n", (void *)opc);
 
     *new_state_count = old_state_count;
     *ns              = *os;
 
     ns->__pc = npc;
+
+    set_single_step(thread, true);
 
     return KERN_SUCCESS;
 }
