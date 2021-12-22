@@ -1,8 +1,8 @@
 #include "jevinsttrace/jevinsttrace.h"
 
 #include <cassert>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 
 #include <mach/exc.h>
 #include <mach/exception.h>
@@ -144,7 +144,7 @@ void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback
 
     /* Spawn the exception server's thread. */
     const auto err = pthread_create(&exc_thread, (pthread_attr_t *)0, exc_server_thread,
-                             (void *)(uintptr_t)exc_port);
+                                    (void *)(uintptr_t)exc_port);
     assert(!err && "Spawned exception server thread");
 
     /* No need to wait for the exception server to be joined when it exits. */
