@@ -24,10 +24,8 @@ list(APPEND INSTTRACE_SRC mach_excServer.c)
 add_library(xnu-single-step-trace ${INSTTRACE_SRC} ${INSTTRACE_HDR})
 
 
-target_link_libraries(xnu-single-step-trace PUBLIC fmt)
-target_compile_definitions(xnu-single-step-trace PUBLIC USE_FMT=1)
+target_link_libraries(xnu-single-step-trace PRIVATE fmt)
 target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
-target_compile_options(xnu-single-step-trace PRIVATE -fno-rtti -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables)
 
 target_include_directories(xnu-single-step-trace PUBLIC ../../include)
 

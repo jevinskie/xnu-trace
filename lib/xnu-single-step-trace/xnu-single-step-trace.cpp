@@ -1,18 +1,30 @@
 #include "xnu-single-step-trace/xnu-single-step-trace.h"
 
+#undef NDEBUG
 #include <cassert>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <vector>
 
+#include <libproc.h>
 #include <mach/exc.h>
 #include <mach/exception.h>
 #include <mach/mach.h>
 #include <mach/thread_status.h>
 #include <pthread.h>
+#include <sys/proc_info.h>
+
+#include <fmt/format.h>
 
 #include "mach_exc.h"
 
 extern "C" boolean_t mach_exc_server(mach_msg_header_t *, mach_msg_header_t *);
+
+template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
+    return sizeof(T) * vec.size();
+}
 
 static exc_handler_callback_t exc_handler_callback;
 
@@ -150,6 +162,36 @@ void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback
 
     /* No need to wait for the exception server to be joined when it exits. */
     pthread_detach(exc_thread);
+}
+
+pid_t pid_for_name(std::string process_name) {
+    const auto proc_num = proc_listpids(PROC_ALL_PIDS, 0, nullptr, 0) / sizeof(pid_t);
+    std::vector<pid_t> pids;
+    pids.resize(proc_num);
+    const auto actual_proc_num =
+        proc_listpids(PROC_ALL_PIDS, 0, pids.data(), bytesizeof(pids)) / sizeof(pid_t);
+    assert(actual_proc_num > 0);
+    pids.resize(actual_proc_num);
+    std::vector<std::pair<std::string, pid_t>> matches;
+    for (const auto pid : pids) {
+        if (!pid) {
+            continue;
+        }
+        char path_buf[PROC_PIDPATHINFO_MAXSIZE];
+        assert(proc_pidpath(pid, path_buf, sizeof(path_buf)) > 0);
+        std::filesystem::path path{path_buf};
+        if (path.filename().string() == process_name) {
+            matches.emplace_back(std::make_pair(path, pid));
+        }
+    }
+    if (!matches.size()) {
+        fmt::print(stderr, "Couldn't find process named '{:s}'\n", process_name);
+        exit(-1);
+    } else if (matches.size() > 1) {
+        fmt::print(stderr, "Found multiple processes named '{:s}'\n", process_name);
+        exit(-1);
+    }
+    return matches[0].second;
 }
 
 #if 0

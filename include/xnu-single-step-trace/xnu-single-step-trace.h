@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <unistd.h>
+
 #include <mach/mach_port.h>
 
 /**
@@ -22,3 +25,5 @@ mach_port_t create_exception_port(exception_mask_t exception_mask);
 void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback);
 // void single_step_me();
 void set_single_step(thread_t thread, bool do_ss);
+
+pid_t pid_for_name(std::string process_name);
