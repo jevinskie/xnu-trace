@@ -1,6 +1,6 @@
 [submodule "3rdparty/fmt"]
 	path = 3rdparty/fmt
 	url = https://github.com/fmtlib/fmt
-[submodule "3rdparty/nanoprintf"]
-	path = 3rdparty/nanoprintf
-	url = https://github.com/charlesnicholson/nanoprintf
+[submodule "3rdparty/argparse"]
+	path = 3rdparty/argparse
+	url = https://github.com/p-ranav/argparse

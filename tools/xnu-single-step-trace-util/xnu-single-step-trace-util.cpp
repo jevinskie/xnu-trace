@@ -1,11 +1,13 @@
-#include <xnu-single-step-trace/xnu-single-step-trace.h>
+#include "xnu-single-step-trace/xnu-single-step-trace.h"
 
+#undef NDEBUG
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
 
 #include <mach/mach.h>
 
+#include <argparse/argparse.hpp>
 #include <fmt/core.h>
 
 static size_t exc_handler_cb(__unused mach_port_t task, __unused mach_port_t thread,
@@ -14,7 +16,7 @@ static size_t exc_handler_cb(__unused mach_port_t task, __unused mach_port_t thr
     return 4;
 }
 
-int main(void) {
+int main(int argc, const char **argv) {
     fmt::print(stderr, "xnu-single-step-trace-util begin\n");
 
     mach_port_t exc_port = create_exception_port(EXC_MASK_ALL);
