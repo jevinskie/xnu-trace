@@ -1,1 +1,1 @@
-add_subdirectory(jevinsttrace-util)
+add_subdirectory(xnu-single-step-trace-util)

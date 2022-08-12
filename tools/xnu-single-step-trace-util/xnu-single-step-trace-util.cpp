@@ -1,4 +1,4 @@
-#include <jevinsttrace/jevinsttrace.h>
+#include <xnu-single-step-trace/xnu-single-step-trace.h>
 
 #include <cassert>
 #include <cstdint>
@@ -15,7 +15,7 @@ static size_t exc_handler_cb(__unused mach_port_t task, __unused mach_port_t thr
 }
 
 int main(void) {
-    fmt::print(stderr, "jevinsttrace-util begin\n");
+    fmt::print(stderr, "xnu-single-step-trace-util begin\n");
 
     mach_port_t exc_port = create_exception_port(EXC_MASK_ALL);
     assert(exc_port);
@@ -26,6 +26,6 @@ int main(void) {
 
     // fmt::print(stderr, "crash_ptr: {:d}\n", *crash_ptr);
 
-    fmt::print(stderr, "jevinsttrace-util end\n");
+    fmt::print(stderr, "xnu-single-step-trace-util end\n");
     return 0;
 }

@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(jevinsttrace CXX C)
+project(xnu-single-step-trace CXX C)
 
-# set(CMAKE_OSX_ARCHITECTURES arm64e)
+set(CMAKE_OSX_ARCHITECTURES arm64e)
 set(CMAKE_XCODE_ATTRIBUTE_COMPILER_INDEX_STORE_ENABLE NO)
 
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
@@ -31,7 +31,6 @@ add_link_options(-Os -Wl,-dead_strip)
 # add_compile_options(-flto=full -fwhole-program-vtables -fvirtual-function-elimination)
 # add_link_options(-flto=full)
 
-
 # lol just don't its so bad
 # add_compile_options(-fno-inline)
 # add_link_options(-fno-inline)
@@ -39,9 +38,6 @@ add_link_options(-Os -Wl,-dead_strip)
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
    add_compile_options(-ferror-limit=100)
 endif()
-
-add_compile_options($<$<COMPILE_LANG_AND_ID:CXX,Clang>:-stdlib=libc++>)
-add_link_options($<$<COMPILE_LANG_AND_ID:CXX,Clang>:-stdlib=libc++>)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_EXTENSIONS YES)
