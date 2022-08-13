@@ -2,20 +2,37 @@
 
 #undef NDEBUG
 #include <cassert>
+#include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
+#include <unistd.h>
 
 #include <mach/mach.h>
 
 #include <argparse/argparse.hpp>
 #include <fmt/core.h>
 
+static volatile bool should_stop;
+static pthread_mutex_t should_stop_mtx;
+
 static size_t exc_handler_cb(__unused mach_port_t task, __unused mach_port_t thread,
                              exception_type_t type, mach_exception_data_t codes_64) {
     fprintf(stderr, "exc_handler called\n");
     return 4;
+}
+
+static void sig_handler(int sig_id) {
+    (void)sig_id;
+    should_stop = true;
+}
+
+static void setup_sig_handler() {
+    struct sigaction sa;
+    sa.sa_handler = sig_handler;
+    sigfillset(&sa.sa_mask);
+    sigaction(SIGINT, &sa, nullptr);
 }
 
 int main(int argc, const char **argv) {
@@ -49,9 +66,16 @@ int main(int argc, const char **argv) {
 
     assert(!do_spawn && "not implemented");
 
-    task_t task;
-    kern_return_t kr = task_for_pid(mach_task_self(), target_pid, &task);
+    setup_sig_handler();
+    should_stop = false;
+
+    task_t target_task;
+    kern_return_t kr = task_for_pid(mach_task_self(), target_pid, &target_task);
     fmt::print("tfp kr: {:#010x} {:s}\n", kr, mach_error_string(kr));
+
+    const auto exc_port = create_exception_port(target_task, EXC_MASK_ALL);
+    assert(exc_port);
+    run_exception_handler(exc_port, exc_handler_cb, &should_stop_mtx);
 
     // mach_port_t exc_port = create_exception_port(EXC_MASK_ALL);
     // assert(exc_port);
@@ -61,6 +85,10 @@ int main(int argc, const char **argv) {
     // *crash_ptr     = 42;
 
     // fmt::print(stderr, "crash_ptr: {:d}\n", *crash_ptr);
+
+    while (!should_stop) {
+        usleep(1'000);
+    }
 
     fmt::print(stderr, "xnu-single-step-trace-util end\n");
     return 0;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <pthread.h>
 #include <string>
 #include <unistd.h>
 
@@ -21,8 +22,9 @@
 using exc_handler_callback_t = size_t (*)(mach_port_t task, mach_port_t thread,
                                           exception_type_t type, mach_exception_data_t codes);
 
-mach_port_t create_exception_port(exception_mask_t exception_mask);
-void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback);
+mach_port_t create_exception_port(task_t target_task, exception_mask_t exception_mask);
+pthread_t run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback,
+                                pthread_mutex_t *should_stop_mtx);
 // void single_step_me();
 void set_single_step(thread_t thread, bool do_ss);
 

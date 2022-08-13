@@ -30,14 +30,9 @@ template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
 
 static exc_handler_callback_t exc_handler_callback;
 
-void foo() {
-    fprintf(stderr, "foo\n");
-}
-
-mach_port_t create_exception_port(exception_mask_t exception_mask) {
+mach_port_t create_exception_port(task_t target_task, exception_mask_t exception_mask) {
     mach_port_t exc_port = MACH_PORT_NULL;
     mach_port_t task     = mach_task_self();
-    mach_port_t thread   = mach_thread_self();
     kern_return_t kr     = KERN_FAILURE;
 
     /* Create the mach port the exception messages will be sent to. */
@@ -52,8 +47,8 @@ mach_port_t create_exception_port(exception_mask_t exception_mask) {
     assert(kr == KERN_SUCCESS && "Inserted a SEND right into the exception port");
 
     /* Tell the kernel what port to send exceptions to. */
-    kr = thread_set_exception_ports(
-        thread, exception_mask, exc_port,
+    kr = task_set_exception_ports(
+        target_task, exception_mask, exc_port,
         (exception_behavior_t)(EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES),
         ARM_THREAD_STATE64);
     assert(kr == KERN_SUCCESS && "Set the exception port to my custom handler");
@@ -109,7 +104,7 @@ extern "C" kern_return_t catch_mach_exception_raise_state_identity(
 
     // ns->__pc = npc;
 
-    set_single_step(thread, true);
+    // set_single_step(thread, true);
 
     ++num_exc;
 
@@ -148,11 +143,11 @@ static void *exc_server_thread(void *arg) {
     kern_return_t kr = mach_msg_server(mach_exc_server, MACH_MSG_REPLY_SIZE, exc_port, 0);
     assert(kr == KERN_SUCCESS && "Received mach exception message");
 
-    pthread_exit((void *)0);
-    __builtin_unreachable();
+    fmt::print("exc_server_thread ran\n");
 }
 
-void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback) {
+pthread_t run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback,
+                                pthread_mutex_t *should_stop_mtx) {
     exc_handler_callback = callback;
 
     pthread_t exc_thread;
@@ -164,6 +159,8 @@ void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback
 
     /* No need to wait for the exception server to be joined when it exits. */
     pthread_detach(exc_thread);
+
+    return exc_thread;
 }
 
 pid_t pid_for_name(std::string process_name) {
