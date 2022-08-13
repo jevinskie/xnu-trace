@@ -13,6 +13,7 @@
 #include <mach/exception.h>
 #include <mach/mach.h>
 #include <mach/mach_error.h>
+#include <mach/task_info.h>
 #include <mach/thread_status.h>
 #include <pthread.h>
 #include <sys/proc_info.h>
@@ -193,6 +194,14 @@ pid_t pid_for_name(std::string process_name) {
         exit(-1);
     }
     return matches[0].second;
+}
+
+int64_t get_task_for_pid_count(task_t task) {
+    struct task_extmod_info info;
+    mach_msg_type_number_t count = TASK_EXTMOD_INFO_COUNT;
+    const auto kr                = task_info(task, TASK_EXTMOD_INFO, (task_info_t)&info, &count);
+    assert(kr == KERN_SUCCESS);
+    return info.extmod_statistics.task_for_pid_count;
 }
 
 #if 0

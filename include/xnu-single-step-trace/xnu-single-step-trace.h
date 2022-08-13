@@ -27,3 +27,5 @@ void run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback
 void set_single_step(thread_t thread, bool do_ss);
 
 pid_t pid_for_name(std::string process_name);
+
+int64_t get_task_for_pid_count(task_t task);
