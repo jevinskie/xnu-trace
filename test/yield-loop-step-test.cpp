@@ -2,6 +2,7 @@
 #include <cassert>
 #include <csignal>
 #include <cstdint>
+#include <unistd.h>
 
 #include <mach/mach_traps.h>
 
@@ -28,7 +29,8 @@ int main() {
     should_stop = false;
     while (!should_stop) {
         ++num_yields;
-        swtch_pri(0);
+        // swtch_pri(0);
+        usleep(1'000);
     }
     fmt::print("num_yields: {:d}\n", num_yields);
     fmt::print("yield-loop-step-test end\n");

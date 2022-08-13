@@ -38,13 +38,20 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
+    pid_t target_pid = -1;
     if (do_attach) {
         const auto name = *parser.present("--attach");
-        const auto pid  = pid_for_name(name);
-        fmt::print("process '{:s}' has pid {:d}\n", name, pid);
+        target_pid      = pid_for_name(name);
+        fmt::print("process '{:s}' has pid {:d}\n", name, target_pid);
     }
 
     fmt::print(stderr, "xnu-single-step-trace-util begin\n");
+
+    assert(!do_spawn && "not implemented");
+
+    task_t task;
+    kern_return_t kr = task_for_pid(mach_task_self(), target_pid, &task);
+    fmt::print("tfp kr: {:#010x} {:s}\n", kr, mach_error_string(kr));
 
     // mach_port_t exc_port = create_exception_port(EXC_MASK_ALL);
     // assert(exc_port);

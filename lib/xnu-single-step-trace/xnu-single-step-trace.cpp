@@ -12,6 +12,7 @@
 #include <mach/exc.h>
 #include <mach/exception.h>
 #include <mach/mach.h>
+#include <mach/mach_error.h>
 #include <mach/thread_status.h>
 #include <pthread.h>
 #include <sys/proc_info.h>
