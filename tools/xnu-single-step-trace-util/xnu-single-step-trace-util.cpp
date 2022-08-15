@@ -76,7 +76,7 @@ int main(int argc, const char **argv) {
 
     const auto exc_port = create_exception_port(target_task, EXC_MASK_ALL);
     assert(exc_port);
-    run_exception_handler(exc_port, exc_handler_cb, &should_stop_mtx);
+    // run_exception_handler(exc_port, exc_handler_cb, &should_stop_mtx);
 
     // mach_port_t exc_port = create_exception_port(EXC_MASK_ALL);
     // assert(exc_port);
@@ -88,20 +88,38 @@ int main(int argc, const char **argv) {
     // fmt::print(stderr, "crash_ptr: {:d}\n", *crash_ptr);
 
     // while (!should_stop) {
-    // usleep(1'000);
+    //     usleep(1'000);
     // }
 
     const auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     assert(queue);
-    assert(signal(SIGINT, SIG_IGN) != SIG_ERR);
+
+    const auto dead_exc_source =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_SEND, exc_port, 1, queue);
+    assert(dead_exc_source);
+    dispatch_source_set_event_handler(dead_exc_source,
+                                      ^{ fmt::print(stderr, "got dead notification\n"); });
+    dispatch_resume(dead_exc_source);
+
+    const auto exc_source =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, exc_port, 0, queue);
+    assert(exc_source);
+    dispatch_source_set_event_handler(exc_source, ^{
+        fmt::print(stderr, "got exc msg\n");
+        dispatch_mig_server(exc_source, EXC_MSG_MAX_SIZE, mach_exc_server);
+    });
+    dispatch_resume(exc_source);
+
     const auto signal_source =
         dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGINT, 0, queue);
     assert(signal_source);
     dispatch_source_set_event_handler(signal_source, ^{
-      fmt::print("got SIGINT, exiting\n");
-      dispatch_source_cancel(signal_source);
+        fmt::print("got SIGINT, exiting\n");
+        exit(0);
     });
     dispatch_resume(signal_source);
+
+    set_single_step_task(target_task, true);
 
     dispatch_main();
 

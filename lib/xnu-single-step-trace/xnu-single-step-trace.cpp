@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <vector>
 
+#include <dispatch/dispatch.h>
 #include <libproc.h>
 #include <mach/exc.h>
 #include <mach/exception.h>
@@ -21,8 +22,6 @@
 #include <fmt/format.h>
 
 #include "mach_exc.h"
-
-extern "C" boolean_t mach_exc_server(mach_msg_header_t *, mach_msg_header_t *);
 
 template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
@@ -67,7 +66,7 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state(
     return KERN_NOT_SUPPORTED;
 }
 
-void set_single_step(thread_t thread, bool do_ss) {
+void set_single_step_thread(thread_t thread, bool do_ss) {
     arm_debug_state64_t dbg_state;
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
     const auto kret_get =
@@ -79,6 +78,15 @@ void set_single_step(thread_t thread, bool do_ss) {
     const auto kret_set =
         thread_set_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
     assert(kret_set == KERN_SUCCESS);
+}
+
+void set_single_step_task(task_t task, bool do_ss) {
+    thread_act_array_t thread_list;
+    mach_msg_type_number_t num_threads = 0;
+    assert(task_threads(task, &thread_list, &num_threads) == KERN_SUCCESS);
+    for (mach_msg_type_number_t i = 0; i < num_threads; ++i) {
+        set_single_step_thread(thread_list[i], do_ss);
+    }
 }
 
 static unsigned int num_exc;
@@ -140,8 +148,7 @@ static void *exc_server_thread(void *arg) {
      * exception port, calls mach_exc_server() to handle the exception, and
      * sends a reply based on the return value of mach_exc_server().
      */
-#define MACH_MSG_REPLY_SIZE 4096
-    kern_return_t kr = mach_msg_server(mach_exc_server, MACH_MSG_REPLY_SIZE, exc_port, 0);
+    kern_return_t kr = mach_msg_server(mach_exc_server, EXC_MSG_MAX_SIZE, exc_port, 0);
     assert(kr == KERN_SUCCESS && "Received mach exception message");
 
     fmt::print("exc_server_thread ran\n");
