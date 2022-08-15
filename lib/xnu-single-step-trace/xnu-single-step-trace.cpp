@@ -89,8 +89,6 @@ void set_single_step_task(task_t task, bool do_ss) {
     }
 }
 
-static unsigned int num_exc;
-
 extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     mach_port_t exception_port, mach_port_t thread, mach_port_t task, exception_type_t exception,
     mach_exception_data_t code, mach_msg_type_number_t code_count, int *flavor,
@@ -103,23 +101,12 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     auto ns = (arm_thread_state64_t *)new_state;
 
     const auto opc = arm_thread_state64_get_pc(*os);
-    // const auto npc = opc + 4;
-
     fmt::print(stderr, "exc pc: {:p}\n", (void *)opc);
 
     *new_state_count = old_state_count;
     *ns              = *os;
 
-    // ns->__pc = npc;
-
     set_single_step_thread(thread, true);
-
-    ++num_exc;
-
-    // if (num_exc > 16) {
-    //     fmt::print("bailing due to num_exc count\n");
-    //     exit(0);
-    // }
 
     return KERN_SUCCESS;
 }

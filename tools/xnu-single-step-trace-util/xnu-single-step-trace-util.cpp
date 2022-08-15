@@ -104,10 +104,8 @@ int main(int argc, const char **argv) {
     const auto exc_source =
         dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, exc_port, 0, queue);
     assert(exc_source);
-    dispatch_source_set_event_handler(exc_source, ^{
-        fmt::print(stderr, "got exc msg\n");
-        dispatch_mig_server(exc_source, EXC_MSG_MAX_SIZE, mach_exc_server);
-    });
+    dispatch_source_set_event_handler(
+        exc_source, ^{ dispatch_mig_server(exc_source, EXC_MSG_MAX_SIZE, mach_exc_server); });
     dispatch_resume(exc_source);
 
     const auto signal_source =
