@@ -105,18 +105,19 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     const auto opc = arm_thread_state64_get_pc(*os);
     // const auto npc = opc + 4;
 
-    fprintf(stderr, "exc pc: %p\n", (void *)opc);
+    fmt::print(stderr, "exc pc: {:p}\n", (void *)opc);
 
     // *new_state_count = old_state_count;
     // *ns              = *os;
 
     // ns->__pc = npc;
 
-    // set_single_step(thread, true);
+    set_single_step_thread(thread, false);
 
     ++num_exc;
 
     if (num_exc > 16) {
+        fmt::print("bailing due to num_exc count\n");
         exit(0);
     }
 
