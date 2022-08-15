@@ -55,7 +55,8 @@ int main(int argc, const char **argv) {
     while (!should_stop) {
         ++num_yields;
         // swtch_pri(0);
-        usleep(1'000);
+        fmt::print("num_yields: {:d}\n", num_yields);
+        usleep(1'000'000);
         if (crash_on_attach && get_task_for_pid_count(task_self)) {
             null_deref();
         }
