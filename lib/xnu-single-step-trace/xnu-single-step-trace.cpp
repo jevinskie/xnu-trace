@@ -56,7 +56,7 @@ mach_port_t create_exception_port(task_t target_task, exception_mask_t exception
     return exc_port;
 }
 
-extern "C" kern_return_t catch_mach_exception_raise_state(
+extern "C" kern_return_t trace_catch_mach_exception_raise_state(
     mach_port_t exception_port, exception_type_t exception, const mach_exception_data_t code,
     mach_msg_type_number_t code_count, int *flavor, const thread_state_t old_state,
     mach_msg_type_number_t old_state_count, thread_state_t new_state,
@@ -83,7 +83,7 @@ void set_single_step(thread_t thread, bool do_ss) {
 
 static unsigned int num_exc;
 
-extern "C" kern_return_t catch_mach_exception_raise_state_identity(
+extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     mach_port_t exception_port, mach_port_t thread, mach_port_t task, exception_type_t exception,
     mach_exception_data_t code, mach_msg_type_number_t code_count, int *flavor,
     thread_state_t old_state, mach_msg_type_number_t old_state_count, thread_state_t new_state,
@@ -116,10 +116,11 @@ extern "C" kern_return_t catch_mach_exception_raise_state_identity(
 }
 
 // Handle EXCEPTION_DEFAULT behavior
-extern "C" kern_return_t catch_mach_exception_raise(mach_port_t exception_port, mach_port_t thread,
-                                                    mach_port_t task, exception_type_t exception,
-                                                    mach_exception_data_t code,
-                                                    mach_msg_type_number_t code_count) {
+extern "C" kern_return_t trace_catch_mach_exception_raise(mach_port_t exception_port,
+                                                          mach_port_t thread, mach_port_t task,
+                                                          exception_type_t exception,
+                                                          mach_exception_data_t code,
+                                                          mach_msg_type_number_t code_count) {
 #pragma unused(exception_port, thread, task, exception, code, code_count)
     assert(!"catch_mach_exception_raise not to be called");
     return KERN_NOT_SUPPORTED;
@@ -144,10 +145,12 @@ static void *exc_server_thread(void *arg) {
     assert(kr == KERN_SUCCESS && "Received mach exception message");
 
     fmt::print("exc_server_thread ran\n");
+    return nullptr;
 }
 
 pthread_t run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback,
                                 pthread_mutex_t *should_stop_mtx) {
+    (void)should_stop_mtx;
     exc_handler_callback = callback;
 
     pthread_t exc_thread;
@@ -168,7 +171,7 @@ pid_t pid_for_name(std::string process_name) {
     std::vector<pid_t> pids;
     pids.resize(proc_num);
     const auto actual_proc_num =
-        proc_listpids(PROC_ALL_PIDS, 0, pids.data(), bytesizeof(pids)) / sizeof(pid_t);
+        proc_listpids(PROC_ALL_PIDS, 0, pids.data(), (int)bytesizeof(pids)) / sizeof(pid_t);
     assert(actual_proc_num > 0);
     pids.resize(actual_proc_num);
     std::vector<std::pair<std::string, pid_t>> matches;

@@ -20,6 +20,14 @@ endforeach()
 
 list(APPEND INSTTRACE_SRC mach_excServer.c)
 
+add_custom_command(OUTPUT
+    ${CMAKE_CURRENT_BINARY_DIR}/mach_exc.h
+    ${CMAKE_CURRENT_BINARY_DIR}/mach_excServer.c
+    ${CMAKE_CURRENT_BINARY_DIR}/mach_excUser.c
+    COMMAND mig ${CMAKE_CURRENT_SOURCE_DIR}/mach_exc.defs
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/mach_exc.defs
+)
+
 # INSTTRACE_HDR added for Xcode project generation
 add_library(xnu-single-step-trace ${INSTTRACE_SRC} ${INSTTRACE_HDR})
 
@@ -27,7 +35,10 @@ add_library(xnu-single-step-trace ${INSTTRACE_SRC} ${INSTTRACE_HDR})
 target_link_libraries(xnu-single-step-trace PRIVATE fmt)
 target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
 
-target_include_directories(xnu-single-step-trace PUBLIC ../../include)
+target_include_directories(xnu-single-step-trace
+    PUBLIC ../../include
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 # target_compile_options(xnu-single-step-trace PRIVATE -Xclang -fdump-record-layouts)
 

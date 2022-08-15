@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 project(xnu-single-step-trace CXX C)
 
-set(CMAKE_OSX_ARCHITECTURES arm64e)
+# set(CMAKE_OSX_ARCHITECTURES arm64e)
 set(CMAKE_XCODE_ATTRIBUTE_COMPILER_INDEX_STORE_ENABLE NO)
 
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)

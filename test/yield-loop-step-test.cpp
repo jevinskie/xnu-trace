@@ -7,6 +7,7 @@
 #include <mach/mach_init.h>
 #include <mach/mach_traps.h>
 
+#include <argparse/argparse.hpp>
 #include <fmt/format.h>
 
 #include "xnu-single-step-trace/xnu-single-step-trace.h"
@@ -30,7 +31,22 @@ __attribute__((noinline)) static void null_deref() {
     *pnull     = 1337;
 }
 
-int main() {
+int main(int argc, const char **argv) {
+    argparse::ArgumentParser parser(getprogname());
+    parser.add_argument("-c", "--crash-on-attach")
+        .help("crash on attachment")
+        .default_value(false)
+        .implicit_value(true);
+
+    try {
+        parser.parse_args(argc, argv);
+    } catch (const std::runtime_error &err) {
+        fmt::print(stderr, "Error parsing arguments: {:s}\n", err.what());
+        return -1;
+    }
+
+    const auto crash_on_attach = parser["--crash-on-attach"] == true;
+
     uint64_t num_yields  = 0;
     const auto task_self = mach_task_self();
     fmt::print("yield-loop-step-test begin\n");
@@ -40,7 +56,7 @@ int main() {
         ++num_yields;
         // swtch_pri(0);
         usleep(1'000);
-        if (get_task_for_pid_count(task_self)) {
+        if (crash_on_attach && get_task_for_pid_count(task_self)) {
             null_deref();
         }
     }

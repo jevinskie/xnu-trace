@@ -9,6 +9,7 @@
 #include <optional>
 #include <unistd.h>
 
+#include <dispatch/dispatch.h>
 #include <mach/mach.h>
 
 #include <argparse/argparse.hpp>
@@ -55,6 +56,8 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
+    fmt::print(stderr, "xnu-single-step-trace-util begin self PID: {:d}\n", getpid());
+
     pid_t target_pid = -1;
     if (do_attach) {
         const auto name = *parser.present("--attach");
@@ -62,12 +65,10 @@ int main(int argc, const char **argv) {
         fmt::print("process '{:s}' has pid {:d}\n", name, target_pid);
     }
 
-    fmt::print(stderr, "xnu-single-step-trace-util begin\n");
-
     assert(!do_spawn && "not implemented");
 
-    setup_sig_handler();
-    should_stop = false;
+    // setup_sig_handler();
+    // should_stop = false;
 
     task_t target_task;
     kern_return_t kr = task_for_pid(mach_task_self(), target_pid, &target_task);
@@ -86,9 +87,23 @@ int main(int argc, const char **argv) {
 
     // fmt::print(stderr, "crash_ptr: {:d}\n", *crash_ptr);
 
-    while (!should_stop) {
-        usleep(1'000);
-    }
+    // while (!should_stop) {
+    // usleep(1'000);
+    // }
+
+    const auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    assert(queue);
+    assert(signal(SIGINT, SIG_IGN) != SIG_ERR);
+    const auto signal_source =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGINT, 0, queue);
+    assert(signal_source);
+    dispatch_source_set_event_handler(signal_source, ^{
+      fmt::print("got SIGINT, exiting\n");
+      dispatch_source_cancel(signal_source);
+    });
+    dispatch_resume(signal_source);
+
+    dispatch_main();
 
     fmt::print(stderr, "xnu-single-step-trace-util end\n");
     return 0;
