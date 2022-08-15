@@ -74,7 +74,7 @@ int main(int argc, const char **argv) {
     kern_return_t kr = task_for_pid(mach_task_self(), target_pid, &target_task);
     fmt::print("tfp kr: {:#010x} {:s}\n", kr, mach_error_string(kr));
 
-    const auto exc_port = create_exception_port(target_task, EXC_MASK_BREAKPOINT);
+    const auto exc_port = create_exception_port(target_task, EXC_MASK_ALL);
     assert(exc_port);
     // run_exception_handler(exc_port, exc_handler_cb, &should_stop_mtx);
 

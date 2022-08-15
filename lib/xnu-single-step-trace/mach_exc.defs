@@ -1,0 +1,2 @@
+#define catch_ trace_catch_
+#include <mach/mach_exc.defs>

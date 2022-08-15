@@ -100,19 +100,19 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
                new_state, new_state_count)
 
     auto os = (const arm_thread_state64_t *)old_state;
-    // auto ns = (arm_thread_state64_t *)new_state;
+    auto ns = (arm_thread_state64_t *)new_state;
 
     const auto opc = arm_thread_state64_get_pc(*os);
-    // const auto npc = opc + 4;
+    const auto npc = opc + 4;
 
     fmt::print(stderr, "exc pc: {:p}\n", (void *)opc);
 
-    // *new_state_count = old_state_count;
-    // *ns              = *os;
+    *new_state_count = old_state_count;
+    *ns              = *os;
 
-    // ns->__pc = npc;
+    ns->__pc = npc;
 
-    set_single_step_thread(thread, false);
+    // set_single_step_thread(thread, false);
 
     ++num_exc;
 
@@ -188,10 +188,11 @@ pid_t pid_for_name(std::string process_name) {
             continue;
         }
         char path_buf[PROC_PIDPATHINFO_MAXSIZE];
-        assert(proc_pidpath(pid, path_buf, sizeof(path_buf)) > 0);
-        std::filesystem::path path{path_buf};
-        if (path.filename().string() == process_name) {
-            matches.emplace_back(std::make_pair(path, pid));
+        if (proc_pidpath(pid, path_buf, sizeof(path_buf)) > 0) {
+            std::filesystem::path path{path_buf};
+            if (path.filename().string() == process_name) {
+                matches.emplace_back(std::make_pair(path, pid));
+            }
         }
     }
     if (!matches.size()) {
