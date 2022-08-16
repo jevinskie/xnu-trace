@@ -158,3 +158,16 @@ int64_t get_task_for_pid_count(task_t task) {
     assert(kr == KERN_SUCCESS);
     return info.extmod_statistics.task_for_pid_count;
 }
+
+// XNUTracer class
+
+XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {}
+
+XNUTracer::XNUTracer(pid_t target_pid) {
+    assert(task_for_pid(mach_task_self(), target_pid, &m_target_task) == KERN_SUCCESS);
+}
+
+XNUTracer::XNUTracer(std::string target_name) {
+    const auto target_pid = pid_for_name(target_name);
+    assert(task_for_pid(mach_task_self(), target_pid, &m_target_task) == KERN_SUCCESS);
+}

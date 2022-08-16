@@ -47,8 +47,8 @@ int main(int argc, const char **argv) {
     assert(!do_spawn && "not implemented");
 
     task_t target_task;
-    kern_return_t kr = task_for_pid(mach_task_self(), target_pid, &target_task);
-    fmt::print("tfp kr: {:#010x} {:s}\n", kr, mach_error_string(kr));
+    const auto tfp_kr = task_for_pid(mach_task_self(), target_pid, &target_task);
+    fmt::print("tfp kr: {:#010x} {:s}\n", tfp_kr, mach_error_string(tfp_kr));
 
     const auto exc_port = create_exception_port(target_task, EXC_MASK_ALL);
     assert(exc_port);

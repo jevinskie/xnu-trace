@@ -23,3 +23,13 @@ void set_single_step_task(task_t thread, bool do_ss);
 pid_t pid_for_name(std::string process_name);
 
 int64_t get_task_for_pid_count(task_t task);
+
+class XNUTracer {
+public:
+    XNUTracer(task_t target_task);
+    XNUTracer(pid_t target_pid);
+    XNUTracer(std::string target_name);
+
+private:
+    task_t m_target_task;
+};
