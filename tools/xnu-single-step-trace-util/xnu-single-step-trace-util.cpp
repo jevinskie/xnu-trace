@@ -15,27 +15,6 @@
 #include <argparse/argparse.hpp>
 #include <fmt/core.h>
 
-static volatile bool should_stop;
-static pthread_mutex_t should_stop_mtx;
-
-static size_t exc_handler_cb(__unused mach_port_t task, __unused mach_port_t thread,
-                             exception_type_t type, mach_exception_data_t codes_64) {
-    fprintf(stderr, "exc_handler called\n");
-    return 4;
-}
-
-static void sig_handler(int sig_id) {
-    (void)sig_id;
-    should_stop = true;
-}
-
-static void setup_sig_handler() {
-    struct sigaction sa;
-    sa.sa_handler = sig_handler;
-    sigfillset(&sa.sa_mask);
-    sigaction(SIGINT, &sa, nullptr);
-}
-
 int main(int argc, const char **argv) {
     argparse::ArgumentParser parser(getprogname());
     parser.add_argument("--spawn").help("spawn process");
@@ -67,29 +46,12 @@ int main(int argc, const char **argv) {
 
     assert(!do_spawn && "not implemented");
 
-    // setup_sig_handler();
-    // should_stop = false;
-
     task_t target_task;
     kern_return_t kr = task_for_pid(mach_task_self(), target_pid, &target_task);
     fmt::print("tfp kr: {:#010x} {:s}\n", kr, mach_error_string(kr));
 
     const auto exc_port = create_exception_port(target_task, EXC_MASK_ALL);
     assert(exc_port);
-    // run_exception_handler(exc_port, exc_handler_cb, &should_stop_mtx);
-
-    // mach_port_t exc_port = create_exception_port(EXC_MASK_ALL);
-    // assert(exc_port);
-    // run_exception_handler(exc_port, exc_handler_cb);
-    // set_single_step(mach_thread_self(), true);
-    // auto crash_ptr = (volatile uint8_t *)0xdeadbeef;
-    // *crash_ptr     = 42;
-
-    // fmt::print(stderr, "crash_ptr: {:d}\n", *crash_ptr);
-
-    // while (!should_stop) {
-    //     usleep(1'000);
-    // }
 
     const auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     assert(queue);
