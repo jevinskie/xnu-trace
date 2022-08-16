@@ -158,25 +158,3 @@ int64_t get_task_for_pid_count(task_t task) {
     assert(kr == KERN_SUCCESS);
     return info.extmod_statistics.task_for_pid_count;
 }
-
-#if 0
-void single_stepper_thread(void *arg) {
-    thread_t vic_thread = (thread_t)(uintptr_t)arg;
-    set_single_step(vic_thread, true);
-    pthread_exit((void *)0);
-    __builtin_unreachable();
-}
-
-void single_step_me() {
-    thread_t thread_self = mach_thread_self();
-
-    pthread_t ss_thread;
-
-    const auto err = pthread_create(&ss_thread, (pthread_attr_t *)0, single_stepper_thread,
-                             (void *)(uintptr_t)thread_self);
-    assert(!err && "Spawned exception server thread");
-
-    /* No need to wait for the exception server to be joined when it exits. */
-    pthread_detach(exc_thread);
-}
-#endif
