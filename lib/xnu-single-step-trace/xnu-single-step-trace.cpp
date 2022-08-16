@@ -26,8 +26,6 @@ template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
 }
 
-static exc_handler_callback_t exc_handler_callback;
-
 mach_port_t create_exception_port(task_t target_task, exception_mask_t exception_mask) {
     mach_port_t exc_port = MACH_PORT_NULL;
     mach_port_t task     = mach_task_self();
@@ -52,18 +50,6 @@ mach_port_t create_exception_port(task_t target_task, exception_mask_t exception
     assert(kr == KERN_SUCCESS && "Set the exception port to my custom handler");
 
     return exc_port;
-}
-
-// Handle EXCEPTION_STATE behavior
-extern "C" kern_return_t trace_catch_mach_exception_raise_state(
-    mach_port_t exception_port, exception_type_t exception, const mach_exception_data_t code,
-    mach_msg_type_number_t code_count, int *flavor, const thread_state_t old_state,
-    mach_msg_type_number_t old_state_count, thread_state_t new_state,
-    mach_msg_type_number_t *new_state_count) {
-#pragma unused(exception_port, exception, code, code_count, flavor, old_state, old_state_count,    \
-               new_state, new_state_count)
-    assert(!"catch_mach_exception_raise_state not to be called");
-    return KERN_NOT_SUPPORTED;
 }
 
 void set_single_step_thread(thread_t thread, bool do_ss) {
@@ -122,43 +108,16 @@ extern "C" kern_return_t trace_catch_mach_exception_raise(mach_port_t exception_
     return KERN_NOT_SUPPORTED;
 }
 
-/**
- * Thread to handle the mach exception.
- *
- * @param arg The exception port to wait for a message on.
- */
-static void *exc_server_thread(void *arg) {
-    mach_port_t exc_port = (mach_port_t)(uintptr_t)arg;
-
-    /**
-     * mach_msg_server_once is a helper function provided by libsyscall that
-     * handles creating mach messages, blocks waiting for a message on the
-     * exception port, calls mach_exc_server() to handle the exception, and
-     * sends a reply based on the return value of mach_exc_server().
-     */
-    kern_return_t kr = mach_msg_server(mach_exc_server, EXC_MSG_MAX_SIZE, exc_port, 0);
-    assert(kr == KERN_SUCCESS && "Received mach exception message");
-
-    fmt::print("exc_server_thread ran\n");
-    return nullptr;
-}
-
-pthread_t run_exception_handler(mach_port_t exc_port, exc_handler_callback_t callback,
-                                pthread_mutex_t *should_stop_mtx) {
-    (void)should_stop_mtx;
-    exc_handler_callback = callback;
-
-    pthread_t exc_thread;
-
-    /* Spawn the exception server's thread. */
-    const auto err = pthread_create(&exc_thread, (pthread_attr_t *)0, exc_server_thread,
-                                    (void *)(uintptr_t)exc_port);
-    assert(!err && "Spawned exception server thread");
-
-    /* No need to wait for the exception server to be joined when it exits. */
-    pthread_detach(exc_thread);
-
-    return exc_thread;
+// Handle EXCEPTION_STATE behavior
+extern "C" kern_return_t trace_catch_mach_exception_raise_state(
+    mach_port_t exception_port, exception_type_t exception, const mach_exception_data_t code,
+    mach_msg_type_number_t code_count, int *flavor, const thread_state_t old_state,
+    mach_msg_type_number_t old_state_count, thread_state_t new_state,
+    mach_msg_type_number_t *new_state_count) {
+#pragma unused(exception_port, exception, code, code_count, flavor, old_state, old_state_count,    \
+               new_state, new_state_count)
+    assert(!"catch_mach_exception_raise_state not to be called");
+    return KERN_NOT_SUPPORTED;
 }
 
 pid_t pid_for_name(std::string process_name) {
