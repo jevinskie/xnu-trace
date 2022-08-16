@@ -8,7 +8,6 @@
 #include <filesystem>
 #include <vector>
 
-#include <dispatch/dispatch.h>
 #include <libproc.h>
 #include <mach/exc.h>
 #include <mach/exception.h>
@@ -55,6 +54,7 @@ mach_port_t create_exception_port(task_t target_task, exception_mask_t exception
     return exc_port;
 }
 
+// Handle EXCEPTION_STATE behavior
 extern "C" kern_return_t trace_catch_mach_exception_raise_state(
     mach_port_t exception_port, exception_type_t exception, const mach_exception_data_t code,
     mach_msg_type_number_t code_count, int *flavor, const thread_state_t old_state,
@@ -89,13 +89,13 @@ void set_single_step_task(task_t task, bool do_ss) {
     }
 }
 
+// Handle EXCEPTION_STATE_IDENTIY behavior
 extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     mach_port_t exception_port, mach_port_t thread, mach_port_t task, exception_type_t exception,
     mach_exception_data_t code, mach_msg_type_number_t code_count, int *flavor,
     thread_state_t old_state, mach_msg_type_number_t old_state_count, thread_state_t new_state,
     mach_msg_type_number_t *new_state_count) {
-#pragma unused(exception_port, thread, task, exception, code, code_count, flavor, old_state_count, \
-               new_state, new_state_count)
+#pragma unused(exception_port, task, exception, code, code_count, flavor)
 
     auto os = (const arm_thread_state64_t *)old_state;
     auto ns = (arm_thread_state64_t *)new_state;
