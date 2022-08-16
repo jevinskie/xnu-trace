@@ -1,6 +1,5 @@
 #pragma once
 
-#include <pthread.h>
 #include <string>
 #include <unistd.h>
 
