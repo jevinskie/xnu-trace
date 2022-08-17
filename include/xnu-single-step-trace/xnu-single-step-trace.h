@@ -29,7 +29,7 @@ private:
     void setup_exception_port_dispath_source();
 
 private:
-    task_t m_target_task{MACH_PORT_NULL};
+    task_t m_target_task{TASK_NULL};
     mach_port_t m_exc_port{MACH_PORT_NULL};
     dispatch_source_t m_exc_source{nullptr};
 };

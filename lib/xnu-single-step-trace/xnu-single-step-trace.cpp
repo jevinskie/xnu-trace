@@ -82,6 +82,8 @@ void set_single_step_task(task_t task, bool do_ss) {
     for (mach_msg_type_number_t i = 0; i < num_threads; ++i) {
         set_single_step_thread(thread_list[i], do_ss);
     }
+    assert(vm_deallocate(mach_task_self(), (vm_address_t)thread_list,
+                         sizeof(thread_act_t) * num_threads) == KERN_SUCCESS);
 }
 
 // Handle EXCEPTION_STATE_IDENTIY behavior
