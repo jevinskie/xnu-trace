@@ -183,39 +183,57 @@ XNUTracer::XNUTracer(std::string target_name) {
     assert(task_for_pid(mach_task_self(), target_pid, &m_target_task) == KERN_SUCCESS);
 }
 
-void XNUTracer::install_exception_handler() {
-    mach_port_t exc_port = MACH_PORT_NULL;
+void XNUTracer::install_breakpoint_exception_handler() {
     const auto self_task = mach_task_self();
 
     // Create the mach port the exception messages will be sent to.
-    const auto kr_alloc = mach_port_allocate(self_task, MACH_PORT_RIGHT_RECEIVE, &exc_port);
+    const auto kr_alloc =
+        mach_port_allocate(self_task, MACH_PORT_RIGHT_RECEIVE, &m_breakpoint_exc_port);
     assert(kr_alloc == KERN_SUCCESS && "Allocated mach exception port");
 
     // Insert a send right into the exception port that the kernel will use to
     // send the exception thread the exception messages.
-    const auto kr_ins_right =
-        mach_port_insert_right(self_task, exc_port, exc_port, MACH_MSG_TYPE_MAKE_SEND);
+    const auto kr_ins_right = mach_port_insert_right(
+        self_task, m_breakpoint_exc_port, m_breakpoint_exc_port, MACH_MSG_TYPE_MAKE_SEND);
     assert(kr_ins_right == KERN_SUCCESS && "Inserted a SEND right into the exception port");
 
-    // Tell the kernel what port to send exceptions to.
+    // Get the old breakpoint exception handler.
+    mach_msg_type_number_t old_exc_count = 1;
+    exception_mask_t old_exc_mask;
+    const auto kr_get_exc = task_get_exception_ports(
+        self_task, EXC_MASK_BREAKPOINT, &old_exc_count, &old_exc_mask, &m_orig_breakpoint_exc_port,
+        &m_orig_breakpoint_exc_behavior, &m_orig_breakpoint_exc_flavor);
+    assert(kr_get_exc == KERN_SUCCESS && "Get the old breakpoint exception port.");
+    assert(old_exc_count == 1 && old_exc_mask == EXC_MASK_BREAKPOINT);
+
+    // Tell the kernel what port to send breakpoint exceptions to.
     const auto kr_set_exc = task_set_exception_ports(
-        m_target_task, EXC_MASK_BREAKPOINT, exc_port,
+        m_target_task, EXC_MASK_BREAKPOINT, m_breakpoint_exc_port,
         (exception_behavior_t)(EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES),
         ARM_THREAD_STATE64);
-    assert(kr_set_exc == KERN_SUCCESS && "Set the exception port to my custom handler");
+    assert(kr_set_exc == KERN_SUCCESS && "Set the breakpoint exception port to my custom handler.");
 }
 
-void XNUTracer::setup_exception_port_dispath_source() {
+void XNUTracer::setup_breakpoint_exception_port_dispath_source() {
     const auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     assert(queue);
-    m_exc_source = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, m_exc_port, 0, queue);
-    assert(m_exc_source);
-    dispatch_source_set_event_handler(
-        m_exc_source, ^{ dispatch_mig_server(m_exc_source, EXC_MSG_MAX_SIZE, mach_exc_server); });
+    m_breakpoint_exc_source =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, m_breakpoint_exc_port, 0, queue);
+    assert(m_breakpoint_exc_source);
+    dispatch_source_set_event_handler(m_breakpoint_exc_source, ^{
+        dispatch_mig_server(m_breakpoint_exc_source, EXC_MSG_MAX_SIZE, mach_exc_server);
+    });
 }
 
-dispatch_source_t XNUTracer::exception_port_dispath_source() {
-    return m_exc_source;
+dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
+    return m_breakpoint_exc_source;
 }
 
-void XNUTracer::uninstall_exception_handler() {}
+void XNUTracer::uninstall_breakpoint_exception_handler() {
+    // Reset the original breakpoint exception port
+    const auto kr_set_exc =
+        task_set_exception_ports(m_target_task, EXC_MASK_BREAKPOINT, m_orig_breakpoint_exc_port,
+                                 m_orig_breakpoint_exc_behavior, m_orig_breakpoint_exc_flavor);
+    assert(kr_set_exc == KERN_SUCCESS &&
+           "Reset the breakpoint exception port to original handler.");
+}

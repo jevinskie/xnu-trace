@@ -21,15 +21,18 @@ public:
     XNUTracer(pid_t target_pid);
     XNUTracer(std::string target_name);
 
-    dispatch_source_t exception_port_dispath_source();
+    dispatch_source_t breakpoint_exception_port_dispath_source();
 
 private:
-    void install_exception_handler();
-    void uninstall_exception_handler();
-    void setup_exception_port_dispath_source();
+    void install_breakpoint_exception_handler();
+    void uninstall_breakpoint_exception_handler();
+    void setup_breakpoint_exception_port_dispath_source();
 
 private:
     task_t m_target_task{TASK_NULL};
-    mach_port_t m_exc_port{MACH_PORT_NULL};
-    dispatch_source_t m_exc_source{nullptr};
+    mach_port_t m_breakpoint_exc_port{MACH_PORT_NULL};
+    mach_port_t m_orig_breakpoint_exc_port{MACH_PORT_NULL};
+    exception_behavior_t m_orig_breakpoint_exc_behavior;
+    thread_state_flavor_t m_orig_breakpoint_exc_flavor;
+    dispatch_source_t m_breakpoint_exc_source{nullptr};
 };
