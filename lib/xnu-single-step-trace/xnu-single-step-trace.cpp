@@ -44,29 +44,49 @@ template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
 }
 
+static void posix_check(int retval, std::string msg) {
+    if (retval) {
+        fmt::print(stderr, "Error: '{:s}' retval: {:d} errno: {:d} description: '{:s}'\n", msg,
+                   retval, errno, strerror(errno));
+        exit(-1);
+    }
+}
+
+static void mach_check(kern_return_t kr, std::string msg) {
+    if (kr != KERN_SUCCESS) {
+        fmt::print(stderr, "Error: '{:s}' retval: {:d} description: '{:s}'\n", msg, kr,
+                   mach_error_string(kr));
+        exit(-1);
+    }
+}
+
 void set_single_step_thread(thread_t thread, bool do_ss) {
     arm_debug_state64_t dbg_state;
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
     const auto kret_get =
         thread_get_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, &dbg_cnt);
-    assert(kret_get == KERN_SUCCESS);
+    mach_check(kret_get,
+               fmt::format("single_step({:s}) thread_get_state", do_ss ? "true" : "false"));
 
     dbg_state.__mdscr_el1 = (dbg_state.__mdscr_el1 & ~1) | do_ss;
 
     const auto kret_set =
         thread_set_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
-    assert(kret_set == KERN_SUCCESS);
+    mach_check(kret_set,
+               fmt::format("single_step({:s}) thread_set_state", do_ss ? "true" : "false"));
 }
 
 void set_single_step_task(task_t task, bool do_ss) {
     thread_act_array_t thread_list;
     mach_msg_type_number_t num_threads = 0;
-    assert(task_threads(task, &thread_list, &num_threads) == KERN_SUCCESS);
+    const auto kr_threads              = task_threads(task, &thread_list, &num_threads);
+    mach_check(kr_threads, "task_threads");
     for (mach_msg_type_number_t i = 0; i < num_threads; ++i) {
         set_single_step_thread(thread_list[i], do_ss);
     }
-    assert(vm_deallocate(mach_task_self(), (vm_address_t)thread_list,
-                         sizeof(thread_act_t) * num_threads) == KERN_SUCCESS);
+    const auto kr_dealloc = vm_deallocate(mach_task_self(), (vm_address_t)thread_list,
+                                          sizeof(thread_act_t) * num_threads);
+    mach_check(kr_dealloc, "vm_deallocate");
 }
 
 // Handle EXCEPTION_STATE_IDENTIY behavior
@@ -149,7 +169,7 @@ int64_t get_task_for_pid_count(task_t task) {
     struct task_extmod_info info;
     mach_msg_type_number_t count = TASK_EXTMOD_INFO_COUNT;
     const auto kr                = task_info(task, TASK_EXTMOD_INFO, (task_info_t)&info, &count);
-    assert(kr == KERN_SUCCESS);
+    mach_check(kr, "get_task_for_pid_count thread_info");
     return info.extmod_statistics.task_for_pid_count;
 }
 
@@ -161,35 +181,24 @@ XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {
 
 XNUTracer::XNUTracer(pid_t target_pid) {
     const auto kr = task_for_pid(mach_task_self(), target_pid, &m_target_task);
-    if (kr != KERN_SUCCESS) {
-        fmt::print(stderr, "task_for_pid({:d}) = {:#010x} {:s}\n", target_pid, kr,
-                   mach_error_string(kr));
-        exit(-1);
-    }
+    mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     common_ctor();
 }
 
 XNUTracer::XNUTracer(std::string target_name) {
     const auto target_pid = pid_for_name(target_name);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
-    if (kr != KERN_SUCCESS) {
-        fmt::print(stderr, "task_for_pid({:d}) = {:#010x} {:s}\n", target_pid, kr,
-                   mach_error_string(kr));
-        exit(-1);
-    }
+    mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     common_ctor();
 }
 
 XNUTracer::XNUTracer(std::vector<std::string> spawn_args, bool disable_aslr) {
     const auto target_pid = spawn_with_args(spawn_args, disable_aslr);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
-    if (kr != KERN_SUCCESS) {
-        fmt::print(stderr, "task_for_pid({:d}) = {:#010x} {:s}\n", target_pid, kr,
-                   mach_error_string(kr));
-        exit(-1);
-    }
+    mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     common_ctor();
-    assert(task_resume(m_target_task) == KERN_SUCCESS);
+    const auto kr_resume = task_resume(m_target_task);
+    mach_check(kr_resume, "task_resume");
 }
 
 XNUTracer::~XNUTracer() {
@@ -200,20 +209,21 @@ XNUTracer::~XNUTracer() {
 pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, bool disable_aslr) {
     pid_t target_pid{0};
     posix_spawnattr_t attr;
-    assert(!posix_spawnattr_init(&attr));
+    posix_check(posix_spawnattr_init(&attr), "posix_spawnattr_init");
     short flags = POSIX_SPAWN_START_SUSPENDED;
     if (disable_aslr) {
         flags |= _POSIX_SPAWN_DISABLE_ASLR;
     }
-    assert(!posix_spawnattr_setflags(&attr, flags));
+    posix_check(posix_spawnattr_setflags(&attr, flags), "posix_spawnattr_setflags");
     assert(spawn_args.size() >= 1);
     std::vector<const char *> argv;
     for (const auto &arg : spawn_args) {
         argv.emplace_back(arg.c_str());
     }
     argv.emplace_back(nullptr);
-    assert(!posix_spawnp(&target_pid, spawn_args[0].c_str(), nullptr, &attr, (char **)argv.data(),
-                         environ));
+    posix_check(posix_spawnp(&target_pid, spawn_args[0].c_str(), nullptr, &attr,
+                             (char **)argv.data(), environ),
+                "posix_spawnp");
     return target_pid;
 }
 
@@ -223,21 +233,23 @@ void XNUTracer::install_breakpoint_exception_handler() {
     // Create the mach port the exception messages will be sent to.
     const auto kr_alloc =
         mach_port_allocate(self_task, MACH_PORT_RIGHT_RECEIVE, &m_breakpoint_exc_port);
-    assert(kr_alloc == KERN_SUCCESS && "Allocated mach exception port");
+    mach_check(kr_alloc, "mach_port_allocate");
 
     // Insert a send right into the exception port that the kernel will use to
     // send the exception thread the exception messages.
     const auto kr_ins_right = mach_port_insert_right(
         self_task, m_breakpoint_exc_port, m_breakpoint_exc_port, MACH_MSG_TYPE_MAKE_SEND);
-    assert(kr_ins_right == KERN_SUCCESS && "Inserted a SEND right into the exception port");
+    mach_check(kr_ins_right, "mach_port_insert_right");
 
     // Get the old breakpoint exception handler.
     mach_msg_type_number_t old_exc_count = 1;
     exception_mask_t old_exc_mask;
-    const auto kr_get_exc = task_get_exception_ports(
-        self_task, EXC_MASK_BREAKPOINT, &old_exc_count, &old_exc_mask, &m_orig_breakpoint_exc_port,
-        &m_orig_breakpoint_exc_behavior, &m_orig_breakpoint_exc_flavor);
-    assert(kr_get_exc == KERN_SUCCESS && "Get the old breakpoint exception port.");
+    const auto kr_get_exc =
+        task_get_exception_ports(m_target_task, EXC_MASK_BREAKPOINT, &old_exc_count, &old_exc_mask,
+                                 &m_orig_breakpoint_exc_port, &m_orig_breakpoint_exc_behavior,
+                                 &m_orig_breakpoint_exc_flavor);
+    mach_check(kr_get_exc, "install task_get_exception_ports");
+    fmt::print("old_exc_count: {:d} old_exc_mask: {:#010x}\n", old_exc_count, old_exc_mask);
     assert(old_exc_count == 1 && old_exc_mask == EXC_MASK_BREAKPOINT);
 
     // Tell the kernel what port to send breakpoint exceptions to.
@@ -245,7 +257,7 @@ void XNUTracer::install_breakpoint_exception_handler() {
         m_target_task, EXC_MASK_BREAKPOINT, m_breakpoint_exc_port,
         (exception_behavior_t)(EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES),
         ARM_THREAD_STATE64);
-    assert(kr_set_exc == KERN_SUCCESS && "Set the breakpoint exception port to my custom handler.");
+    mach_check(kr_set_exc, "install task_set_exception_ports");
 }
 
 void XNUTracer::setup_breakpoint_exception_port_dispath_source() {
@@ -264,8 +276,7 @@ void XNUTracer::uninstall_breakpoint_exception_handler() {
     const auto kr_set_exc =
         task_set_exception_ports(m_target_task, EXC_MASK_BREAKPOINT, m_orig_breakpoint_exc_port,
                                  m_orig_breakpoint_exc_behavior, m_orig_breakpoint_exc_flavor);
-    assert(kr_set_exc == KERN_SUCCESS &&
-           "Reset the breakpoint exception port to original handler.");
+    mach_check(kr_set_exc, "uninstall task_set_exception_ports");
 }
 
 void XNUTracer::common_ctor() {

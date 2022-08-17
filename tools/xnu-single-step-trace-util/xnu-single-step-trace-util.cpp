@@ -20,7 +20,7 @@ int main(int argc, const char **argv) {
     parser.add_argument("--spawn").help("spawn process");
     parser.add_argument("--attach").help("attach to process");
     parser.add_argument("--no-aslr").help("disable ASLR (spawned processes only)");
-    parser.add_argument("spawn-args").remaining().help("spawn arguments");
+    parser.add_argument("spawn-args").remaining().help("spawn executable path and arguments");
 
     try {
         parser.parse_args(argc, argv);
