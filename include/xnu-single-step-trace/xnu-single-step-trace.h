@@ -30,6 +30,13 @@ public:
     XNUTracer(pid_t target_pid);
     XNUTracer(std::string target_name);
 
+    mach_port_t exception_port();
+
+private:
+    void install_exception_handler();
+    void uninstall_exception_handler();
+
 private:
     task_t m_target_task;
+    mach_port_t m_exc_port;
 };

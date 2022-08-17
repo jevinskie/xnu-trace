@@ -171,3 +171,31 @@ XNUTracer::XNUTracer(std::string target_name) {
     const auto target_pid = pid_for_name(target_name);
     assert(task_for_pid(mach_task_self(), target_pid, &m_target_task) == KERN_SUCCESS);
 }
+
+void XNUTracer::install_exception_handler() {
+    mach_port_t exc_port = MACH_PORT_NULL;
+    const auto self_task = mach_task_self();
+
+    // Create the mach port the exception messages will be sent to.
+    const auto kr_alloc = mach_port_allocate(self_task, MACH_PORT_RIGHT_RECEIVE, &exc_port);
+    assert(kr_alloc == KERN_SUCCESS && "Allocated mach exception port");
+
+    // Insert a send right into the exception port that the kernel will use to
+    // send the exception thread the exception messages.
+    const auto kr_ins_right =
+        mach_port_insert_right(self_task, exc_port, exc_port, MACH_MSG_TYPE_MAKE_SEND);
+    assert(kr_ins_right == KERN_SUCCESS && "Inserted a SEND right into the exception port");
+
+    // Tell the kernel what port to send exceptions to.
+    const auto kr_set_exc = task_set_exception_ports(
+        m_target_task, EXC_MASK_BREAKPOINT, exc_port,
+        (exception_behavior_t)(EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES),
+        ARM_THREAD_STATE64);
+    assert(kr_set_exc == KERN_SUCCESS && "Set the exception port to my custom handler");
+}
+
+mach_port_t XNUTracer::exception_port() {
+    return m_exc_port;
+}
+
+void XNUTracer::uninstall_exception_handler() {}
