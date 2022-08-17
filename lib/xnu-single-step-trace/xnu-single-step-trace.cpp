@@ -22,6 +22,15 @@
 
 #include "mach_exc.h"
 
+#define EXC_MSG_MAX_SIZE 4096
+
+using dispatch_mig_callback_t = boolean_t (*)(mach_msg_header_t *message, mach_msg_header_t *reply);
+
+extern "C" mach_msg_return_t dispatch_mig_server(dispatch_source_t ds, size_t maxmsgsz,
+                                                 dispatch_mig_callback_t callback);
+
+extern "C" boolean_t mach_exc_server(mach_msg_header_t *message, mach_msg_header_t *reply);
+
 template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
 }
@@ -194,8 +203,17 @@ void XNUTracer::install_exception_handler() {
     assert(kr_set_exc == KERN_SUCCESS && "Set the exception port to my custom handler");
 }
 
-mach_port_t XNUTracer::exception_port() {
-    return m_exc_port;
+void XNUTracer::setup_exception_port_dispath_source() {
+    const auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    assert(queue);
+    m_exc_source = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, m_exc_port, 0, queue);
+    assert(m_exc_source);
+    dispatch_source_set_event_handler(
+        m_exc_source, ^{ dispatch_mig_server(m_exc_source, EXC_MSG_MAX_SIZE, mach_exc_server); });
+}
+
+dispatch_source_t XNUTracer::exception_port_dispath_source() {
+    return m_exc_source;
 }
 
 void XNUTracer::uninstall_exception_handler() {}

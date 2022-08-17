@@ -6,15 +6,6 @@
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
 
-#define EXC_MSG_MAX_SIZE 4096
-
-using dispatch_mig_callback_t = boolean_t (*)(mach_msg_header_t *message, mach_msg_header_t *reply);
-
-extern "C" mach_msg_return_t dispatch_mig_server(dispatch_source_t ds, size_t maxmsgsz,
-                                                 dispatch_mig_callback_t callback);
-
-extern "C" boolean_t mach_exc_server(mach_msg_header_t *message, mach_msg_header_t *reply);
-
 mach_port_t create_exception_port(task_t target_task, exception_mask_t exception_mask);
 
 void set_single_step_thread(thread_t thread, bool do_ss);
@@ -30,13 +21,15 @@ public:
     XNUTracer(pid_t target_pid);
     XNUTracer(std::string target_name);
 
-    mach_port_t exception_port();
+    dispatch_source_t exception_port_dispath_source();
 
 private:
     void install_exception_handler();
     void uninstall_exception_handler();
+    void setup_exception_port_dispath_source();
 
 private:
-    task_t m_target_task;
-    mach_port_t m_exc_port;
+    task_t m_target_task{MACH_PORT_NULL};
+    mach_port_t m_exc_port{MACH_PORT_NULL};
+    dispatch_source_t m_exc_source{nullptr};
 };
