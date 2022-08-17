@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <spawn.h>
 #include <vector>
 
 #include <libproc.h>
@@ -24,41 +25,23 @@
 
 #define EXC_MSG_MAX_SIZE 4096
 
+#ifndef _POSIX_SPAWN_DISABLE_ASLR
+#define _POSIX_SPAWN_DISABLE_ASLR 0x0100
+#endif
+
 using dispatch_mig_callback_t = boolean_t (*)(mach_msg_header_t *message, mach_msg_header_t *reply);
+
+extern "C" char **environ;
 
 extern "C" mach_msg_return_t dispatch_mig_server(dispatch_source_t ds, size_t maxmsgsz,
                                                  dispatch_mig_callback_t callback);
 
 extern "C" boolean_t mach_exc_server(mach_msg_header_t *message, mach_msg_header_t *reply);
 
+static XNUTracer *g_tracer{nullptr};
+
 template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
-}
-
-mach_port_t create_exception_port(task_t target_task, exception_mask_t exception_mask) {
-    mach_port_t exc_port = MACH_PORT_NULL;
-    mach_port_t task     = mach_task_self();
-    kern_return_t kr     = KERN_FAILURE;
-
-    /* Create the mach port the exception messages will be sent to. */
-    kr = mach_port_allocate(task, MACH_PORT_RIGHT_RECEIVE, &exc_port);
-    assert(kr == KERN_SUCCESS && "Allocated mach exception port");
-
-    /**
-     * Insert a send right into the exception port that the kernel will use to
-     * send the exception thread the exception messages.
-     */
-    kr = mach_port_insert_right(task, exc_port, exc_port, MACH_MSG_TYPE_MAKE_SEND);
-    assert(kr == KERN_SUCCESS && "Inserted a SEND right into the exception port");
-
-    /* Tell the kernel what port to send exceptions to. */
-    kr = task_set_exception_ports(
-        target_task, exception_mask, exc_port,
-        (exception_behavior_t)(EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES),
-        ARM_THREAD_STATE64);
-    assert(kr == KERN_SUCCESS && "Set the exception port to my custom handler");
-
-    return exc_port;
 }
 
 void set_single_step_thread(thread_t thread, bool do_ss) {
@@ -172,15 +155,66 @@ int64_t get_task_for_pid_count(task_t task) {
 
 // XNUTracer class
 
-XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {}
+XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {
+    common_ctor();
+}
 
 XNUTracer::XNUTracer(pid_t target_pid) {
-    assert(task_for_pid(mach_task_self(), target_pid, &m_target_task) == KERN_SUCCESS);
+    const auto kr = task_for_pid(mach_task_self(), target_pid, &m_target_task);
+    if (kr != KERN_SUCCESS) {
+        fmt::print(stderr, "task_for_pid({:d}) = {:#010x} {:s}\n", target_pid, kr,
+                   mach_error_string(kr));
+        exit(-1);
+    }
+    common_ctor();
 }
 
 XNUTracer::XNUTracer(std::string target_name) {
     const auto target_pid = pid_for_name(target_name);
-    assert(task_for_pid(mach_task_self(), target_pid, &m_target_task) == KERN_SUCCESS);
+    const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
+    if (kr != KERN_SUCCESS) {
+        fmt::print(stderr, "task_for_pid({:d}) = {:#010x} {:s}\n", target_pid, kr,
+                   mach_error_string(kr));
+        exit(-1);
+    }
+    common_ctor();
+}
+
+XNUTracer::XNUTracer(std::vector<std::string> spawn_args, bool disable_aslr) {
+    const auto target_pid = spawn_with_args(spawn_args, disable_aslr);
+    const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
+    if (kr != KERN_SUCCESS) {
+        fmt::print(stderr, "task_for_pid({:d}) = {:#010x} {:s}\n", target_pid, kr,
+                   mach_error_string(kr));
+        exit(-1);
+    }
+    common_ctor();
+    assert(task_resume(m_target_task) == KERN_SUCCESS);
+}
+
+XNUTracer::~XNUTracer() {
+    uninstall_breakpoint_exception_handler();
+    g_tracer = nullptr;
+}
+
+pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, bool disable_aslr) {
+    pid_t target_pid{0};
+    posix_spawnattr_t attr;
+    assert(!posix_spawnattr_init(&attr));
+    short flags = POSIX_SPAWN_START_SUSPENDED;
+    if (disable_aslr) {
+        flags |= _POSIX_SPAWN_DISABLE_ASLR;
+    }
+    assert(!posix_spawnattr_setflags(&attr, flags));
+    assert(spawn_args.size() >= 1);
+    std::vector<const char *> argv;
+    for (const auto &arg : spawn_args) {
+        argv.emplace_back(arg.c_str());
+    }
+    argv.emplace_back(nullptr);
+    assert(!posix_spawnp(&target_pid, spawn_args[0].c_str(), nullptr, &attr, (char **)argv.data(),
+                         environ));
+    return target_pid;
 }
 
 void XNUTracer::install_breakpoint_exception_handler() {
@@ -225,10 +259,6 @@ void XNUTracer::setup_breakpoint_exception_port_dispath_source() {
     });
 }
 
-dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
-    return m_breakpoint_exc_source;
-}
-
 void XNUTracer::uninstall_breakpoint_exception_handler() {
     // Reset the original breakpoint exception port
     const auto kr_set_exc =
@@ -236,4 +266,15 @@ void XNUTracer::uninstall_breakpoint_exception_handler() {
                                  m_orig_breakpoint_exc_behavior, m_orig_breakpoint_exc_flavor);
     assert(kr_set_exc == KERN_SUCCESS &&
            "Reset the breakpoint exception port to original handler.");
+}
+
+void XNUTracer::common_ctor() {
+    assert(!g_tracer);
+    g_tracer = this;
+    install_breakpoint_exception_handler();
+    setup_breakpoint_exception_port_dispath_source();
+}
+
+dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
+    return m_breakpoint_exc_source;
 }
