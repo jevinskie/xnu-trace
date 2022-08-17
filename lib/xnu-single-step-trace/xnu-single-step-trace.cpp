@@ -245,11 +245,10 @@ void XNUTracer::install_breakpoint_exception_handler() {
     mach_msg_type_number_t old_exc_count = 1;
     exception_mask_t old_exc_mask;
     const auto kr_get_exc =
-        task_get_exception_ports(m_target_task, EXC_MASK_BREAKPOINT, &old_exc_count, &old_exc_mask,
+        task_get_exception_ports(m_target_task, EXC_MASK_BREAKPOINT, &old_exc_mask, &old_exc_count,
                                  &m_orig_breakpoint_exc_port, &m_orig_breakpoint_exc_behavior,
                                  &m_orig_breakpoint_exc_flavor);
     mach_check(kr_get_exc, "install task_get_exception_ports");
-    fmt::print("old_exc_count: {:d} old_exc_mask: {:#010x}\n", old_exc_count, old_exc_mask);
     assert(old_exc_count == 1 && old_exc_mask == EXC_MASK_BREAKPOINT);
 
     // Tell the kernel what port to send breakpoint exceptions to.
