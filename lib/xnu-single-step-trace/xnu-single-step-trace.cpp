@@ -65,15 +65,17 @@ void set_single_step_thread(thread_t thread, bool do_ss) {
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
     const auto kr_thread_get =
         thread_get_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, &dbg_cnt);
-    mach_check(kr_thread_get,
-               fmt::format("single_step({:s}) thread_get_state", do_ss ? "true" : "false"));
+    assert(kr_thread_get == KERN_SUCCESS);
+    // mach_check(kr_thread_get,
+    //            fmt::format("single_step({:s}) thread_get_state", do_ss ? "true" : "false"));
 
     dbg_state.__mdscr_el1 = (dbg_state.__mdscr_el1 & ~1) | do_ss;
 
     const auto kr_thread_set =
         thread_set_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
-    mach_check(kr_thread_set,
-               fmt::format("single_step({:s}) thread_set_state", do_ss ? "true" : "false"));
+    assert(kr_thread_set == KERN_SUCCESS);
+    // mach_check(kr_thread_set,
+    //            fmt::format("single_step({:s}) thread_set_state", do_ss ? "true" : "false"));
 }
 
 void set_single_step_task(task_t task, bool do_ss) {
