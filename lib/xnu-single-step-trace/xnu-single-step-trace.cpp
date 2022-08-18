@@ -63,23 +63,35 @@ static void mach_check(kern_return_t kr, std::string msg) {
 void set_single_step_thread(thread_t thread, bool do_ss) {
     arm_debug_state64_t dbg_state;
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
-    const auto kret_get =
+    const auto kr_thread_get =
         thread_get_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, &dbg_cnt);
-    mach_check(kret_get,
+    mach_check(kr_thread_get,
                fmt::format("single_step({:s}) thread_get_state", do_ss ? "true" : "false"));
 
     dbg_state.__mdscr_el1 = (dbg_state.__mdscr_el1 & ~1) | do_ss;
 
-    const auto kret_set =
+    const auto kr_thread_set =
         thread_set_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
-    mach_check(kret_set,
+    mach_check(kr_thread_set,
                fmt::format("single_step({:s}) thread_set_state", do_ss ? "true" : "false"));
 }
 
 void set_single_step_task(task_t task, bool do_ss) {
+    arm_debug_state64_t dbg_state;
+    mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
+    const auto kr_task_get =
+        task_get_state(task, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, &dbg_cnt);
+    mach_check(kr_task_get, "task_get_state");
+
+    dbg_state.__mdscr_el1 = (dbg_state.__mdscr_el1 & ~1) | do_ss;
+
+    const auto kr_task_set =
+        task_set_state(task, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
+    mach_check(kr_task_set, "task_set_state");
+
     thread_act_array_t thread_list;
-    mach_msg_type_number_t num_threads = 0;
-    const auto kr_threads              = task_threads(task, &thread_list, &num_threads);
+    mach_msg_type_number_t num_threads;
+    const auto kr_threads = task_threads(task, &thread_list, &num_threads);
     mach_check(kr_threads, "task_threads");
     for (mach_msg_type_number_t i = 0; i < num_threads; ++i) {
         set_single_step_thread(thread_list[i], do_ss);
@@ -100,8 +112,8 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     auto os = (const arm_thread_state64_t *)old_state;
     auto ns = (arm_thread_state64_t *)new_state;
 
-    const auto opc = arm_thread_state64_get_pc(*os);
-    fmt::print(stderr, "exc pc: {:p}\n", (void *)opc);
+    // const auto opc = arm_thread_state64_get_pc(*os);
+    // fmt::print(stderr, "exc pc: {:p}\n", (void *)opc);
 
     *new_state_count = old_state_count;
     *ns              = *os;
@@ -283,6 +295,7 @@ void XNUTracer::common_ctor() {
     g_tracer = this;
     install_breakpoint_exception_handler();
     setup_breakpoint_exception_port_dispath_source();
+    set_single_step_task(m_target_task, true);
 }
 
 dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
