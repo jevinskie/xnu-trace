@@ -121,10 +121,6 @@ int main(int argc, const char **argv) {
     dispatch_source_set_event_handler(proc_source, ^{ exit(0); });
     dispatch_resume(proc_source);
 
-    fmt::print("wait begin\n");
-    usleep(3'000'000);
-    fmt::print("wait end\n");
-
     tracer->resume();
 
     dispatch_main();

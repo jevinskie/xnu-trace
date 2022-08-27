@@ -64,13 +64,18 @@ static void mach_check(kern_return_t kr, std::string msg) {
 void set_single_step_thread(thread_t thread, bool do_ss) {
     // fmt::print("thread {} ss: {}\n", thread, do_ss);
 
-    arm_debug_state64_t dbg_state;
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
+
+#ifdef READ_DEBUG_STATE
+    arm_debug_state64_t dbg_state;
     const auto kr_thread_get =
         thread_get_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, &dbg_cnt);
     assert(kr_thread_get == KERN_SUCCESS);
     // mach_check(kr_thread_get,
     //            fmt::format("single_step({:s}) thread_get_state", do_ss ? "true" : "false"));
+#else
+    arm_debug_state64_t dbg_state{};
+#endif
 
     dbg_state.__mdscr_el1 = (dbg_state.__mdscr_el1 & ~1) | do_ss;
 
@@ -82,7 +87,7 @@ void set_single_step_thread(thread_t thread, bool do_ss) {
 }
 
 void set_single_step_task(task_t task, bool do_ss) {
-    fmt::print("task {} ss: {}\n", task, do_ss);
+    // fmt::print("task {} ss: {}\n", task, do_ss);
 
     arm_debug_state64_t dbg_state;
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
