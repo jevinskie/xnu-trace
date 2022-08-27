@@ -470,7 +470,7 @@ double XNUTracer::elapsed_time() const {
 }
 
 void XNUTracer::setup_regions() {
-    mach_check(task_suspend(m_target_task), "setup_regions task_suspend");
+    suspend();
     m_regions.clear();
-    mach_check(task_resume(m_target_task), "setup_regions task_resume");
+    resume();
 }
