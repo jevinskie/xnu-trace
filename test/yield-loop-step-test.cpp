@@ -2,6 +2,7 @@
 #include <cassert>
 #include <csignal>
 #include <cstdint>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <mach/mach_init.h>
@@ -45,6 +46,11 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
+    bool do_pipe = false;
+    if (fcntl(STDERR_FILENO + 1, F_GETFD) != -1) {
+        do_pipe = true;
+    }
+
     const auto crash_on_attach = parser["--crash-on-attach"] == true;
 
     uint64_t num_yields  = 0;
@@ -52,6 +58,12 @@ int main(int argc, const char **argv) {
     fmt::print("yield-loop-step-test begin\n");
     setup_sig_handler();
     should_stop = false;
+
+    if (do_pipe) {
+        const uint8_t start_buf = 'y';
+        assert(write(STDERR_FILENO + 1, &start_buf, 1) == 1);
+    }
+
     while (!should_stop) {
         ++num_yields;
         // swtch_pri(0);
@@ -60,7 +72,19 @@ int main(int argc, const char **argv) {
         if (crash_on_attach && get_task_for_pid_count(task_self)) {
             null_deref();
         }
+        if (num_yields > 4) {
+            should_stop = 1;
+            fmt::print("stopping from limit\n");
+        }
     }
+
+    if (do_pipe) {
+        const uint8_t stop_buf = 'n';
+        fmt::print("writing stop to pipe\n");
+        assert(write(STDERR_FILENO + 1, &stop_buf, 1) == 1);
+        fmt::print("wrote stop to pipe\n");
+    }
+
     fmt::print("num_yields: {:d}\n", num_yields);
     fmt::print("yield-loop-step-test end\n");
     return 0;

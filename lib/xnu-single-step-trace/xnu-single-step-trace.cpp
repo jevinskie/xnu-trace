@@ -81,7 +81,7 @@ void set_single_step_thread(thread_t thread, bool do_ss) {
 }
 
 void set_single_step_task(task_t task, bool do_ss) {
-    // fmt::print("task {} ss: {}\n", task, do_ss);
+    fmt::print("task {} ss: {}\n", task, do_ss);
 
     arm_debug_state64_t dbg_state;
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
@@ -340,6 +340,7 @@ void XNUTracer::set_single_step(const bool do_single_step) {
         set_single_step_task(m_target_task, true);
     } else {
         set_single_step_task(m_target_task, false);
-        uninstall_breakpoint_exception_handler();
+        // uninstall_breakpoint_exception_handler();
+        // task_resume(m_target_task);
     }
 }
