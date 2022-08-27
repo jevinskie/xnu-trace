@@ -72,6 +72,14 @@ static void mach_check(kern_return_t kr, std::string msg) {
     }
 }
 
+void pipe_set_single_step(bool do_ss) {
+    const uint8_t wbuf = do_ss ? 'y' : 'n';
+    assert(write(pipe_target2tracer_fd, &wbuf, 1) == 1);
+    uint8_t rbuf = 0;
+    // assert(read(pipe_tracer2target_fd, &rbuf, 1) == 1);
+    // assert(rbuf == 'c');
+}
+
 void set_single_step_thread(thread_t thread, bool do_ss) {
     // fmt::print("thread {} ss: {}\n", thread, do_ss);
 
@@ -243,13 +251,11 @@ XNUTracer::XNUTracer(std::string target_name) {
     common_ctor(false);
 }
 
-XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
-                     bool disable_aslr)
-    : m_pipe_write_fd{pipe_fd} {
-    const auto target_pid = spawn_with_args(spawn_args, pipe_fd, disable_aslr);
+XNUTracer::XNUTracer(std::vector<std::string> spawn_args, bool pipe_ctrl, bool disable_aslr) {
+    const auto target_pid = spawn_with_args(spawn_args, pipe_ctrl, disable_aslr);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
-    common_ctor(pipe_fd != std::nullopt);
+    common_ctor(pipe_ctrl);
 }
 
 XNUTracer::~XNUTracer() {
@@ -265,7 +271,7 @@ XNUTracer::~XNUTracer() {
     resume(true);
 }
 
-pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
+pid_t XNUTracer::spawn_with_args(const std::vector<std::string> &spawn_args, bool pipe_ctrl,
                                  bool disable_aslr) {
     pid_t target_pid{0};
     posix_spawnattr_t attr;
@@ -283,9 +289,19 @@ pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, std::optio
                 "dup stdout");
     posix_check(posix_spawn_file_actions_adddup2(&action, STDERR_FILENO, STDERR_FILENO),
                 "dup stderr");
-    if (pipe_fd) {
-        posix_check(posix_spawn_file_actions_adddup2(&action, *pipe_fd, STDERR_FILENO + 1),
-                    "dup pipe");
+    if (pipe_ctrl) {
+        int target2tracer_fds[2];
+        assert(!pipe(target2tracer_fds));
+        m_target2tracer_fd = target2tracer_fds[0];
+        int tracer2target_fds[2];
+        assert(!pipe(tracer2target_fds));
+        m_tracer2target_fd = tracer2target_fds[0];
+        posix_check(
+            posix_spawn_file_actions_adddup2(&action, target2tracer_fds[1], pipe_target2tracer_fd),
+            "dup pipe target2tracer");
+        posix_check(
+            posix_spawn_file_actions_adddup2(&action, tracer2target_fds[1], pipe_tracer2target_fd),
+            "dup pipe tracer2target");
     }
 
     assert(spawn_args.size() >= 1);
@@ -352,6 +368,25 @@ void XNUTracer::setup_proc_dispath_source() {
     assert(m_proc_source);
 }
 
+void XNUTracer::setup_pipe_dispatch_source() {
+    m_pipe_source =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, *m_target2tracer_fd, 0, m_queue);
+    assert(m_pipe_source);
+    dispatch_source_set_event_handler(m_pipe_source, ^{
+        uint8_t rbuf;
+        assert(read(*m_target2tracer_fd, &rbuf, 1) == 1);
+        if (rbuf == 'y') {
+            set_single_step(true);
+        } else if (rbuf == 'n') {
+            set_single_step(false);
+        } else {
+            assert(!"unhandled");
+        }
+        // const uint8_t cbuf = 'c';
+        // assert(write(*m_tracer2target_fd, &cbuf, 1) == 1);
+    });
+}
+
 void XNUTracer::uninstall_breakpoint_exception_handler(const bool allow_dead) {
     // Reset the original breakpoint exception port
     const auto kr_set_exc =
@@ -363,29 +398,39 @@ void XNUTracer::uninstall_breakpoint_exception_handler(const bool allow_dead) {
     mach_check(kr_set_exc, "uninstall task_set_exception_ports");
 }
 
-void XNUTracer::common_ctor(const bool free_running) {
+void XNUTracer::common_ctor(bool pipe_ctrl) {
     assert(!g_tracer);
     g_tracer = this;
     m_queue  = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
     assert(m_queue);
     setup_proc_dispath_source();
     setup_breakpoint_exception_handler();
-    if (!free_running) {
+    if (!pipe_ctrl) {
         install_breakpoint_exception_handler();
     }
+    if (pipe_ctrl) {
+        setup_pipe_dispatch_source();
+    }
     setup_breakpoint_exception_port_dispath_source();
-    if (!free_running) {
+    if (!pipe_ctrl) {
         set_single_step_task(m_target_task, true);
     }
     posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &m_start_time), "clock_gettime");
 }
 
 dispatch_source_t XNUTracer::proc_dispath_source() {
+    assert(m_proc_source);
     return m_proc_source;
 }
 
 dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
+    assert(m_breakpoint_exc_source);
     return m_breakpoint_exc_source;
+}
+
+dispatch_source_t XNUTracer::pipe_dispatch_source() {
+    assert(m_pipe_source);
+    return m_pipe_source;
 }
 
 void XNUTracer::set_single_step(const bool do_single_step) {

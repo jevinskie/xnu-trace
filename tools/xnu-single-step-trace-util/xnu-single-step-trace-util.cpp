@@ -65,22 +65,13 @@ int main(int argc, const char **argv) {
     fmt::print(stderr, "xnu-single-step-trace-util begin self PID: {:d}\n", getpid());
 
     std::unique_ptr<XNUTracer> tracer;
-    std::optional<int> pipe_read_fd;
-    std::optional<int> pipe_write_fd;
-
-    if (do_pipe) {
-        int pipe_fds[2];
-        assert(!pipe(pipe_fds));
-        pipe_read_fd  = pipe_fds[0];
-        pipe_write_fd = pipe_fds[1];
-    }
 
     if (do_attach) {
         const auto target_name = *parser.present("--attach");
         tracer                 = std::make_unique<XNUTracer>(target_name);
     } else if (do_spawn) {
         const auto spawn_args = parser.get<std::vector<std::string>>("spawn-args");
-        tracer = std::make_unique<XNUTracer>(spawn_args, pipe_write_fd, disable_aslr);
+        tracer                = std::make_unique<XNUTracer>(spawn_args, do_pipe, disable_aslr);
     } else {
         assert(!"nothing to do");
     }
@@ -100,20 +91,7 @@ int main(int argc, const char **argv) {
     dispatch_resume(signal_source);
 
     if (do_pipe) {
-        const auto pipe_source =
-            dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, *pipe_read_fd, 0, queue);
-        assert(pipe_source);
-        dispatch_source_set_event_handler(pipe_source, ^{
-            uint8_t buf;
-            assert(read(*pipe_read_fd, &buf, sizeof(buf)) == sizeof(buf));
-            if (buf == 'y') {
-                tracer_raw->set_single_step(true);
-            } else if (buf == 'n') {
-                tracer_raw->set_single_step(false);
-            } else {
-                assert(!"unhandled");
-            }
-        });
+        const auto pipe_source = tracer->pipe_dispatch_source();
         dispatch_resume(pipe_source);
         tracer->set_single_step(false);
     }

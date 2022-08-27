@@ -47,7 +47,9 @@ int main(int argc, const char **argv) {
     }
 
     bool do_pipe = false;
-    if (fcntl(STDERR_FILENO + 1, F_GETFD) != -1) {
+    if (fcntl(pipe_tracer2target_fd, F_GETFD) != -1 &&
+        fcntl(pipe_target2tracer_fd, F_GETFD) != -1) {
+        fmt::print("target utilizing pipe ctrl\n");
         do_pipe = true;
     }
 
@@ -60,8 +62,7 @@ int main(int argc, const char **argv) {
     should_stop = false;
 
     if (do_pipe) {
-        const uint8_t start_buf = 'y';
-        assert(write(STDERR_FILENO + 1, &start_buf, 1) == 1);
+        pipe_set_single_step(true);
     }
 
     while (!should_stop) {
@@ -79,9 +80,8 @@ int main(int argc, const char **argv) {
     }
 
     if (do_pipe) {
-        const uint8_t stop_buf = 'n';
         fmt::print("writing stop to pipe\n");
-        assert(write(STDERR_FILENO + 1, &stop_buf, 1) == 1);
+        pipe_set_single_step(false);
         fmt::print("wrote stop to pipe\n");
     }
 
