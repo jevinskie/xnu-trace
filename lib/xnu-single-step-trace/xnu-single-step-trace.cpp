@@ -206,7 +206,8 @@ XNUTracer::XNUTracer(std::string target_name) {
     common_ctor();
 }
 
-XNUTracer::XNUTracer(std::vector<std::string> spawn_args, bool disable_aslr) {
+XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
+                     bool disable_aslr) {
     const auto target_pid = spawn_with_args(spawn_args, disable_aslr);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
@@ -241,7 +242,7 @@ pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, bool disab
     return target_pid;
 }
 
-void XNUTracer::install_breakpoint_exception_handler() {
+void XNUTracer::setup_breakpoint_exception_handler() {
     const auto self_task = mach_task_self();
 
     // Create the mach port the exception messages will be sent to.
@@ -264,7 +265,9 @@ void XNUTracer::install_breakpoint_exception_handler() {
                                  &m_orig_breakpoint_exc_flavor);
     mach_check(kr_get_exc, "install task_get_exception_ports");
     assert(old_exc_count == 1 && old_exc_mask == EXC_MASK_BREAKPOINT);
+}
 
+void XNUTracer::setup_breakpoint_exception_handler() {
     // Tell the kernel what port to send breakpoint exceptions to.
     const auto kr_set_exc = task_set_exception_ports(
         m_target_task, EXC_MASK_BREAKPOINT, m_breakpoint_exc_port,
@@ -295,6 +298,7 @@ void XNUTracer::uninstall_breakpoint_exception_handler() {
 void XNUTracer::common_ctor() {
     assert(!g_tracer);
     g_tracer = this;
+    setup_breakpoint_exception_handler();
     install_breakpoint_exception_handler();
     setup_breakpoint_exception_port_dispath_source();
     set_single_step_task(m_target_task, true);
@@ -302,4 +306,14 @@ void XNUTracer::common_ctor() {
 
 dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
     return m_breakpoint_exc_source;
+}
+
+void XNUTracer::set_single_step(const bool do_single_step) {
+    if (do_single_step) {
+        setup_breakpoint_exception_handler();
+        set_single_step_task(m_target_task, true);
+    } else {
+        set_single_step_task(m_target_task, false);
+        uninstall_breakpoint_exception_handler();
+    }
 }

@@ -17,9 +17,22 @@
 
 int main(int argc, const char **argv) {
     argparse::ArgumentParser parser(getprogname());
-    parser.add_argument("--spawn").help("spawn process");
-    parser.add_argument("--attach").help("attach to process");
-    parser.add_argument("--no-aslr").help("disable ASLR (spawned processes only)");
+    parser.add_argument("-s", "--spawn")
+        .default_value(false)
+        .implicit_value(true)
+        .help("spawn process");
+    parser.add_argument("-p", "--pipe")
+        .default_value(false)
+        .implicit_value(true)
+        .help("control trace using child pipe");
+    parser.add_argument("-a", "--attach")
+        .default_value(false)
+        .implicit_value(true)
+        .help("attach to process");
+    parser.add_argument("-A", "--no-aslr")
+        .default_value(false)
+        .implicit_value(true)
+        .help("disable ASLR (spawned processes only)");
     parser.add_argument("spawn-args").remaining().help("spawn executable path and arguments");
 
     try {
@@ -29,9 +42,10 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
-    bool do_spawn     = parser.present("--spawn") != std::nullopt;
-    bool do_attach    = parser.present("--attach") != std::nullopt;
-    bool disable_aslr = parser.present("--no-aslr") != std::nullopt;
+    const auto do_spawn     = parser["--spawn"] == true;
+    const auto do_attach    = parser["--attach"] == true;
+    const auto disable_aslr = parser["--no-aslr"] == true;
+    const auto do_pipe      = parser["--pipe"] == true;
 
     if ((!do_spawn && !do_attach) || (do_spawn && do_attach)) {
         fmt::print(stderr, "Must specify one of --spawn or --attach\n");
@@ -43,16 +57,30 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
+    if (do_attach && do_pipe) {
+        fmt::print(stderr, "Can't control via pipes on attached processes\n");
+        return -1;
+    }
+
     fmt::print(stderr, "xnu-single-step-trace-util begin self PID: {:d}\n", getpid());
 
     std::unique_ptr<XNUTracer> tracer;
+    std::optional<int> pipe_read_fd;
+    std::optional<int> pipe_write_fd;
+
+    if (do_pipe) {
+        int pipe_fds[2];
+        assert(!pipe(pipe_fds));
+        *pipe_read_fd  = pipe_fds[0];
+        *pipe_write_fd = pipe_fds[1];
+    }
 
     if (do_attach) {
         const auto target_name = *parser.present("--attach");
         tracer                 = std::make_unique<XNUTracer>(target_name);
     } else if (do_spawn) {
         const auto spawn_args = parser.get<std::vector<std::string>>("spawn-args");
-        tracer                = std::make_unique<XNUTracer>(spawn_args, disable_aslr);
+        tracer = std::make_unique<XNUTracer>(spawn_args, pipe_write_fd, disable_aslr);
     } else {
         assert(!"nothing to do");
     }
