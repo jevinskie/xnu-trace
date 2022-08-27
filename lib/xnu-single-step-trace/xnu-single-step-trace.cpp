@@ -207,8 +207,9 @@ XNUTracer::XNUTracer(std::string target_name) {
 }
 
 XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
-                     bool disable_aslr) {
-    const auto target_pid = spawn_with_args(spawn_args, disable_aslr);
+                     bool disable_aslr)
+    : m_pipe_write_fd{pipe_fd} {
+    const auto target_pid = spawn_with_args(spawn_args, pipe_fd, disable_aslr);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     common_ctor();
@@ -221,24 +222,40 @@ XNUTracer::~XNUTracer() {
     g_tracer = nullptr;
 }
 
-pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, bool disable_aslr) {
+pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
+                                 bool disable_aslr) {
     pid_t target_pid{0};
     posix_spawnattr_t attr;
     posix_check(posix_spawnattr_init(&attr), "posix_spawnattr_init");
-    short flags = POSIX_SPAWN_START_SUSPENDED;
+    short flags = POSIX_SPAWN_START_SUSPENDED | POSIX_SPAWN_CLOEXEC_DEFAULT;
     if (disable_aslr) {
         flags |= _POSIX_SPAWN_DISABLE_ASLR;
     }
     posix_check(posix_spawnattr_setflags(&attr, flags), "posix_spawnattr_setflags");
+
+    posix_spawn_file_actions_t action;
+    posix_check(posix_spawn_file_actions_init(&action), "actions init");
+    posix_check(posix_spawn_file_actions_adddup2(&action, STDIN_FILENO, STDIN_FILENO), "dup stdin");
+    posix_check(posix_spawn_file_actions_adddup2(&action, STDOUT_FILENO, STDOUT_FILENO),
+                "dup stdout");
+    posix_check(posix_spawn_file_actions_adddup2(&action, STDERR_FILENO, STDERR_FILENO),
+                "dup stderr");
+    if (pipe_fd != std::nullopt) {
+        posix_check(posix_spawn_file_actions_adddup2(&action, *pipe_fd, STDERR_FILENO + 1),
+                    "dup pipe");
+    }
+
     assert(spawn_args.size() >= 1);
     std::vector<const char *> argv;
     for (const auto &arg : spawn_args) {
         argv.emplace_back(arg.c_str());
     }
     argv.emplace_back(nullptr);
-    posix_check(posix_spawnp(&target_pid, spawn_args[0].c_str(), nullptr, &attr,
+    posix_check(posix_spawnp(&target_pid, spawn_args[0].c_str(), &action, &attr,
                              (char **)argv.data(), environ),
                 "posix_spawnp");
+    posix_check(posix_spawn_file_actions_destroy(&action), "posix_spawn_file_actions_destroy");
+    posix_check(posix_spawnattr_destroy(&attr), "posix_spawnattr_destroy");
     return target_pid;
 }
 
@@ -267,7 +284,7 @@ void XNUTracer::setup_breakpoint_exception_handler() {
     assert(old_exc_count == 1 && old_exc_mask == EXC_MASK_BREAKPOINT);
 }
 
-void XNUTracer::setup_breakpoint_exception_handler() {
+void XNUTracer::install_breakpoint_exception_handler() {
     // Tell the kernel what port to send breakpoint exceptions to.
     const auto kr_set_exc = task_set_exception_ports(
         m_target_task, EXC_MASK_BREAKPOINT, m_breakpoint_exc_port,
