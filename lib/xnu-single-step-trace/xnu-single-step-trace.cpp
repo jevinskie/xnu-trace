@@ -9,7 +9,6 @@
 #include <spawn.h>
 #include <vector>
 
-#include <bsm/libbsm.h>
 #include <libproc.h>
 #include <mach/exc.h>
 #include <mach/exception.h>
@@ -130,18 +129,6 @@ void set_single_step_task(task_t task, bool do_ss) {
     const auto kr_dealloc = vm_deallocate(mach_task_self(), (vm_address_t)thread_list,
                                           sizeof(thread_act_t) * num_threads);
     mach_check(kr_dealloc, "vm_deallocate");
-}
-
-void audit_token_for_task(task_t task, audit_token_t *token) {
-    mach_msg_type_number_t cnt = TASK_AUDIT_TOKEN_COUNT;
-    const auto kr_ti           = task_info(task, TASK_AUDIT_TOKEN, (task_info_t)token, &cnt);
-    mach_check(kr_ti, "task_info(TASK_AUDIT_TOKEN)");
-}
-
-pid_t pid_for_task(task_t task) {
-    audit_token_t audit_token;
-    audit_token_for_task(task, &audit_token);
-    return audit_token_to_pid(audit_token);
 }
 
 // Handle EXCEPTION_STATE_IDENTIY behavior
@@ -447,7 +434,9 @@ void XNUTracer::set_single_step(const bool do_single_step) {
 
 pid_t XNUTracer::pid() {
     assert(m_target_task);
-    return pid_for_task(m_target_task);
+    int pid;
+    mach_check(pid_for_task(m_target_task, &pid), "pid_for_task");
+    return (pid_t)pid;
 }
 
 void XNUTracer::suspend() {

@@ -38,6 +38,10 @@ int main(int argc, const char **argv) {
         .help("crash on attachment")
         .default_value(false)
         .implicit_value(true);
+    parser.add_argument("-f", "--forever")
+        .help("run forever")
+        .default_value(false)
+        .implicit_value(true);
 
     try {
         parser.parse_args(argc, argv);
@@ -54,6 +58,7 @@ int main(int argc, const char **argv) {
     }
 
     const auto crash_on_attach = parser["--crash-on-attach"] == true;
+    const auto forever         = parser["--forever"] == true;
 
     uint64_t num_yields  = 0;
     const auto task_self = mach_task_self();
@@ -73,7 +78,7 @@ int main(int argc, const char **argv) {
         if (crash_on_attach && get_task_for_pid_count(task_self)) {
             null_deref();
         }
-        if (num_yields > 4) {
+        if (num_yields > 4 && !forever) {
             should_stop = 1;
             fmt::print("stopping from limit\n");
         }
