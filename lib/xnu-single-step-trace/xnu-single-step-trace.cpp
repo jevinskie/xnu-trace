@@ -401,7 +401,8 @@ void XNUTracer::uninstall_breakpoint_exception_handler(const bool allow_dead) {
 void XNUTracer::common_ctor(bool pipe_ctrl) {
     assert(!g_tracer);
     g_tracer = this;
-    m_queue  = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
+    setup_regions();
+    m_queue = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
     assert(m_queue);
     setup_proc_dispath_source();
     setup_breakpoint_exception_handler();
@@ -435,6 +436,7 @@ dispatch_source_t XNUTracer::pipe_dispatch_source() {
 
 void XNUTracer::set_single_step(const bool do_single_step) {
     if (do_single_step) {
+        setup_regions();
         install_breakpoint_exception_handler();
         set_single_step_task(m_target_task, true);
     } else {
@@ -476,4 +478,10 @@ double XNUTracer::elapsed_time() const {
     timespec current_time;
     posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &current_time), "clock_gettime");
     return timespec_diff(current_time, m_start_time);
+}
+
+void XNUTracer::setup_regions() {
+    mach_check(task_suspend(m_target_task), "setup_regions task_suspend");
+    m_regions.clear();
+    mach_check(task_resume(m_target_task), "setup_regions task_resume");
 }
