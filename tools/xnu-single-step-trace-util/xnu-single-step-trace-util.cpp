@@ -117,6 +117,16 @@ int main(int argc, const char **argv) {
     const auto breakpoint_exc_source = tracer->breakpoint_exception_port_dispath_source();
     dispatch_resume(breakpoint_exc_source);
 
+    const auto proc_source = tracer->proc_dispath_source();
+    dispatch_source_set_event_handler(proc_source, ^{ exit(0); });
+    dispatch_resume(proc_source);
+
+    fmt::print("wait begin\n");
+    usleep(3'000'000);
+    fmt::print("wait end\n");
+
+    tracer->resume();
+
     dispatch_main();
 
     fmt::print(stderr, "xnu-single-step-trace-util end\n");

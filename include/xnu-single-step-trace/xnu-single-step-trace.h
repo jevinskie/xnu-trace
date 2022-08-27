@@ -15,6 +15,9 @@ pid_t pid_for_name(std::string process_name);
 
 int64_t get_task_for_pid_count(task_t task);
 
+void audit_token_for_task(task_t task, audit_token_t *token);
+pid_t pid_for_task(task_t task);
+
 class XNUTracer {
 public:
     XNUTracer(task_t target_task);
@@ -24,6 +27,10 @@ public:
               bool disable_aslr = true);
     ~XNUTracer();
 
+    void suspend();
+    void resume();
+    pid_t pid();
+    dispatch_source_t proc_dispath_source();
     dispatch_source_t breakpoint_exception_port_dispath_source();
     void set_single_step(const bool do_single_step);
 
@@ -32,6 +39,7 @@ private:
     void install_breakpoint_exception_handler();
     void uninstall_breakpoint_exception_handler();
     void setup_breakpoint_exception_port_dispath_source();
+    void setup_proc_dispath_source();
     pid_t spawn_with_args(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
                           bool disable_aslr);
     void common_ctor(const bool free_running);
@@ -42,6 +50,8 @@ private:
     mach_port_t m_orig_breakpoint_exc_port{MACH_PORT_NULL};
     exception_behavior_t m_orig_breakpoint_exc_behavior{0};
     thread_state_flavor_t m_orig_breakpoint_exc_flavor{0};
+    dispatch_queue_t m_queue{nullptr};
+    dispatch_source_t m_proc_source{nullptr};
     dispatch_source_t m_breakpoint_exc_source{nullptr};
     std::optional<int> m_pipe_write_fd;
 };

@@ -9,6 +9,7 @@
 #include <spawn.h>
 #include <vector>
 
+#include <bsm/libbsm.h>
 #include <libproc.h>
 #include <mach/exc.h>
 #include <mach/exception.h>
@@ -107,6 +108,18 @@ void set_single_step_task(task_t task, bool do_ss) {
     mach_check(kr_dealloc, "vm_deallocate");
 }
 
+void audit_token_for_task(task_t task, audit_token_t *token) {
+    mach_msg_type_number_t cnt = TASK_AUDIT_TOKEN_COUNT;
+    const auto kr_ti           = task_info(task, TASK_AUDIT_TOKEN, (task_info_t)token, &cnt);
+    mach_check(kr_ti, "task_info(TASK_AUDIT_TOKEN)");
+}
+
+pid_t pid_for_task(task_t task) {
+    audit_token_t audit_token;
+    audit_token_for_task(task, &audit_token);
+    return audit_token_to_pid(audit_token);
+}
+
 // Handle EXCEPTION_STATE_IDENTIY behavior
 extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     mach_port_t exception_port, mach_port_t thread, mach_port_t task, exception_type_t exception,
@@ -200,6 +213,7 @@ XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {
 XNUTracer::XNUTracer(pid_t target_pid) {
     const auto kr = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
+    suspend();
     common_ctor(false);
 }
 
@@ -207,6 +221,7 @@ XNUTracer::XNUTracer(std::string target_name) {
     const auto target_pid = pid_for_name(target_name);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
+    suspend();
     common_ctor(false);
 }
 
@@ -217,13 +232,12 @@ XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<int> pip
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     common_ctor(pipe_fd != std::nullopt);
-    const auto kr_resume = task_resume(m_target_task);
-    mach_check(kr_resume, "task_resume");
 }
 
 XNUTracer::~XNUTracer() {
     uninstall_breakpoint_exception_handler();
     g_tracer = nullptr;
+    resume();
 }
 
 pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
@@ -299,14 +313,18 @@ void XNUTracer::install_breakpoint_exception_handler() {
 }
 
 void XNUTracer::setup_breakpoint_exception_port_dispath_source() {
-    const auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-    assert(queue);
     m_breakpoint_exc_source =
-        dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, m_breakpoint_exc_port, 0, queue);
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, m_breakpoint_exc_port, 0, m_queue);
     assert(m_breakpoint_exc_source);
     dispatch_source_set_event_handler(m_breakpoint_exc_source, ^{
         dispatch_mig_server(m_breakpoint_exc_source, EXC_MSG_MAX_SIZE, mach_exc_server);
     });
+}
+
+void XNUTracer::setup_proc_dispath_source() {
+    m_proc_source =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_PROC, pid(), DISPATCH_PROC_EXIT, m_queue);
+    assert(m_proc_source);
 }
 
 void XNUTracer::uninstall_breakpoint_exception_handler() {
@@ -320,6 +338,9 @@ void XNUTracer::uninstall_breakpoint_exception_handler() {
 void XNUTracer::common_ctor(const bool free_running) {
     assert(!g_tracer);
     g_tracer = this;
+    m_queue  = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
+    assert(m_queue);
+    setup_proc_dispath_source();
     setup_breakpoint_exception_handler();
     if (!free_running) {
         install_breakpoint_exception_handler();
@@ -328,6 +349,10 @@ void XNUTracer::common_ctor(const bool free_running) {
     if (!free_running) {
         set_single_step_task(m_target_task, true);
     }
+}
+
+dispatch_source_t XNUTracer::proc_dispath_source() {
+    return m_proc_source;
 }
 
 dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
@@ -340,7 +365,23 @@ void XNUTracer::set_single_step(const bool do_single_step) {
         set_single_step_task(m_target_task, true);
     } else {
         set_single_step_task(m_target_task, false);
-        // uninstall_breakpoint_exception_handler();
-        // task_resume(m_target_task);
+        uninstall_breakpoint_exception_handler();
     }
+}
+
+pid_t XNUTracer::pid() {
+    assert(m_target_task);
+    return pid_for_task(m_target_task);
+}
+
+void XNUTracer::suspend() {
+    assert(m_target_task);
+    const auto kr_suspend = task_suspend(m_target_task);
+    mach_check(kr_suspend, "task_suspend");
+}
+
+void XNUTracer::resume() {
+    assert(m_target_task);
+    const auto kr_resume = task_resume(m_target_task);
+    mach_check(kr_resume, "task_resume");
 }
