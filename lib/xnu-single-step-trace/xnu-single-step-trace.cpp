@@ -76,8 +76,8 @@ void pipe_set_single_step(bool do_ss) {
     const uint8_t wbuf = do_ss ? 'y' : 'n';
     assert(write(pipe_target2tracer_fd, &wbuf, 1) == 1);
     uint8_t rbuf = 0;
-    // assert(read(pipe_tracer2target_fd, &rbuf, 1) == 1);
-    // assert(rbuf == 'c');
+    assert(read(pipe_tracer2target_fd, &rbuf, 1) == 1);
+    assert(rbuf == 'c');
 }
 
 void set_single_step_thread(thread_t thread, bool do_ss) {
@@ -295,12 +295,12 @@ pid_t XNUTracer::spawn_with_args(const std::vector<std::string> &spawn_args, boo
         m_target2tracer_fd = target2tracer_fds[0];
         int tracer2target_fds[2];
         assert(!pipe(tracer2target_fds));
-        m_tracer2target_fd = tracer2target_fds[0];
+        m_tracer2target_fd = tracer2target_fds[1];
         posix_check(
             posix_spawn_file_actions_adddup2(&action, target2tracer_fds[1], pipe_target2tracer_fd),
             "dup pipe target2tracer");
         posix_check(
-            posix_spawn_file_actions_adddup2(&action, tracer2target_fds[1], pipe_tracer2target_fd),
+            posix_spawn_file_actions_adddup2(&action, tracer2target_fds[0], pipe_tracer2target_fd),
             "dup pipe tracer2target");
     }
 
@@ -382,8 +382,8 @@ void XNUTracer::setup_pipe_dispatch_source() {
         } else {
             assert(!"unhandled");
         }
-        // const uint8_t cbuf = 'c';
-        // assert(write(*m_tracer2target_fd, &cbuf, 1) == 1);
+        const uint8_t cbuf = 'c';
+        assert(write(*m_tracer2target_fd, &cbuf, 1) == 1);
     });
 }
 
