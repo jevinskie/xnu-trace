@@ -85,20 +85,24 @@ int main(int argc, const char **argv) {
         assert(!"nothing to do");
     }
 
+    XNUTracer *tracer_raw = tracer.get();
+
     const auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     assert(queue);
 
     const auto signal_source =
         dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGINT, 0, queue);
     assert(signal_source);
-    dispatch_source_set_event_handler(signal_source, ^{ exit(0); });
+    dispatch_source_set_event_handler(signal_source, ^{
+        delete tracer_raw;
+        exit(0);
+    });
     dispatch_resume(signal_source);
 
     if (do_pipe) {
         const auto pipe_source =
             dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, *pipe_read_fd, 0, queue);
         assert(pipe_source);
-        XNUTracer *tracer_raw = tracer.get();
         dispatch_source_set_event_handler(pipe_source, ^{
             uint8_t buf;
             assert(read(*pipe_read_fd, &buf, sizeof(buf)) == sizeof(buf));
@@ -118,7 +122,10 @@ int main(int argc, const char **argv) {
     dispatch_resume(breakpoint_exc_source);
 
     const auto proc_source = tracer->proc_dispath_source();
-    dispatch_source_set_event_handler(proc_source, ^{ exit(0); });
+    dispatch_source_set_event_handler(proc_source, ^{
+        delete tracer_raw;
+        exit(0);
+    });
     dispatch_resume(proc_source);
 
     tracer->resume();

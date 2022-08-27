@@ -39,10 +39,21 @@ extern "C" mach_msg_return_t dispatch_mig_server(dispatch_source_t ds, size_t ma
 
 extern "C" boolean_t mach_exc_server(mach_msg_header_t *message, mach_msg_header_t *reply);
 
-static XNUTracer *g_tracer{nullptr};
+static XNUTracer *g_tracer;
 
 template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
+}
+
+static double timespec_diff(const timespec &a, const timespec &b) {
+    timespec c;
+    c.tv_sec  = a.tv_sec - b.tv_sec;
+    c.tv_nsec = a.tv_nsec - b.tv_nsec;
+    if (c.tv_nsec < 0) {
+        --c.tv_sec;
+        c.tv_nsec += 1'000'000'000L;
+    }
+    return c.tv_sec + ((double)c.tv_nsec / 1'000'000'000L);
 }
 
 static void posix_check(int retval, std::string msg) {
@@ -142,6 +153,8 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     *new_state_count = old_state_count;
     *ns              = *os;
 
+    g_tracer->log_inst({});
+
     set_single_step_thread(thread, true);
 
     return KERN_SUCCESS;
@@ -240,9 +253,16 @@ XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<int> pip
 }
 
 XNUTracer::~XNUTracer() {
-    uninstall_breakpoint_exception_handler();
-    g_tracer = nullptr;
-    resume();
+    uninstall_breakpoint_exception_handler(true);
+    g_tracer                 = nullptr;
+    const auto ninst         = num_inst();
+    const auto elapsed       = elapsed_time();
+    const auto ninst_per_sec = ninst / elapsed;
+    const auto nbytes        = m_log_buf.size();
+    fmt::print("XNUTracer traced {:Ld} instructions in {:0.3Lf} seconds ({:0.1Lf} / sec) and "
+               "logged {:Ld} bytes ({:0.1Lf} / inst)\n",
+               ninst, elapsed, ninst_per_sec, nbytes, (double)nbytes / ninst);
+    resume(true);
 }
 
 pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
@@ -332,11 +352,14 @@ void XNUTracer::setup_proc_dispath_source() {
     assert(m_proc_source);
 }
 
-void XNUTracer::uninstall_breakpoint_exception_handler() {
+void XNUTracer::uninstall_breakpoint_exception_handler(const bool allow_dead) {
     // Reset the original breakpoint exception port
     const auto kr_set_exc =
         task_set_exception_ports(m_target_task, EXC_MASK_BREAKPOINT, m_orig_breakpoint_exc_port,
                                  m_orig_breakpoint_exc_behavior, m_orig_breakpoint_exc_flavor);
+    if (allow_dead && kr_set_exc == MACH_SEND_INVALID_DEST) {
+        return;
+    }
     mach_check(kr_set_exc, "uninstall task_set_exception_ports");
 }
 
@@ -354,6 +377,7 @@ void XNUTracer::common_ctor(const bool free_running) {
     if (!free_running) {
         set_single_step_task(m_target_task, true);
     }
+    posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &m_start_time), "clock_gettime");
 }
 
 dispatch_source_t XNUTracer::proc_dispath_source() {
@@ -385,8 +409,26 @@ void XNUTracer::suspend() {
     mach_check(kr_suspend, "task_suspend");
 }
 
-void XNUTracer::resume() {
+void XNUTracer::resume(const bool allow_dead) {
     assert(m_target_task);
     const auto kr_resume = task_resume(m_target_task);
+    if (allow_dead && kr_resume == MACH_SEND_INVALID_DEST) {
+        return;
+    }
     mach_check(kr_resume, "task_resume");
+}
+
+uint64_t XNUTracer::num_inst() const {
+    return m_num_inst;
+}
+
+void XNUTracer::log_inst(const std::span<uint8_t> log_buf) {
+    ++m_num_inst;
+    std::copy(log_buf.begin(), log_buf.end(), std::back_inserter(m_log_buf));
+}
+
+double XNUTracer::elapsed_time() const {
+    timespec current_time;
+    posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &current_time), "clock_gettime");
+    return timespec_diff(current_time, m_start_time);
 }

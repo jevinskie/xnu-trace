@@ -1,6 +1,8 @@
 #pragma once
 
+#include <ctime>
 #include <optional>
+#include <span>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -28,16 +30,19 @@ public:
     ~XNUTracer();
 
     void suspend();
-    void resume();
+    void resume(const bool allow_dead = false);
     pid_t pid();
     dispatch_source_t proc_dispath_source();
     dispatch_source_t breakpoint_exception_port_dispath_source();
     void set_single_step(const bool do_single_step);
+    uint64_t num_inst() const;
+    void log_inst(const std::span<uint8_t> log_buf);
+    double elapsed_time() const;
 
 private:
     void setup_breakpoint_exception_handler();
     void install_breakpoint_exception_handler();
-    void uninstall_breakpoint_exception_handler();
+    void uninstall_breakpoint_exception_handler(const bool allow_dead = false);
     void setup_breakpoint_exception_port_dispath_source();
     void setup_proc_dispath_source();
     pid_t spawn_with_args(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
@@ -54,4 +59,7 @@ private:
     dispatch_source_t m_proc_source{nullptr};
     dispatch_source_t m_breakpoint_exc_source{nullptr};
     std::optional<int> m_pipe_write_fd;
+    uint64_t m_num_inst{0};
+    std::vector<uint8_t> m_log_buf;
+    timespec m_start_time{};
 };
