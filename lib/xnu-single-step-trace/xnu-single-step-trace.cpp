@@ -61,6 +61,8 @@ static void mach_check(kern_return_t kr, std::string msg) {
 }
 
 void set_single_step_thread(thread_t thread, bool do_ss) {
+    // fmt::print("thread {} ss: {}\n", thread, do_ss);
+
     arm_debug_state64_t dbg_state;
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
     const auto kr_thread_get =
@@ -79,6 +81,8 @@ void set_single_step_thread(thread_t thread, bool do_ss) {
 }
 
 void set_single_step_task(task_t task, bool do_ss) {
+    // fmt::print("task {} ss: {}\n", task, do_ss);
+
     arm_debug_state64_t dbg_state;
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
     const auto kr_task_get =
@@ -190,20 +194,20 @@ int64_t get_task_for_pid_count(task_t task) {
 // XNUTracer class
 
 XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {
-    common_ctor();
+    common_ctor(false);
 }
 
 XNUTracer::XNUTracer(pid_t target_pid) {
     const auto kr = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
-    common_ctor();
+    common_ctor(false);
 }
 
 XNUTracer::XNUTracer(std::string target_name) {
     const auto target_pid = pid_for_name(target_name);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
-    common_ctor();
+    common_ctor(false);
 }
 
 XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
@@ -212,7 +216,7 @@ XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<int> pip
     const auto target_pid = spawn_with_args(spawn_args, pipe_fd, disable_aslr);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
-    common_ctor();
+    common_ctor(pipe_fd != std::nullopt);
     const auto kr_resume = task_resume(m_target_task);
     mach_check(kr_resume, "task_resume");
 }
@@ -240,7 +244,7 @@ pid_t XNUTracer::spawn_with_args(std::vector<std::string> spawn_args, std::optio
                 "dup stdout");
     posix_check(posix_spawn_file_actions_adddup2(&action, STDERR_FILENO, STDERR_FILENO),
                 "dup stderr");
-    if (pipe_fd != std::nullopt) {
+    if (pipe_fd) {
         posix_check(posix_spawn_file_actions_adddup2(&action, *pipe_fd, STDERR_FILENO + 1),
                     "dup pipe");
     }
@@ -285,6 +289,7 @@ void XNUTracer::setup_breakpoint_exception_handler() {
 }
 
 void XNUTracer::install_breakpoint_exception_handler() {
+    assert(m_breakpoint_exc_port);
     // Tell the kernel what port to send breakpoint exceptions to.
     const auto kr_set_exc = task_set_exception_ports(
         m_target_task, EXC_MASK_BREAKPOINT, m_breakpoint_exc_port,
@@ -312,13 +317,17 @@ void XNUTracer::uninstall_breakpoint_exception_handler() {
     mach_check(kr_set_exc, "uninstall task_set_exception_ports");
 }
 
-void XNUTracer::common_ctor() {
+void XNUTracer::common_ctor(const bool free_running) {
     assert(!g_tracer);
     g_tracer = this;
     setup_breakpoint_exception_handler();
-    install_breakpoint_exception_handler();
+    if (!free_running) {
+        install_breakpoint_exception_handler();
+    }
     setup_breakpoint_exception_port_dispath_source();
-    set_single_step_task(m_target_task, true);
+    if (!free_running) {
+        set_single_step_task(m_target_task, true);
+    }
 }
 
 dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
@@ -327,7 +336,7 @@ dispatch_source_t XNUTracer::breakpoint_exception_port_dispath_source() {
 
 void XNUTracer::set_single_step(const bool do_single_step) {
     if (do_single_step) {
-        setup_breakpoint_exception_handler();
+        install_breakpoint_exception_handler();
         set_single_step_task(m_target_task, true);
     } else {
         set_single_step_task(m_target_task, false);

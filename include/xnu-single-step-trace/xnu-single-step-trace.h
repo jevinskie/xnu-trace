@@ -34,7 +34,7 @@ private:
     void setup_breakpoint_exception_port_dispath_source();
     pid_t spawn_with_args(std::vector<std::string> spawn_args, std::optional<int> pipe_fd,
                           bool disable_aslr);
-    void common_ctor();
+    void common_ctor(const bool free_running);
 
 private:
     task_t m_target_task{TASK_NULL};

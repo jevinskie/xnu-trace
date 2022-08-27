@@ -71,8 +71,8 @@ int main(int argc, const char **argv) {
     if (do_pipe) {
         int pipe_fds[2];
         assert(!pipe(pipe_fds));
-        *pipe_read_fd  = pipe_fds[0];
-        *pipe_write_fd = pipe_fds[1];
+        pipe_read_fd  = pipe_fds[0];
+        pipe_write_fd = pipe_fds[1];
     }
 
     if (do_attach) {
@@ -93,6 +93,26 @@ int main(int argc, const char **argv) {
     assert(signal_source);
     dispatch_source_set_event_handler(signal_source, ^{ exit(0); });
     dispatch_resume(signal_source);
+
+    if (do_pipe) {
+        const auto pipe_source =
+            dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, *pipe_read_fd, 0, queue);
+        assert(pipe_source);
+        XNUTracer *tracer_raw = tracer.get();
+        dispatch_source_set_event_handler(pipe_source, ^{
+            uint8_t buf;
+            assert(read(*pipe_read_fd, &buf, sizeof(buf)) == sizeof(buf));
+            if (buf == 'y') {
+                tracer_raw->set_single_step(true);
+            } else if (buf == 'n') {
+                tracer_raw->set_single_step(false);
+            } else {
+                assert(!"unhandled");
+            }
+        });
+        dispatch_resume(pipe_source);
+        tracer->set_single_step(false);
+    }
 
     const auto breakpoint_exc_source = tracer->breakpoint_exception_port_dispath_source();
     dispatch_resume(breakpoint_exc_source);
