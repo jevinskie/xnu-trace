@@ -8,3 +8,6 @@
 	path = 3rdparty/capstone
 	url = https://github.com/capstone-engine/capstone
 	branch = next
+[submodule "3rdparty/LIEF"]
+	path = 3rdparty/LIEF
+	url = https://github.com/lief-project/LIEF

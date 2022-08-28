@@ -3,6 +3,7 @@
 #include <ctime>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -24,8 +25,29 @@ pid_t pid_for_name(std::string process_name);
 
 int64_t get_task_for_pid_count(task_t task);
 
-void audit_token_for_task(task_t task, audit_token_t *token);
-pid_t pid_for_task(task_t task);
+std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
+
+struct region {
+    uint64_t base;
+    uint64_t size;
+    vm_prot_t prot;
+    std::optional<std::filesystem::path> path;
+    auto operator<=>(const region &rhs) const {
+        return base <=> rhs.base;
+    }
+};
+
+class VMRegions {
+public:
+    VMRegions(task_t target_task);
+
+    void reset();
+
+private:
+    const task_t m_target_task;
+    std::vector<region> m_all_regions;
+    std::vector<region> m_compacted_regions;
+};
 
 class XNUTracer {
 public:
@@ -37,7 +59,7 @@ public:
     ~XNUTracer();
 
     void suspend();
-    void resume(const bool allow_dead = false);
+    void resume(bool allow_dead = false);
     pid_t pid();
     dispatch_source_t proc_dispath_source();
     dispatch_source_t breakpoint_exception_port_dispath_source();
@@ -55,20 +77,11 @@ private:
     void setup_breakpoint_exception_port_dispath_source();
     void setup_proc_dispath_source();
     void setup_pipe_dispatch_source();
-    void setup_regions();
     pid_t spawn_with_args(const std::vector<std::string> &spawn_args, bool pipe_ctrl,
                           bool disable_aslr);
     void common_ctor(bool pipe_ctrl);
 
 private:
-    struct region {
-        uint64_t base;
-        uint64_t size;
-        std::filesystem::path path;
-        auto operator<=>(const region &rhs) const {
-            return base <=> rhs.base;
-        }
-    };
     task_t m_target_task{TASK_NULL};
     mach_port_t m_breakpoint_exc_port{MACH_PORT_NULL};
     mach_port_t m_orig_breakpoint_exc_port{MACH_PORT_NULL};
@@ -83,5 +96,5 @@ private:
     uint64_t m_num_inst{0};
     std::vector<uint8_t> m_log_buf;
     timespec m_start_time{};
-    std::vector<region> m_regions;
+    std::unique_ptr<VMRegions> m_regions;
 };

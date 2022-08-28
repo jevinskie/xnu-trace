@@ -71,6 +71,17 @@ static void mach_check(kern_return_t kr, std::string msg) {
     }
 }
 
+std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz) {
+    std::vector<uint8_t> res;
+    res.resize(sz);
+    vm_size_t vm_sz = sz;
+    const auto kr   = vm_read_overwrite(target_task, (vm_address_t)target_addr, sz,
+                                        (vm_address_t)res.data(), &vm_sz);
+    mach_check(kr, "vm_read_overwrite");
+    assert(vm_sz == sz);
+    return res;
+}
+
 void pipe_set_single_step(bool do_ss) {
     const uint8_t wbuf = do_ss ? 'y' : 'n';
     assert(write(pipe_target2tracer_fd, &wbuf, 1) == 1);
@@ -387,9 +398,9 @@ void XNUTracer::uninstall_breakpoint_exception_handler(const bool allow_dead) {
 
 void XNUTracer::common_ctor(bool pipe_ctrl) {
     assert(!g_tracer);
-    g_tracer = this;
-    setup_regions();
-    m_queue = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
+    g_tracer  = this;
+    m_regions = std::make_unique<VMRegions>(m_target_task);
+    m_queue   = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
     assert(m_queue);
     setup_proc_dispath_source();
     setup_breakpoint_exception_handler();
@@ -423,7 +434,7 @@ dispatch_source_t XNUTracer::pipe_dispatch_source() {
 
 void XNUTracer::set_single_step(const bool do_single_step) {
     if (do_single_step) {
-        setup_regions();
+        m_regions->reset();
         install_breakpoint_exception_handler();
         set_single_step_task(m_target_task, true);
     } else {
@@ -445,7 +456,7 @@ void XNUTracer::suspend() {
     mach_check(kr_suspend, "task_suspend");
 }
 
-void XNUTracer::resume(const bool allow_dead) {
+void XNUTracer::resume(bool allow_dead) {
     assert(m_target_task);
     const auto kr_resume = task_resume(m_target_task);
     if (allow_dead && kr_resume == MACH_SEND_INVALID_DEST) {
@@ -469,8 +480,16 @@ double XNUTracer::elapsed_time() const {
     return timespec_diff(current_time, m_start_time);
 }
 
-void XNUTracer::setup_regions() {
-    suspend();
-    m_regions.clear();
-    resume();
+VMRegions::VMRegions(task_t target_task) : m_target_task{target_task} {
+    reset();
+}
+
+void VMRegions::reset() {
+    mach_check(task_suspend(m_target_task), "region reset suspend");
+    m_all_regions.clear();
+    m_compacted_regions.clear();
+
+    // vm_region_recurse
+
+    mach_check(task_resume(m_target_task), "region reset resume");
 }
