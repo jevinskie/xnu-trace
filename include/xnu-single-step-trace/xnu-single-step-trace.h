@@ -22,8 +22,10 @@ void set_single_step_thread(thread_t thread, bool do_ss);
 void set_single_step_task(task_t thread, bool do_ss);
 
 pid_t pid_for_name(std::string process_name);
+pid_t pid_for_task(task_t task);
 
 int64_t get_task_for_pid_count(task_t task);
+int32_t get_context_switch_count(pid_t pid);
 
 std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
 

@@ -228,6 +228,19 @@ int64_t get_task_for_pid_count(task_t task) {
     return info.extmod_statistics.task_for_pid_count;
 }
 
+pid_t pid_for_task(task_t task) {
+    assert(task);
+    int pid;
+    mach_check(pid_for_task(task, &pid), "pid_for_task");
+    return (pid_t)pid;
+}
+
+int32_t get_context_switch_count(pid_t pid) {
+    proc_taskinfo ti;
+    posix_check(proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &ti, sizeof(ti)), "proc_pidinfo");
+    return ti.pti_csw;
+}
+
 // XNUTracer class
 
 XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {
@@ -444,10 +457,7 @@ void XNUTracer::set_single_step(const bool do_single_step) {
 }
 
 pid_t XNUTracer::pid() {
-    assert(m_target_task);
-    int pid;
-    mach_check(pid_for_task(m_target_task, &pid), "pid_for_task");
-    return (pid_t)pid;
+    return pid_for_task(m_target_task);
 }
 
 void XNUTracer::suspend() {
