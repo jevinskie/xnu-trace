@@ -71,6 +71,14 @@ static void mach_check(kern_return_t kr, std::string msg) {
     }
 }
 
+bool task_is_valid(task_t task) {
+    if (!MACH_PORT_VALID(task)) {
+        return false;
+    }
+    pid_t pid;
+    return pid_for_task(task, &pid) == KERN_SUCCESS;
+}
+
 std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz) {
     std::vector<uint8_t> res;
     res.resize(sz);
@@ -168,8 +176,8 @@ int32_t get_context_switch_count(pid_t pid) {
 integer_t get_suspend_count(task_t task) {
     task_basic_info_64_data_t info;
     mach_msg_type_number_t cnt = TASK_BASIC_INFO_64_COUNT;
-    mach_check(task_info(task, TASK_BASIC_INFO_64, (task_info_t)&info, &cnt),
-               "get_suspend_count task_info");
+    const auto kr              = task_info(task, TASK_BASIC_INFO_64, (task_info_t)&info, &cnt);
+    mach_check(kr, "get_suspend_count task_info");
     return info.suspend_count;
 }
 
@@ -302,7 +310,8 @@ XNUTracer::XNUTracer(std::vector<std::string> spawn_args, bool pipe_ctrl, bool d
 }
 
 XNUTracer::~XNUTracer() {
-    uninstall_breakpoint_exception_handler(true);
+    uninstall_breakpoint_exception_handler();
+    stop_measuring_stats();
     g_tracer                       = nullptr;
     const auto ninst               = num_inst();
     const auto elapsed             = elapsed_time();
@@ -321,7 +330,7 @@ XNUTracer::~XNUTracer() {
                ninst, elapsed, ninst_per_sec, ncsw_target, ncsw_self, ncsw_total,
                ncsw_per_sec_target, ncsw_per_sec_self, ncsw_per_sec_total, nbytes,
                (double)nbytes / ninst, nbytes / elapsed);
-    resume(true);
+    resume();
 }
 
 pid_t XNUTracer::spawn_with_args(const std::vector<std::string> &spawn_args, bool pipe_ctrl,
@@ -446,14 +455,14 @@ void XNUTracer::setup_pipe_dispatch_source() {
     });
 }
 
-void XNUTracer::uninstall_breakpoint_exception_handler(const bool allow_dead) {
+void XNUTracer::uninstall_breakpoint_exception_handler() {
     // Reset the original breakpoint exception port
+    if (!task_is_valid(m_target_task)) {
+        return;
+    }
     const auto kr_set_exc =
         task_set_exception_ports(m_target_task, EXC_MASK_BREAKPOINT, m_orig_breakpoint_exc_port,
                                  m_orig_breakpoint_exc_behavior, m_orig_breakpoint_exc_flavor);
-    if (allow_dead && kr_set_exc == MACH_SEND_INVALID_DEST) {
-        return;
-    }
     mach_check(kr_set_exc, "uninstall task_set_exception_ports");
 }
 
@@ -490,7 +499,6 @@ dispatch_source_t XNUTracer::pipe_dispatch_source() {
 }
 
 void XNUTracer::set_single_step(const bool do_single_step) {
-    fmt::print("target suspend count: {:d}\n", get_suspend_count(m_target_task));
     if (do_single_step) {
         m_regions->reset();
         install_breakpoint_exception_handler();
@@ -508,25 +516,26 @@ pid_t XNUTracer::pid() {
 
 void XNUTracer::suspend() {
     assert(m_target_task);
-    fmt::print("suspend cnt: {:d}\n", get_suspend_count(m_target_task));
-    const auto kr_suspend = task_suspend(m_target_task);
-    mach_check(kr_suspend, "task_suspend");
-    if (m_single_stepping && get_suspend_count(m_target_task) == 1) {
+    if (!task_is_valid(m_target_task)) {
+        return;
+    }
+    const auto suspend_cnt = get_suspend_count(m_target_task);
+    mach_check(task_suspend(m_target_task), "suspend() task_suspend");
+    if (m_single_stepping && suspend_cnt == 1) {
         stop_measuring_stats();
     }
 }
 
-void XNUTracer::resume(bool allow_dead) {
+void XNUTracer::resume() {
     assert(m_target_task);
-    fmt::print("resume cnt: {:d}\n", get_suspend_count(m_target_task));
-    if (m_single_stepping && get_suspend_count(m_target_task) == 1) {
-        start_measuring_stats();
-    }
-    const auto kr_resume = task_resume(m_target_task);
-    if (allow_dead && kr_resume == MACH_SEND_INVALID_DEST) {
+    if (!task_is_valid(m_target_task)) {
         return;
     }
-    mach_check(kr_resume, "task_resume");
+    const auto suspend_cnt = get_suspend_count(m_target_task);
+    if (m_single_stepping && suspend_cnt == 1) {
+        start_measuring_stats();
+    }
+    mach_check(task_resume(m_target_task), "resume() task_resume");
 }
 
 void XNUTracer::log_inst(const std::span<uint8_t> log_buf) {
@@ -551,23 +560,25 @@ uint64_t XNUTracer::context_switch_count_target() const {
 }
 
 void XNUTracer::start_measuring_stats() {
-    assert(!m_measuring_stats);
-    fmt::print("start measuring stats\n");
-    posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &m_start_time), "clock_gettime");
-    m_self_start_num_csw   = get_context_switch_count(getpid());
-    m_target_start_num_csw = get_context_switch_count(pid());
-    m_measuring_stats      = true;
+    if (!m_measuring_stats) {
+        posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &m_start_time), "clock_gettime");
+        m_self_start_num_csw   = get_context_switch_count(getpid());
+        m_target_start_num_csw = get_context_switch_count(pid());
+        m_measuring_stats      = true;
+    }
 }
 
 void XNUTracer::stop_measuring_stats() {
-    assert(m_measuring_stats);
-    timespec current_time;
-    posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &current_time), "clock_gettime");
-    m_elapsed_time += timespec_diff(current_time, m_start_time);
-    m_self_total_csw += get_context_switch_count(getpid()) - m_self_start_num_csw;
-    m_target_total_csw += get_context_switch_count(pid()) - m_target_start_num_csw;
-    m_measuring_stats = false;
-    fmt::print("stop measuring stats\n");
+    if (m_measuring_stats) {
+        timespec current_time;
+        posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &current_time), "clock_gettime");
+        m_elapsed_time += timespec_diff(current_time, m_start_time);
+        m_self_total_csw += get_context_switch_count(getpid()) - m_self_start_num_csw;
+        if (task_is_valid(m_target_task)) {
+            m_target_total_csw += get_context_switch_count(pid()) - m_target_start_num_csw;
+        }
+        m_measuring_stats = false;
+    }
 }
 
 VMRegions::VMRegions(task_t target_task) : m_target_task{target_task} {
@@ -579,7 +590,6 @@ void VMRegions::reset() {
     m_all_regions.clear();
     m_compacted_regions.clear();
 
-    // vm_region_recurse
     get_vm_regions(m_target_task);
 
     mach_check(task_resume(m_target_task), "region reset resume");

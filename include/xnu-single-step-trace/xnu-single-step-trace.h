@@ -24,8 +24,10 @@ void set_single_step_task(task_t thread, bool do_ss);
 pid_t pid_for_name(std::string process_name);
 pid_t pid_for_task(task_t task);
 
+bool task_is_valid(task_t task);
 int64_t get_task_for_pid_count(task_t task);
 int32_t get_context_switch_count(pid_t pid);
+integer_t get_suspend_count(task_t task);
 
 std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
 
@@ -61,7 +63,7 @@ public:
     ~XNUTracer();
 
     void suspend();
-    void resume(bool allow_dead = false);
+    void resume();
     pid_t pid();
     dispatch_source_t proc_dispath_source();
     dispatch_source_t breakpoint_exception_port_dispath_source();
@@ -77,7 +79,7 @@ public:
 private:
     void setup_breakpoint_exception_handler();
     void install_breakpoint_exception_handler();
-    void uninstall_breakpoint_exception_handler(bool allow_dead = false);
+    void uninstall_breakpoint_exception_handler();
     void setup_breakpoint_exception_port_dispath_source();
     void setup_proc_dispath_source();
     void setup_pipe_dispatch_source();
