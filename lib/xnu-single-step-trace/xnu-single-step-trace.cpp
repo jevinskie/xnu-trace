@@ -93,19 +93,40 @@ std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint6
 void get_vm_regions(task_t target_task) {
     vm_address_t addr = 0;
     kern_return_t kr;
+    const auto pid  = pid_for_task(target_task);
+    natural_t depth = 0;
     do {
         vm_size_t sz;
-        natural_t nesting_depth = 0;
-        vm_region_basic_info_data_64_t info;
-        mach_msg_type_number_t cnt = VM_REGION_BASIC_INFO_COUNT_64;
-        kr                         = vm_region_recurse_64(target_task, &addr, &sz, &nesting_depth,
-                                                          (vm_region_recurse_info_t)&info, &cnt);
+        vm_region_submap_info_64 info;
+        mach_msg_type_number_t cnt = VM_REGION_SUBMAP_INFO_COUNT_64;
+        kr = vm_region_recurse_64(target_task, &addr, &sz, &depth, (vm_region_recurse_info_t)&info,
+                                  &cnt);
         if (kr != KERN_SUCCESS) {
             fmt::print("Error: '{:s}' retval: {:d} description: '{:s}'\n", "get_vm_regions", kr,
                        mach_error_string(kr));
         } else {
-            fmt::print("addr: {:p} sz: {:#x} depth: {:d} cnt: {:d}\n", (void *)addr, sz,
-                       nesting_depth, cnt);
+            fmt::print("addr: {:p} sz: {:#x} depth: {:d} cnt: {:d}\n", (void *)addr, sz, depth,
+                       cnt);
+            errno = 0;
+            char buf[PATH_MAX];
+            strcpy(buf, "n/a");
+            const auto res = proc_regionfilename(pid, addr, buf, sizeof(buf));
+            fmt::print("errno={:d} res={:d} path: '{:s}'\n", errno, res, buf);
+            // strcpy(buf, "n/a2");
+            // errno = 0;
+            // proc_regionwithpathinfo rinfo;
+            // memset(&rinfo, 0, sizeof(rinfo));
+            // const auto res2 =
+            //     proc_pidinfo(pid, PROC_PIDREGIONPATHINFO, addr, &rinfo, sizeof(rinfo));
+            // fmt::print("errno2={:d} res2={:d} addr: {:p} sz: {:p} path: '{:s}'\n", errno, res2,
+            // (void *)rinfo.prp_prinfo.pri_address, (void *)rinfo.prp_prinfo.pri_size,
+            // rinfo.prp_vip.vip_path);
+            if (info.is_submap) {
+                depth += 1;
+            } else {
+                addr += sz;
+                depth = 0;
+            }
         }
     } while (kr == KERN_SUCCESS);
 }
