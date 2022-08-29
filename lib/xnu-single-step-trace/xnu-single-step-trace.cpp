@@ -82,12 +82,95 @@ std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint6
     return res;
 }
 
+void get_vm_regions(task_t target_task) {
+    vm_address_t addr = 0;
+    kern_return_t kr;
+    do {
+        vm_size_t sz;
+        natural_t nesting_depth = 0;
+        vm_region_basic_info_data_64_t info;
+        mach_msg_type_number_t cnt = VM_REGION_BASIC_INFO_COUNT_64;
+        kr                         = vm_region_recurse_64(target_task, &addr, &sz, &nesting_depth,
+                                                          (vm_region_recurse_info_t)&info, &cnt);
+        if (kr != KERN_SUCCESS) {
+            fmt::print("Error: '{:s}' retval: {:d} description: '{:s}'\n", "get_vm_regions", kr,
+                       mach_error_string(kr));
+        } else {
+            fmt::print("addr: {:p} sz: {:#x} depth: {:d} cnt: {:d}\n", (void *)addr, sz,
+                       nesting_depth, cnt);
+        }
+    } while (kr == KERN_SUCCESS);
+}
+
 void pipe_set_single_step(bool do_ss) {
     const uint8_t wbuf = do_ss ? 'y' : 'n';
     assert(write(pipe_target2tracer_fd, &wbuf, 1) == 1);
     uint8_t rbuf = 0;
     assert(read(pipe_tracer2target_fd, &rbuf, 1) == 1);
     assert(rbuf == 'c');
+}
+
+pid_t pid_for_name(std::string process_name) {
+    const auto proc_num = proc_listpids(PROC_ALL_PIDS, 0, nullptr, 0) / sizeof(pid_t);
+    std::vector<pid_t> pids;
+    pids.resize(proc_num);
+    const auto actual_proc_num =
+        proc_listpids(PROC_ALL_PIDS, 0, pids.data(), (int)bytesizeof(pids)) / sizeof(pid_t);
+    assert(actual_proc_num > 0);
+    pids.resize(actual_proc_num);
+    std::vector<std::pair<std::string, pid_t>> matches;
+    for (const auto pid : pids) {
+        if (!pid) {
+            continue;
+        }
+        char path_buf[PROC_PIDPATHINFO_MAXSIZE];
+        if (proc_pidpath(pid, path_buf, sizeof(path_buf)) > 0) {
+            std::filesystem::path path{path_buf};
+            if (path.filename().string() == process_name) {
+                matches.emplace_back(std::make_pair(path, pid));
+            }
+        }
+    }
+    if (!matches.size()) {
+        fmt::print(stderr, "Couldn't find process named '{:s}'\n", process_name);
+        exit(-1);
+    } else if (matches.size() > 1) {
+        fmt::print(stderr, "Found multiple processes named '{:s}'\n", process_name);
+        exit(-1);
+    }
+    return matches[0].second;
+}
+
+int64_t get_task_for_pid_count(task_t task) {
+    struct task_extmod_info info;
+    mach_msg_type_number_t count = TASK_EXTMOD_INFO_COUNT;
+    const auto kr                = task_info(task, TASK_EXTMOD_INFO, (task_info_t)&info, &count);
+    mach_check(kr, "get_task_for_pid_count thread_info");
+    return info.extmod_statistics.task_for_pid_count;
+}
+
+pid_t pid_for_task(task_t task) {
+    assert(task);
+    int pid;
+    mach_check(pid_for_task(task, &pid), "pid_for_task");
+    return (pid_t)pid;
+}
+
+int32_t get_context_switch_count(pid_t pid) {
+    proc_taskinfo ti;
+    const auto res = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &ti, sizeof(ti));
+    if (res != sizeof(ti)) {
+        fmt::print(stderr, "get_context_switch_count proc_pidinfo returned {:d}", res);
+    }
+    return ti.pti_csw;
+}
+
+integer_t get_suspend_count(task_t task) {
+    task_basic_info_64_data_t info;
+    mach_msg_type_number_t cnt = TASK_BASIC_INFO_64_COUNT;
+    mach_check(task_info(task, TASK_BASIC_INFO_64, (task_info_t)&info, &cnt),
+               "get_suspend_count task_info");
+    return info.suspend_count;
 }
 
 void set_single_step_thread(thread_t thread, bool do_ss) {
@@ -189,61 +272,10 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state(
     return KERN_NOT_SUPPORTED;
 }
 
-pid_t pid_for_name(std::string process_name) {
-    const auto proc_num = proc_listpids(PROC_ALL_PIDS, 0, nullptr, 0) / sizeof(pid_t);
-    std::vector<pid_t> pids;
-    pids.resize(proc_num);
-    const auto actual_proc_num =
-        proc_listpids(PROC_ALL_PIDS, 0, pids.data(), (int)bytesizeof(pids)) / sizeof(pid_t);
-    assert(actual_proc_num > 0);
-    pids.resize(actual_proc_num);
-    std::vector<std::pair<std::string, pid_t>> matches;
-    for (const auto pid : pids) {
-        if (!pid) {
-            continue;
-        }
-        char path_buf[PROC_PIDPATHINFO_MAXSIZE];
-        if (proc_pidpath(pid, path_buf, sizeof(path_buf)) > 0) {
-            std::filesystem::path path{path_buf};
-            if (path.filename().string() == process_name) {
-                matches.emplace_back(std::make_pair(path, pid));
-            }
-        }
-    }
-    if (!matches.size()) {
-        fmt::print(stderr, "Couldn't find process named '{:s}'\n", process_name);
-        exit(-1);
-    } else if (matches.size() > 1) {
-        fmt::print(stderr, "Found multiple processes named '{:s}'\n", process_name);
-        exit(-1);
-    }
-    return matches[0].second;
-}
-
-int64_t get_task_for_pid_count(task_t task) {
-    struct task_extmod_info info;
-    mach_msg_type_number_t count = TASK_EXTMOD_INFO_COUNT;
-    const auto kr                = task_info(task, TASK_EXTMOD_INFO, (task_info_t)&info, &count);
-    mach_check(kr, "get_task_for_pid_count thread_info");
-    return info.extmod_statistics.task_for_pid_count;
-}
-
-pid_t pid_for_task(task_t task) {
-    assert(task);
-    int pid;
-    mach_check(pid_for_task(task, &pid), "pid_for_task");
-    return (pid_t)pid;
-}
-
-int32_t get_context_switch_count(pid_t pid) {
-    proc_taskinfo ti;
-    posix_check(proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &ti, sizeof(ti)), "proc_pidinfo");
-    return ti.pti_csw;
-}
-
 // XNUTracer class
 
 XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {
+    suspend();
     common_ctor(false);
 }
 
@@ -271,14 +303,24 @@ XNUTracer::XNUTracer(std::vector<std::string> spawn_args, bool pipe_ctrl, bool d
 
 XNUTracer::~XNUTracer() {
     uninstall_breakpoint_exception_handler(true);
-    g_tracer                 = nullptr;
-    const auto ninst         = num_inst();
-    const auto elapsed       = elapsed_time();
-    const auto ninst_per_sec = ninst / elapsed;
-    const auto nbytes        = m_log_buf.size();
-    fmt::print("XNUTracer traced {:Ld} instructions in {:0.3Lf} seconds ({:0.1Lf} / sec) and "
-               "logged {:Ld} bytes ({:0.1Lf} / inst)\n",
-               ninst, elapsed, ninst_per_sec, nbytes, (double)nbytes / ninst);
+    g_tracer                       = nullptr;
+    const auto ninst               = num_inst();
+    const auto elapsed             = elapsed_time();
+    const auto ninst_per_sec       = ninst / elapsed;
+    const auto ncsw_self           = context_switch_count_self();
+    const auto ncsw_per_sec_self   = ncsw_self / elapsed;
+    const auto ncsw_target         = context_switch_count_target();
+    const auto ncsw_per_sec_target = ncsw_target / elapsed;
+    const auto ncsw_total          = ncsw_self + ncsw_target;
+    const auto ncsw_per_sec_total  = ncsw_total / elapsed;
+    const auto nbytes              = m_log_buf.size();
+    fmt::print("XNUTracer traced {:Ld} instructions in {:0.3Lf} seconds ({:0.1Lf} / sec) over "
+               "{:Ld} target / {:Ld} self / {:Ld} total contexts switches ({:0.1Lf} / {:0.1Lf} / "
+               "{:0.1Lf} CSW/sec) and "
+               "logged {:Ld} bytes ({:0.1Lf} / inst, {:0.1Lf} / sec)\n",
+               ninst, elapsed, ninst_per_sec, ncsw_target, ncsw_self, ncsw_total,
+               ncsw_per_sec_target, ncsw_per_sec_self, ncsw_per_sec_total, nbytes,
+               (double)nbytes / ninst, nbytes / elapsed);
     resume(true);
 }
 
@@ -388,8 +430,14 @@ void XNUTracer::setup_pipe_dispatch_source() {
         assert(read(*m_target2tracer_fd, &rbuf, 1) == 1);
         if (rbuf == 'y') {
             set_single_step(true);
+            if (get_suspend_count(m_target_task) == 0 && !m_measuring_stats) {
+                start_measuring_stats();
+            }
         } else if (rbuf == 'n') {
             set_single_step(false);
+            if (get_suspend_count(m_target_task) == 0 && m_measuring_stats) {
+                stop_measuring_stats();
+            }
         } else {
             assert(!"unhandled");
         }
@@ -417,17 +465,13 @@ void XNUTracer::common_ctor(bool pipe_ctrl) {
     assert(m_queue);
     setup_proc_dispath_source();
     setup_breakpoint_exception_handler();
-    if (!pipe_ctrl) {
-        install_breakpoint_exception_handler();
-    }
     if (pipe_ctrl) {
         setup_pipe_dispatch_source();
     }
     setup_breakpoint_exception_port_dispath_source();
     if (!pipe_ctrl) {
-        set_single_step_task(m_target_task, true);
+        set_single_step(true);
     }
-    posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &m_start_time), "clock_gettime");
 }
 
 dispatch_source_t XNUTracer::proc_dispath_source() {
@@ -446,6 +490,7 @@ dispatch_source_t XNUTracer::pipe_dispatch_source() {
 }
 
 void XNUTracer::set_single_step(const bool do_single_step) {
+    fmt::print("target suspend count: {:d}\n", get_suspend_count(m_target_task));
     if (do_single_step) {
         m_regions->reset();
         install_breakpoint_exception_handler();
@@ -454,6 +499,7 @@ void XNUTracer::set_single_step(const bool do_single_step) {
         set_single_step_task(m_target_task, false);
         uninstall_breakpoint_exception_handler();
     }
+    m_single_stepping = do_single_step;
 }
 
 pid_t XNUTracer::pid() {
@@ -462,12 +508,20 @@ pid_t XNUTracer::pid() {
 
 void XNUTracer::suspend() {
     assert(m_target_task);
+    fmt::print("suspend cnt: {:d}\n", get_suspend_count(m_target_task));
     const auto kr_suspend = task_suspend(m_target_task);
     mach_check(kr_suspend, "task_suspend");
+    if (m_single_stepping && get_suspend_count(m_target_task) == 1) {
+        stop_measuring_stats();
+    }
 }
 
 void XNUTracer::resume(bool allow_dead) {
     assert(m_target_task);
+    fmt::print("resume cnt: {:d}\n", get_suspend_count(m_target_task));
+    if (m_single_stepping && get_suspend_count(m_target_task) == 1) {
+        start_measuring_stats();
+    }
     const auto kr_resume = task_resume(m_target_task);
     if (allow_dead && kr_resume == MACH_SEND_INVALID_DEST) {
         return;
@@ -475,19 +529,45 @@ void XNUTracer::resume(bool allow_dead) {
     mach_check(kr_resume, "task_resume");
 }
 
-uint64_t XNUTracer::num_inst() const {
-    return m_num_inst;
-}
-
 void XNUTracer::log_inst(const std::span<uint8_t> log_buf) {
     ++m_num_inst;
     std::copy(log_buf.begin(), log_buf.end(), std::back_inserter(m_log_buf));
 }
 
+uint64_t XNUTracer::num_inst() const {
+    return m_num_inst;
+}
+
 double XNUTracer::elapsed_time() const {
+    return m_elapsed_time;
+}
+
+uint64_t XNUTracer::context_switch_count_self() const {
+    return m_self_total_csw;
+}
+
+uint64_t XNUTracer::context_switch_count_target() const {
+    return m_target_total_csw;
+}
+
+void XNUTracer::start_measuring_stats() {
+    assert(!m_measuring_stats);
+    fmt::print("start measuring stats\n");
+    posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &m_start_time), "clock_gettime");
+    m_self_start_num_csw   = get_context_switch_count(getpid());
+    m_target_start_num_csw = get_context_switch_count(pid());
+    m_measuring_stats      = true;
+}
+
+void XNUTracer::stop_measuring_stats() {
+    assert(m_measuring_stats);
     timespec current_time;
     posix_check(clock_gettime(CLOCK_MONOTONIC_RAW, &current_time), "clock_gettime");
-    return timespec_diff(current_time, m_start_time);
+    m_elapsed_time += timespec_diff(current_time, m_start_time);
+    m_self_total_csw += get_context_switch_count(getpid()) - m_self_start_num_csw;
+    m_target_total_csw += get_context_switch_count(pid()) - m_target_start_num_csw;
+    m_measuring_stats = false;
+    fmt::print("stop measuring stats\n");
 }
 
 VMRegions::VMRegions(task_t target_task) : m_target_task{target_task} {
@@ -500,6 +580,7 @@ void VMRegions::reset() {
     m_compacted_regions.clear();
 
     // vm_region_recurse
+    get_vm_regions(m_target_task);
 
     mach_check(task_resume(m_target_task), "region reset resume");
 }

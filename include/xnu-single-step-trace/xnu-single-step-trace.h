@@ -67,9 +67,11 @@ public:
     dispatch_source_t breakpoint_exception_port_dispath_source();
     dispatch_source_t pipe_dispatch_source();
     void set_single_step(bool do_single_step);
-    uint64_t num_inst() const;
     void log_inst(const std::span<uint8_t> log_buf);
+    uint64_t num_inst() const;
     double elapsed_time() const;
+    uint64_t context_switch_count_self() const;
+    uint64_t context_switch_count_target() const;
     void handle_pipe();
 
 private:
@@ -79,6 +81,8 @@ private:
     void setup_breakpoint_exception_port_dispath_source();
     void setup_proc_dispath_source();
     void setup_pipe_dispatch_source();
+    void start_measuring_stats();
+    void stop_measuring_stats();
     pid_t spawn_with_args(const std::vector<std::string> &spawn_args, bool pipe_ctrl,
                           bool disable_aslr);
     void common_ctor(bool pipe_ctrl);
@@ -95,8 +99,15 @@ private:
     dispatch_source_t m_pipe_source{nullptr};
     std::optional<int> m_target2tracer_fd;
     std::optional<int> m_tracer2target_fd;
-    uint64_t m_num_inst{0};
+    bool m_single_stepping{};
+    bool m_measuring_stats{};
+    uint64_t m_num_inst{};
     std::vector<uint8_t> m_log_buf;
+    double m_elapsed_time{};
     timespec m_start_time{};
+    uint64_t m_target_total_csw{};
+    int32_t m_target_start_num_csw{};
+    uint64_t m_self_total_csw{};
+    int32_t m_self_start_num_csw{};
     std::unique_ptr<VMRegions> m_regions;
 };
