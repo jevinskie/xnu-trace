@@ -13,6 +13,11 @@
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
 
+struct log_msg {
+    uint32_t thread;
+    uint64_t pc;
+} __attribute__((packed));
+
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
 
@@ -94,7 +99,11 @@ public:
     dispatch_source_t breakpoint_exception_port_dispath_source();
     dispatch_source_t pipe_dispatch_source();
     void set_single_step(bool do_single_step);
-    void log_inst(const std::span<uint8_t> log_buf);
+    template <typename T> __attribute((always_inline)) void log(const T &msg) {
+        ++m_num_inst;
+        std::copy((const uint8_t *)&msg, (const uint8_t *)&msg + sizeof(msg),
+                  std::back_inserter(m_log_buf));
+    }
     uint64_t num_inst() const;
     double elapsed_time() const;
     uint64_t context_switch_count_self() const;

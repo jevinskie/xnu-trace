@@ -435,13 +435,13 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     auto os = (const arm_thread_state64_t *)old_state;
     auto ns = (arm_thread_state64_t *)new_state;
 
-    // const auto opc = arm_thread_state64_get_pc(*os);
+    const auto opc = arm_thread_state64_get_pc(*os);
     // fmt::print(stderr, "exc pc: {:p}\n", (void *)opc);
 
     *new_state_count = old_state_count;
     *ns              = *os;
 
-    g_tracer->log_inst({});
+    g_tracer->log(log_msg{.thread = thread, .pc = opc});
 
     set_single_step_thread(thread, true);
 
@@ -514,13 +514,15 @@ XNUTracer::~XNUTracer() {
     const auto ncsw_total          = ncsw_self + ncsw_target;
     const auto ncsw_per_sec_total  = ncsw_total / elapsed;
     const auto nbytes              = m_log_buf.size();
-    fmt::print("XNUTracer traced {:Ld} instructions in {:0.3Lf} seconds ({:0.1Lf} / sec) over "
-               "{:Ld} target / {:Ld} self / {:Ld} total contexts switches ({:0.1Lf} / {:0.1Lf} / "
-               "{:0.1Lf} CSW/sec) and "
-               "logged {:Ld} bytes ({:0.1Lf} / inst, {:0.1Lf} / sec)\n",
-               ninst, elapsed, ninst_per_sec, ncsw_target, ncsw_self, ncsw_total,
-               ncsw_per_sec_target, ncsw_per_sec_self, ncsw_per_sec_total, nbytes,
-               (double)nbytes / ninst, nbytes / elapsed);
+    // have to use format/locale, not print/locale
+    const auto s = fmt::format(
+        std::locale("en_US.UTF-8"),
+        "XNUTracer traced {:Ld} instructions in {:0.3Lf} seconds ({:0.1Lf} / sec) over {:Ld} "
+        "target / {:Ld} self / {:Ld} total contexts switches ({:0.1Lf} / {:0.1Lf} / {:0.1Lf} "
+        "CSW/sec) and logged {:Ld} bytes ({:0.1Lf} / inst, {:0.1Lf} / sec)\n",
+        ninst, elapsed, ninst_per_sec, ncsw_target, ncsw_self, ncsw_total, ncsw_per_sec_target,
+        ncsw_per_sec_self, ncsw_per_sec_total, nbytes, (double)nbytes / ninst, nbytes / elapsed);
+    fmt::print("{}\n", s);
     resume();
 }
 
@@ -729,11 +731,6 @@ void XNUTracer::resume() {
         start_measuring_stats();
     }
     mach_check(task_resume(m_target_task), "resume() task_resume");
-}
-
-void XNUTracer::log_inst(const std::span<uint8_t> log_buf) {
-    ++m_num_inst;
-    std::copy(log_buf.begin(), log_buf.end(), std::back_inserter(m_log_buf));
 }
 
 uint64_t XNUTracer::num_inst() const {
