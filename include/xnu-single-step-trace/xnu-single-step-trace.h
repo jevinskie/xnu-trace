@@ -29,12 +29,24 @@ int64_t get_task_for_pid_count(task_t task);
 int32_t get_context_switch_count(pid_t pid);
 integer_t get_suspend_count(task_t task);
 
+void hexdump(const void *data, size_t size);
+
 std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
+
+struct image_info {
+    uint64_t base;
+    uint64_t size;
+    std::filesystem::path path;
+    auto operator<=>(const image_info &rhs) const {
+        return base <=> rhs.base;
+    }
+};
+
+std::vector<image_info> get_dyld_image_infos(task_t target_task);
 
 struct region {
     uint64_t base;
     uint64_t size;
-    vm_prot_t prot;
     std::optional<std::filesystem::path> path;
     auto operator<=>(const region &rhs) const {
         return base <=> rhs.base;
@@ -51,6 +63,17 @@ private:
     const task_t m_target_task;
     std::vector<region> m_all_regions;
     std::vector<region> m_compacted_regions;
+};
+
+class MachORegions {
+public:
+    MachORegions(task_t target_task);
+
+    void reset();
+
+private:
+    const task_t m_target_task;
+    std::vector<region> m_regions;
 };
 
 class XNUTracer {
@@ -111,5 +134,5 @@ private:
     int32_t m_target_start_num_csw{};
     uint64_t m_self_total_csw{};
     int32_t m_self_start_num_csw{};
-    std::unique_ptr<VMRegions> m_regions;
+    std::unique_ptr<MachORegions> m_macho_regions;
 };

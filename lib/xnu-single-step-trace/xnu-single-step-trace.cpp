@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <libproc.h>
+#include <mach-o/dyld_images.h>
 #include <mach/exc.h>
 #include <mach/exception.h>
 #include <mach/mach.h>
@@ -19,9 +20,13 @@
 #include <pthread.h>
 #include <sys/proc_info.h>
 
+#include <LIEF/MachO.hpp>
+#include <LIEF/logging.hpp>
 #include <fmt/format.h>
 
 #include "mach_exc.h"
+
+namespace fs = std::filesystem;
 
 #define EXC_MSG_MAX_SIZE 4096
 
@@ -94,41 +99,55 @@ void get_vm_regions(task_t target_task) {
     vm_address_t addr = 0;
     kern_return_t kr;
     const auto pid  = pid_for_task(target_task);
-    natural_t depth = 0;
-    do {
-        vm_size_t sz;
-        vm_region_submap_info_64 info;
+    natural_t depth = 1;
+    while (1) {
+        vm_size_t sz{};
+        vm_region_submap_info_64 info{};
         mach_msg_type_number_t cnt = VM_REGION_SUBMAP_INFO_COUNT_64;
         kr = vm_region_recurse_64(target_task, &addr, &sz, &depth, (vm_region_recurse_info_t)&info,
                                   &cnt);
         if (kr != KERN_SUCCESS) {
             fmt::print("Error: '{:s}' retval: {:d} description: '{:s}'\n", "get_vm_regions", kr,
                        mach_error_string(kr));
-        } else {
-            fmt::print("addr: {:p} sz: {:#x} depth: {:d} cnt: {:d}\n", (void *)addr, sz, depth,
-                       cnt);
-            errno = 0;
-            char buf[PATH_MAX];
-            strcpy(buf, "n/a");
-            const auto res = proc_regionfilename(pid, addr, buf, sizeof(buf));
-            fmt::print("errno={:d} res={:d} path: '{:s}'\n", errno, res, buf);
-            // strcpy(buf, "n/a2");
-            // errno = 0;
-            // proc_regionwithpathinfo rinfo;
-            // memset(&rinfo, 0, sizeof(rinfo));
-            // const auto res2 =
-            //     proc_pidinfo(pid, PROC_PIDREGIONPATHINFO, addr, &rinfo, sizeof(rinfo));
-            // fmt::print("errno2={:d} res2={:d} addr: {:p} sz: {:p} path: '{:s}'\n", errno, res2,
-            // (void *)rinfo.prp_prinfo.pri_address, (void *)rinfo.prp_prinfo.pri_size,
-            // rinfo.prp_vip.vip_path);
-            if (info.is_submap) {
-                depth += 1;
-            } else {
-                addr += sz;
-                depth = 0;
-            }
+            break;
         }
-    } while (kr == KERN_SUCCESS);
+        fmt::print("addr: {:p} sz: {:#x} depth: {:d} submap: {:b}\n", (void *)addr, sz, depth,
+                   info.is_submap);
+        if (info.protection & 1 && sz && !info.is_submap) {
+            const auto buf = read_target(target_task, addr, 128);
+            hexdump(buf.data(), buf.size());
+        }
+        if (info.is_submap) {
+            depth += 1;
+            continue;
+        }
+        addr += sz;
+    }
+}
+
+std::vector<image_info> get_dyld_image_infos(task_t target_task) {
+    std::vector<image_info> res;
+    task_dyld_info_data_t dyld_info;
+    mach_msg_type_number_t cnt = TASK_DYLD_INFO_COUNT;
+    mach_check(task_info(target_task, TASK_DYLD_INFO, (task_info_t)&dyld_info, &cnt),
+               "task_info dyld info");
+    assert(dyld_info.all_image_info_format == TASK_DYLD_ALL_IMAGE_INFO_64);
+    const auto all_info_buf =
+        read_target(target_task, dyld_info.all_image_info_addr, dyld_info.all_image_info_size);
+    const dyld_all_image_infos *all_img_infos = (dyld_all_image_infos *)all_info_buf.data();
+
+    const auto infos_buf = read_target(target_task, (uint64_t)all_img_infos->infoArray,
+                                       all_img_infos->infoArrayCount * sizeof(dyld_image_info));
+
+    const auto img_infos = std::span<const dyld_image_info>{(dyld_image_info *)infos_buf.data(),
+                                                            all_img_infos->infoArrayCount};
+    for (const auto &img_info : img_infos) {
+        res.emplace_back(image_info{
+            .base = (uint64_t)img_info.imageLoadAddress, .size = 0, .path = fs::path{"foo"}});
+        // .path = fs::path{img_info.imageFilePath}});
+    }
+    return res;
+    // __builtin_dump_struct(img_infos, &printf);
 }
 
 void pipe_set_single_step(bool do_ss) {
@@ -200,6 +219,36 @@ integer_t get_suspend_count(task_t task) {
     const auto kr              = task_info(task, TASK_BASIC_INFO_64, (task_info_t)&info, &cnt);
     mach_check(kr, "get_suspend_count task_info");
     return info.suspend_count;
+}
+
+// https://gist.github.com/ccbrown/9722406
+void hexdump(const void *data, size_t size) {
+    char ascii[17];
+    size_t i, j;
+    ascii[16] = '\0';
+    for (i = 0; i < size; ++i) {
+        printf("%02X ", ((unsigned char *)data)[i]);
+        if (((unsigned char *)data)[i] >= ' ' && ((unsigned char *)data)[i] <= '~') {
+            ascii[i % 16] = ((unsigned char *)data)[i];
+        } else {
+            ascii[i % 16] = '.';
+        }
+        if ((i + 1) % 8 == 0 || i + 1 == size) {
+            printf(" ");
+            if ((i + 1) % 16 == 0) {
+                printf("|  %s \n", ascii);
+            } else if (i + 1 == size) {
+                ascii[(i + 1) % 16] = '\0';
+                if ((i + 1) % 16 <= 8) {
+                    printf(" ");
+                }
+                for (j = (i + 1) % 16; j < 16; ++j) {
+                    printf("   ");
+                }
+                printf("|  %s \n", ascii);
+            }
+        }
+    }
 }
 
 void set_single_step_thread(thread_t thread, bool do_ss) {
@@ -489,9 +538,9 @@ void XNUTracer::uninstall_breakpoint_exception_handler() {
 
 void XNUTracer::common_ctor(bool pipe_ctrl) {
     assert(!g_tracer);
-    g_tracer  = this;
-    m_regions = std::make_unique<VMRegions>(m_target_task);
-    m_queue   = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
+    g_tracer        = this;
+    m_macho_regions = std::make_unique<MachORegions>(m_target_task);
+    m_queue         = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
     assert(m_queue);
     setup_proc_dispath_source();
     setup_breakpoint_exception_handler();
@@ -521,7 +570,7 @@ dispatch_source_t XNUTracer::pipe_dispatch_source() {
 
 void XNUTracer::set_single_step(const bool do_single_step) {
     if (do_single_step) {
-        m_regions->reset();
+        m_macho_regions->reset();
         install_breakpoint_exception_handler();
         set_single_step_task(m_target_task, true);
     } else {
@@ -612,6 +661,19 @@ void VMRegions::reset() {
     m_compacted_regions.clear();
 
     get_vm_regions(m_target_task);
+
+    mach_check(task_resume(m_target_task), "region reset resume");
+}
+
+MachORegions::MachORegions(task_t target_task) : m_target_task{target_task} {
+    reset();
+}
+
+void MachORegions::reset() {
+    mach_check(task_suspend(m_target_task), "region reset suspend");
+    m_regions.clear();
+
+    const auto infos = get_dyld_image_infos(m_target_task);
 
     mach_check(task_resume(m_target_task), "region reset resume");
 }
