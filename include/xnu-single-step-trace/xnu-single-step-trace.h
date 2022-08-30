@@ -65,18 +65,17 @@ public:
 private:
     const task_t m_target_task;
     std::vector<region> m_all_regions;
-    std::vector<region> m_compacted_regions;
 };
 
 class MachORegions {
 public:
     MachORegions(task_t target_task);
-
     void reset();
+    image_info lookup(uint64_t addr);
 
 private:
     const task_t m_target_task;
-    std::vector<region> m_regions;
+    std::vector<image_info> m_regions;
 };
 
 class XNUTracer {

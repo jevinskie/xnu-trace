@@ -171,8 +171,10 @@ std::vector<region> get_vm_regions(task_t target_task) {
         }
         addr += sz;
     }
+
     std::sort(res.begin(), res.end());
 
+#if 0
     for (const auto &map : res) {
         std::string l;
         std::fill_n(std::back_inserter(l), map.depth, '\t');
@@ -180,6 +182,7 @@ std::vector<region> get_vm_regions(task_t target_task) {
                          prot_to_str(map.prot), map.size);
         fmt::print("{:s}\n", l);
     }
+#endif
 
     return res;
 }
@@ -258,10 +261,12 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
 
     std::sort(res.begin(), res.end());
 
+#if 0
     for (const auto &img_info : res) {
         fmt::print("img_info base: {:#018x} sz: {:#010x} path: '{:s}'\n", img_info.base,
                    img_info.size, img_info.path.string());
     }
+#endif
 
     return res;
 }
@@ -775,10 +780,7 @@ VMRegions::VMRegions(task_t target_task) : m_target_task{target_task} {
 
 void VMRegions::reset() {
     mach_check(task_suspend(m_target_task), "region reset suspend");
-    m_all_regions.clear();
-    m_compacted_regions.clear();
-
-    get_vm_regions(m_target_task);
+    m_all_regions = get_vm_regions(m_target_task);
 
     mach_check(task_resume(m_target_task), "region reset resume");
 }
@@ -789,9 +791,15 @@ MachORegions::MachORegions(task_t target_task) : m_target_task{target_task} {
 
 void MachORegions::reset() {
     mach_check(task_suspend(m_target_task), "region reset suspend");
-    m_regions.clear();
-
-    const auto infos = get_dyld_image_infos(m_target_task);
-
+    m_regions = get_dyld_image_infos(m_target_task);
     mach_check(task_resume(m_target_task), "region reset resume");
+}
+
+image_info MachORegions::lookup(uint64_t addr) {
+    for (const auto &img_info : m_regions) {
+        if (img_info.base <= addr && addr <= img_info.base + img_info.size) {
+            return img_info;
+        }
+    }
+    assert(!"no region found");
 }
