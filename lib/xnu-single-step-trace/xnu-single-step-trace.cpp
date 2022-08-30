@@ -29,6 +29,9 @@
 #include "mach_exc.h"
 
 namespace fs = std::filesystem;
+using namespace std::string_literals;
+using namespace LIEF::MachO;
+using enum LIEF::MachO::VM_PROTECTIONS;
 
 #define EXC_MSG_MAX_SIZE 4096
 
@@ -128,11 +131,21 @@ std::string read_cstr_target(task_t target_task, const char *target_addr) {
     return read_cstr_target(target_task, (uint64_t)target_addr);
 }
 
-void get_vm_regions(task_t target_task) {
+std::string prot_to_str(vm_prot_t prot) {
+    std::string s;
+    s += prot & (int)VM_PROT_READ ? "R" : "-";
+    s += prot & (int)VM_PROT_WRITE ? "W" : "-";
+    s += prot & (int)VM_PROT_EXECUTE ? "X" : "-";
+    s += prot & ~((int)VM_PROT_READ | (int)VM_PROT_WRITE | (int)VM_PROT_EXECUTE) ? "*" : " ";
+    return s;
+}
+
+std::vector<region> get_vm_regions(task_t target_task) {
+    std::vector<region> res;
     vm_address_t addr = 0;
     kern_return_t kr;
     const auto pid  = pid_for_task(target_task);
-    natural_t depth = 1;
+    natural_t depth = 0;
     while (1) {
         vm_size_t sz{};
         vm_region_submap_info_64 info{};
@@ -140,22 +153,38 @@ void get_vm_regions(task_t target_task) {
         kr = vm_region_recurse_64(target_task, &addr, &sz, &depth, (vm_region_recurse_info_t)&info,
                                   &cnt);
         if (kr != KERN_SUCCESS) {
-            fmt::print("Error: '{:s}' retval: {:d} description: '{:s}'\n", "get_vm_regions", kr,
-                       mach_error_string(kr));
+            if (kr != KERN_INVALID_ADDRESS) {
+                fmt::print("Error: '{:s}' retval: {:d} description: '{:s}'\n", "get_vm_regions", kr,
+                           mach_error_string(kr));
+            }
             break;
         }
-        fmt::print("addr: {:p} sz: {:#x} depth: {:d} submap: {:b}\n", (void *)addr, sz, depth,
-                   info.is_submap);
         if (info.protection & 1 && sz && !info.is_submap) {
             const auto buf = read_target(target_task, addr, 128);
-            hexdump(buf.data(), buf.size());
+            // hexdump(buf.data(), buf.size());
         }
+        res.emplace_back(region{.base   = addr,
+                                .size   = sz,
+                                .depth  = depth,
+                                .prot   = info.protection,
+                                .submap = !!info.is_submap});
         if (info.is_submap) {
             depth += 1;
             continue;
         }
         addr += sz;
     }
+    std::sort(res.begin(), res.end());
+
+    for (const auto &map : res) {
+        std::string l;
+        std::fill_n(std::back_inserter(l), map.depth, '\t');
+        l += fmt::format("{:#018x}-{:#018x} {:s} {:#x}", map.base, map.base + map.size,
+                         prot_to_str(map.prot), map.size);
+        fmt::print("{:s}\n", l);
+    }
+
+    return res;
 }
 
 std::vector<image_info> get_dyld_image_infos(task_t target_task) {
@@ -591,6 +620,7 @@ void XNUTracer::common_ctor(bool pipe_ctrl) {
     assert(!g_tracer);
     g_tracer        = this;
     m_macho_regions = std::make_unique<MachORegions>(m_target_task);
+    m_vm_regions    = std::make_unique<VMRegions>(m_target_task);
     m_queue         = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
     assert(m_queue);
     setup_proc_dispath_source();
@@ -622,6 +652,7 @@ dispatch_source_t XNUTracer::pipe_dispatch_source() {
 void XNUTracer::set_single_step(const bool do_single_step) {
     if (do_single_step) {
         m_macho_regions->reset();
+        m_vm_regions->reset();
         install_breakpoint_exception_handler();
         set_single_step_task(m_target_task, true);
     } else {

@@ -47,7 +47,10 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task);
 struct region {
     uint64_t base;
     uint64_t size;
+    uint64_t depth;
     std::optional<std::filesystem::path> path;
+    vm_prot_t prot;
+    bool submap;
     auto operator<=>(const region &rhs) const {
         return base <=> rhs.base;
     }
@@ -135,4 +138,5 @@ private:
     uint64_t m_self_total_csw{};
     int32_t m_self_start_num_csw{};
     std::unique_ptr<MachORegions> m_macho_regions;
+    std::unique_ptr<VMRegions> m_vm_regions;
 };
