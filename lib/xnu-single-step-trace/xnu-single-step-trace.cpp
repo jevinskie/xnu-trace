@@ -1,8 +1,10 @@
 #include "xnu-single-step-trace/xnu-single-step-trace.h"
 
 #undef NDEBUG
+#include <algorithm>
 #include <cassert>
 #include <climits>
+#include <concepts>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -47,6 +49,15 @@ static XNUTracer *g_tracer;
 
 template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
+}
+
+template <typename U>
+requires requires() {
+    requires std::unsigned_integral<U>;
+}
+constexpr U roundup_pow2_mul(U num, std::size_t pow2_mul) {
+    const U mask = static_cast<U>(pow2_mul) - 1;
+    return (num + mask) & ~mask;
 }
 
 static double timespec_diff(const timespec &a, const timespec &b) {
@@ -95,6 +106,28 @@ std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint6
     return res;
 }
 
+template <typename T>
+std::vector<uint8_t> read_target(task_t target_task, const T *target_addr, uint64_t sz) {
+    return read_target(target_task, (uint64_t)target_addr, sz);
+}
+
+std::string read_cstr_target(task_t target_task, uint64_t target_addr) {
+    std::vector<uint8_t> buf;
+    constexpr size_t pgsz = 4096;
+    do {
+        const auto end_addr =
+            target_addr % pgsz ? roundup_pow2_mul(target_addr, pgsz) : target_addr + pgsz;
+        const auto smol_buf = read_target(target_task, target_addr, end_addr - target_addr);
+        buf.insert(buf.end(), smol_buf.cbegin(), smol_buf.cend());
+        target_addr = end_addr;
+    } while (std::find(buf.cbegin(), buf.cend(), '\0') == buf.cend());
+    return {(char *)buf.data()};
+}
+
+std::string read_cstr_target(task_t target_task, const char *target_addr) {
+    return read_cstr_target(target_task, (uint64_t)target_addr);
+}
+
 void get_vm_regions(task_t target_task) {
     vm_address_t addr = 0;
     kern_return_t kr;
@@ -136,18 +169,36 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
         read_target(target_task, dyld_info.all_image_info_addr, dyld_info.all_image_info_size);
     const dyld_all_image_infos *all_img_infos = (dyld_all_image_infos *)all_info_buf.data();
 
-    const auto infos_buf = read_target(target_task, (uint64_t)all_img_infos->infoArray,
-                                       all_img_infos->infoArrayCount * sizeof(dyld_image_info));
+    if (!all_img_infos->infoArray) {
+        return res;
+    }
 
+    fmt::print("dyld base: {:p} path addr: {:p} init: {:b}\n",
+               (void *)all_img_infos->dyldImageLoadAddress, (void *)all_img_infos->dyldPath,
+               all_img_infos->libSystemInitialized);
+    res.emplace_back(image_info{.base = (uint64_t)all_img_infos->dyldImageLoadAddress,
+                                .size = 0,
+                                .path = read_cstr_target(target_task, all_img_infos->dyldPath)});
+
+    const auto infos_buf = read_target(target_task, all_img_infos->infoArray,
+                                       all_img_infos->infoArrayCount * sizeof(dyld_image_info));
     const auto img_infos = std::span<const dyld_image_info>{(dyld_image_info *)infos_buf.data(),
                                                             all_img_infos->infoArrayCount};
     for (const auto &img_info : img_infos) {
-        res.emplace_back(image_info{
-            .base = (uint64_t)img_info.imageLoadAddress, .size = 0, .path = fs::path{"foo"}});
-        // .path = fs::path{img_info.imageFilePath}});
+        const auto path = res.emplace_back(
+            image_info{.base = (uint64_t)img_info.imageLoadAddress,
+                       .size = 0,
+                       .path = read_cstr_target(target_task, img_info.imageFilePath)});
     }
+
+    std::sort(res.begin(), res.end());
+
+    for (const auto &img_info : res) {
+        fmt::print("img_info base: {:p} path: '{:s}'\n", (void *)img_info.base,
+                   img_info.path.string());
+    }
+
     return res;
-    // __builtin_dump_struct(img_infos, &printf);
 }
 
 void pipe_set_single_step(bool do_ss) {
