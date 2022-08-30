@@ -1,0 +1,98 @@
+0x0000000104e38000-0x0000000104e9c000 R-X  0x64000
+0x0000000104e9c000-0x0000000104ea0000 R--  0x4000
+0x0000000104ea0000-0x0000000104ea4000 RW-  0x4000
+0x0000000104ea4000-0x0000000104fd0000 R--  0x12c000
+0x0000000104fd0000-0x0000000104fd4000 R--  0x4000
+0x0000000104fd4000-0x0000000104fd8000 R--  0x4000
+0x0000000104fd8000-0x0000000105018000 R--  0x40000
+0x0000000105058000-0x000000010505c000 R--  0x4000
+0x000000010505c000-0x0000000105064000 RW-  0x8000
+0x0000000105064000-0x0000000105068000 R--  0x4000
+0x0000000105068000-0x000000010506c000 R--  0x4000
+0x000000010506c000-0x0000000105070000 RW-  0x4000
+0x0000000105070000-0x0000000105074000 ---  0x4000
+0x0000000105074000-0x000000010507c000 RW-  0x8000
+0x000000010507c000-0x0000000105080000 ---  0x4000
+0x0000000105080000-0x0000000105084000 ---  0x4000
+0x0000000105084000-0x000000010508c000 RW-  0x8000
+0x000000010508c000-0x0000000105090000 ---  0x4000
+0x0000000105090000-0x0000000105094000 ---  0x4000
+0x0000000105094000-0x000000010509c000 RW-  0x8000
+0x000000010509c000-0x00000001050a0000 ---  0x4000
+0x00000001050a0000-0x00000001050a4000 R--  0x4000
+0x00000001050a4000-0x00000001050a8000 R--  0x4000
+0x00000001050a8000-0x00000001050ac000 RW-  0x4000
+0x000000015a600000-0x000000015a700000 RW-  0x100000
+0x000000015a800000-0x000000015b000000 RW-  0x800000
+0x0000000166fc8000-0x000000016a7cc000 ---  0x3804000
+0x000000016a7cc000-0x000000016afc8000 RW-  0x7fc000
+0x0000000180000000-0x00000001fc000000 R--  0x7c000000
+	0x00000001a36cc000-0x00000001f7cec000 R-X  0x54620000
+	0x00000001f7cec000-0x00000001fae30000 R--  0x3144000
+0x00000001fce30000-0x00000001fce54000 RW-  0x24000
+0x00000001fce54000-0x00000001fe000000 R--  0x11ac000
+	0x00000001fce54000-0x00000001fce58000 RW-  0x4000
+	0x00000001fce58000-0x00000001fe000000 RW-  0x11a8000
+	0x00000001fe000000-0x00000001fefd8000 RW-  0xfd8000
+0x00000001fefd8000-0x0000000200aa4000 RW-  0x1acc000
+0x0000000200aa4000-0x0000000204004000 R--  0x3560000
+0x0000000204004000-0x0000000206000000 R--  0x1ffc000
+	0x0000000206004000-0x0000000206b04000 R--  0xb00000
+	0x0000000206b04000-0x000000023456c000 R-X  0x2da68000
+	0x000000023456c000-0x0000000235808000 R--  0x129c000
+	0x0000000237808000-0x0000000238000000 RW-  0x7f8000
+	0x0000000238000000-0x00000002398ec000 RW-  0x18ec000
+0x00000002398ec000-0x000000023aeb4000 RW-  0x15c8000
+0x000000023aeb4000-0x000000023c334000 R--  0x1480000
+0x000000023c334000-0x000000023e000000 R--  0x1ccc000
+	0x000000023e334000-0x000000026d998000 R--  0x2f664000
+	0x000000026d998000-0x000000026d99c000 R--  0x4000
+0x0000000fc0000000-0x0000001000000000 ---  0x40000000
+0x0000001000000000-0x0000007000000000 ---  0x6000000000
+0x0000600000000000-0x0000600008000000 RW-  0x8000000
+0x0000600008000000-0x0000600010000000 RW-  0x8000000
+0x0000600010000000-0x0000600018000000 RW-  0x8000000
+0x0000600018000000-0x0000600020000000 RW-  0x8000000
+
+img_info base: 0x104e38000 path: '/Users/jevin/code/apple/trace/xnu-single-step-trace/build/test/yield-loop-step-test'
+img_info base: 0x1a3724000 path: '/usr/lib/libobjc.A.dylib'
+img_info base: 0x1a376a000 path: '/usr/lib/dyld'
+img_info base: 0x1a37f5000 path: '/usr/lib/system/libsystem_blocks.dylib'
+img_info base: 0x1a37fa000 path: '/usr/lib/system/libxpc.dylib'
+img_info base: 0x1a383d000 path: '/usr/lib/system/libsystem_trace.dylib'
+img_info base: 0x1a3857000 path: '/usr/lib/system/libcorecrypto.dylib'
+img_info base: 0x1a38df000 path: '/usr/lib/system/libsystem_malloc.dylib'
+img_info base: 0x1a390b000 path: '/usr/lib/system/libdispatch.dylib'
+img_info base: 0x1a3953000 path: '/usr/lib/system/libsystem_featureflags.dylib'
+img_info base: 0x1a3956000 path: '/usr/lib/system/libsystem_c.dylib'
+img_info base: 0x1a39d7000 path: '/usr/lib/libc++.1.dylib'
+img_info base: 0x1a3a3e000 path: '/usr/lib/libc++abi.dylib'
+img_info base: 0x1a3a56000 path: '/usr/lib/system/libsystem_kernel.dylib'
+img_info base: 0x1a3a8f000 path: '/usr/lib/system/libsystem_pthread.dylib'
+img_info base: 0x1a3a9c000 path: '/usr/lib/system/libdyld.dylib'
+img_info base: 0x1a3ac0000 path: '/usr/lib/system/libsystem_platform.dylib'
+img_info base: 0x1a3ac8000 path: '/usr/lib/system/libsystem_info.dylib'
+img_info base: 0x1a68b6000 path: '/usr/lib/system/libsystem_darwin.dylib'
+img_info base: 0x1a6d1f000 path: '/usr/lib/system/libsystem_notify.dylib'
+img_info base: 0x1a8685000 path: '/usr/lib/system/libsystem_networkextension.dylib'
+img_info base: 0x1a8704000 path: '/usr/lib/system/libsystem_asl.dylib'
+img_info base: 0x1a9ec5000 path: '/usr/lib/system/libsystem_symptoms.dylib'
+img_info base: 0x1acc95000 path: '/usr/lib/system/libsystem_containermanager.dylib'
+img_info base: 0x1adcc5000 path: '/usr/lib/system/libsystem_configuration.dylib'
+img_info base: 0x1adcca000 path: '/usr/lib/system/libsystem_sandbox.dylib'
+img_info base: 0x1ae790000 path: '/usr/lib/system/libquarantine.dylib'
+img_info base: 0x1aedbf000 path: '/usr/lib/system/libsystem_coreservices.dylib'
+img_info base: 0x1af073000 path: '/usr/lib/system/libsystem_m.dylib'
+img_info base: 0x1af0ac000 path: '/usr/lib/system/libmacho.dylib'
+img_info base: 0x1af0ce000 path: '/usr/lib/system/libcommonCrypto.dylib'
+img_info base: 0x1af0df000 path: '/usr/lib/system/libunwind.dylib'
+img_info base: 0x1af0ea000 path: '/usr/lib/liboah.dylib'
+img_info base: 0x1af0f2000 path: '/usr/lib/system/libcopyfile.dylib'
+img_info base: 0x1af0fc000 path: '/usr/lib/system/libcompiler_rt.dylib'
+img_info base: 0x1af100000 path: '/usr/lib/system/libsystem_collections.dylib'
+img_info base: 0x1af105000 path: '/usr/lib/system/libsystem_secinit.dylib'
+img_info base: 0x1af108000 path: '/usr/lib/system/libremovefile.dylib'
+img_info base: 0x1af10b000 path: '/usr/lib/system/libkeymgr.dylib'
+img_info base: 0x1af10c000 path: '/usr/lib/system/libsystem_dnssd.dylib'
+img_info base: 0x1af115000 path: '/usr/lib/system/libcache.dylib'
+img_info base: 0x1af11b000 path: '/usr/lib/libSystem.B.dylib'

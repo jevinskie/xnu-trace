@@ -13,6 +13,7 @@
 
 #include <libproc.h>
 #include <mach-o/dyld_images.h>
+#include <mach-o/loader.h>
 #include <mach/exc.h>
 #include <mach/exception.h>
 #include <mach/mach.h>
@@ -22,16 +23,12 @@
 #include <pthread.h>
 #include <sys/proc_info.h>
 
-#include <LIEF/MachO.hpp>
-#include <LIEF/logging.hpp>
 #include <fmt/format.h>
 
 #include "mach_exc.h"
 
 namespace fs = std::filesystem;
 using namespace std::string_literals;
-using namespace LIEF::MachO;
-using enum LIEF::MachO::VM_PROTECTIONS;
 
 #define EXC_MSG_MAX_SIZE 4096
 
@@ -133,10 +130,10 @@ std::string read_cstr_target(task_t target_task, const char *target_addr) {
 
 std::string prot_to_str(vm_prot_t prot) {
     std::string s;
-    s += prot & (int)VM_PROT_READ ? "R" : "-";
-    s += prot & (int)VM_PROT_WRITE ? "W" : "-";
-    s += prot & (int)VM_PROT_EXECUTE ? "X" : "-";
-    s += prot & ~((int)VM_PROT_READ | (int)VM_PROT_WRITE | (int)VM_PROT_EXECUTE) ? "*" : " ";
+    s += prot & VM_PROT_READ ? "r" : "-";
+    s += prot & VM_PROT_WRITE ? "w" : "-";
+    s += prot & VM_PROT_EXECUTE ? "x" : "-";
+    s += prot & ~(VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE) ? "*" : " ";
     return s;
 }
 
@@ -187,6 +184,46 @@ std::vector<region> get_vm_regions(task_t target_task) {
     return res;
 }
 
+std::vector<segment_command_64> read_macho_segs_target(task_t target_task,
+                                                       uint64_t macho_hdr_addr) {
+    std::vector<segment_command_64> segs;
+    const auto hdr_buf = read_target(target_task, macho_hdr_addr, sizeof(mach_header_64));
+    const auto hdr     = (mach_header_64 *)hdr_buf.data();
+    const auto cmd_buf =
+        read_target(target_task, macho_hdr_addr + sizeof(mach_header_64), hdr->sizeofcmds);
+    const auto end_of_lc = (load_command *)(cmd_buf.data() + hdr->sizeofcmds);
+    for (auto lc = (load_command *)cmd_buf.data(); lc < end_of_lc;
+         lc      = (load_command *)((uint8_t *)lc + lc->cmdsize)) {
+        if (lc->cmd != LC_SEGMENT_64) {
+            continue;
+        }
+        const auto seg = (segment_command_64 *)lc;
+        if (!strncmp(seg->segname, "__PAGEZERO", sizeof(seg->segname))) {
+            continue;
+        }
+        segs.emplace_back(*seg);
+    }
+    return segs;
+}
+
+std::vector<segment_command_64> read_macho_segs_target(task_t target_task,
+                                                       const mach_header_64 *macho_hdr) {
+    return read_macho_segs_target(target_task, (uint64_t)macho_hdr);
+}
+
+uint64_t get_text_size(const std::vector<segment_command_64> &segments) {
+    uint32_t num_exec_segs = 0;
+    uint64_t exec_file_sz;
+    for (const auto &seg : segments) {
+        if (seg.maxprot & VM_PROT_EXECUTE) {
+            ++num_exec_segs;
+            exec_file_sz = seg.vmsize;
+        }
+    }
+    assert(num_exec_segs == 1);
+    return exec_file_sz;
+}
+
 std::vector<image_info> get_dyld_image_infos(task_t target_task) {
     std::vector<image_info> res;
     task_dyld_info_data_t dyld_info;
@@ -202,11 +239,9 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
         return res;
     }
 
-    fmt::print("dyld base: {:p} path addr: {:p} init: {:b}\n",
-               (void *)all_img_infos->dyldImageLoadAddress, (void *)all_img_infos->dyldPath,
-               all_img_infos->libSystemInitialized);
     res.emplace_back(image_info{.base = (uint64_t)all_img_infos->dyldImageLoadAddress,
-                                .size = 0,
+                                .size = get_text_size(read_macho_segs_target(
+                                    target_task, (uint64_t)all_img_infos->dyldImageLoadAddress)),
                                 .path = read_cstr_target(target_task, all_img_infos->dyldPath)});
 
     const auto infos_buf = read_target(target_task, all_img_infos->infoArray,
@@ -216,15 +251,16 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
     for (const auto &img_info : img_infos) {
         const auto path = res.emplace_back(
             image_info{.base = (uint64_t)img_info.imageLoadAddress,
-                       .size = 0,
+                       .size = get_text_size(read_macho_segs_target(
+                           target_task, (uint64_t)img_info.imageLoadAddress)),
                        .path = read_cstr_target(target_task, img_info.imageFilePath)});
     }
 
     std::sort(res.begin(), res.end());
 
     for (const auto &img_info : res) {
-        fmt::print("img_info base: {:p} path: '{:s}'\n", (void *)img_info.base,
-                   img_info.path.string());
+        fmt::print("img_info base: {:#018x} sz: {:#010x} path: '{:s}'\n", img_info.base,
+                   img_info.size, img_info.path.string());
     }
 
     return res;
