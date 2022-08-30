@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <unistd.h>
@@ -33,6 +34,7 @@ int main(int argc, const char **argv) {
         .default_value(false)
         .implicit_value(true)
         .help("disable ASLR (spawned processes only)");
+    parser.add_argument("-t", "--trace-file").help("output trace file path");
     parser.add_argument("spawn-args").remaining().help("spawn executable path and arguments");
 
     try {
@@ -62,16 +64,21 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
+    std::optional<std::filesystem::path> trace_path;
+    if (const auto arg = parser.present("--trace-file")) {
+        trace_path = *arg;
+    }
+
     fmt::print(stderr, "xnu-single-step-trace-util begin self PID: {:d}\n", getpid());
 
     std::unique_ptr<XNUTracer> tracer;
 
     if (do_attach) {
         const auto target_name = *parser.present("--attach");
-        tracer                 = std::make_unique<XNUTracer>(target_name);
+        tracer                 = std::make_unique<XNUTracer>(target_name, trace_path);
     } else if (do_spawn) {
         const auto spawn_args = parser.get<std::vector<std::string>>("spawn-args");
-        tracer                = std::make_unique<XNUTracer>(spawn_args, do_pipe, disable_aslr);
+        tracer = std::make_unique<XNUTracer>(spawn_args, trace_path, do_pipe, disable_aslr);
     } else {
         assert(!"nothing to do");
     }

@@ -141,7 +141,6 @@ std::vector<region> get_vm_regions(task_t target_task) {
     std::vector<region> res;
     vm_address_t addr = 0;
     kern_return_t kr;
-    const auto pid  = pid_for_task(target_task);
     natural_t depth = 0;
     while (1) {
         vm_size_t sz{};
@@ -156,10 +155,12 @@ std::vector<region> get_vm_regions(task_t target_task) {
             }
             break;
         }
+#if 0
         if (info.protection & 1 && sz && !info.is_submap) {
             const auto buf = read_target(target_task, addr, 128);
-            // hexdump(buf.data(), buf.size());
+            hexdump(buf.data(), buf.size());
         }
+#endif
         res.emplace_back(region{.base   = addr,
                                 .size   = sz,
                                 .depth  = depth,
@@ -473,31 +474,36 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state(
 
 // XNUTracer class
 
-XNUTracer::XNUTracer(task_t target_task) : m_target_task(target_task) {
+XNUTracer::XNUTracer(task_t target_task, std::optional<fs::path> trace_path)
+    : m_target_task(target_task), m_trace_path{trace_path} {
     suspend();
-    common_ctor(false);
+    common_ctor(false, false);
 }
 
-XNUTracer::XNUTracer(pid_t target_pid) {
+XNUTracer::XNUTracer(pid_t target_pid, std::optional<fs::path> trace_path)
+    : m_trace_path{trace_path} {
     const auto kr = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     suspend();
-    common_ctor(false);
+    common_ctor(false, false);
 }
 
-XNUTracer::XNUTracer(std::string target_name) {
+XNUTracer::XNUTracer(std::string target_name, std::optional<fs::path> trace_path)
+    : m_trace_path{trace_path} {
     const auto target_pid = pid_for_name(target_name);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     suspend();
-    common_ctor(false);
+    common_ctor(false, false);
 }
 
-XNUTracer::XNUTracer(std::vector<std::string> spawn_args, bool pipe_ctrl, bool disable_aslr) {
+XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<fs::path> trace_path,
+                     bool pipe_ctrl, bool disable_aslr)
+    : m_trace_path{trace_path} {
     const auto target_pid = spawn_with_args(spawn_args, pipe_ctrl, disable_aslr);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
-    common_ctor(pipe_ctrl);
+    common_ctor(pipe_ctrl, true);
 }
 
 XNUTracer::~XNUTracer() {
@@ -659,7 +665,8 @@ void XNUTracer::uninstall_breakpoint_exception_handler() {
     mach_check(kr_set_exc, "uninstall task_set_exception_ports");
 }
 
-void XNUTracer::common_ctor(bool pipe_ctrl) {
+void XNUTracer::common_ctor(bool pipe_ctrl, bool was_spawned) {
+    fmt::print("XNUTracer {:s} PID {:d}\n", was_spawned ? "spawned" : "attached to", pid());
     assert(!g_tracer);
     g_tracer        = this;
     m_macho_regions = std::make_unique<MachORegions>(m_target_task);
