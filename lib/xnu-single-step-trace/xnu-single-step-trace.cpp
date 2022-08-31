@@ -95,6 +95,26 @@ bool task_is_valid(task_t task) {
     return pid_for_task(task, &pid) == KERN_SUCCESS;
 }
 
+void write_file(std::string path, const uint8_t *buf, size_t sz) {
+    const auto fh = fopen(path.c_str(), "wb");
+    assert(fh);
+    assert(fwrite(buf, sz, 1, fh) == 1);
+    assert(!fclose(fh));
+}
+
+std::vector<uint8_t> read_file(std::string path) {
+    std::vector<uint8_t> res;
+    const auto fh = fopen(path.c_str(), "rb");
+    assert(fh);
+    assert(!fseek(fh, 0, SEEK_END));
+    const auto sz = ftell(fh);
+    assert(!fseek(fh, 0, SEEK_SET));
+    res.resize(sz);
+    assert(fread(res.data(), sz, 1, fh) == 1);
+    assert(!fclose(fh));
+    return res;
+}
+
 std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz) {
     std::vector<uint8_t> res;
     res.resize(sz);
@@ -437,12 +457,12 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     auto ns = (arm_thread_state64_t *)new_state;
 
     const auto opc = arm_thread_state64_get_pc(*os);
-    // fmt::print(stderr, "exc pc: {:p}\n", (void *)opc);
+    // fmt::print(stderr, "exc pc: {:p} {:p}\n", (void *)opc);
 
     *new_state_count = old_state_count;
     *ns              = *os;
 
-    g_tracer->log(log_msg{.thread = thread, .pc = opc});
+    g_tracer->logger().log(thread, opc);
 
     set_single_step_thread(thread, true);
 
@@ -510,7 +530,7 @@ XNUTracer::~XNUTracer() {
     uninstall_breakpoint_exception_handler();
     stop_measuring_stats();
     g_tracer                       = nullptr;
-    const auto ninst               = num_inst();
+    const auto ninst               = logger().num_inst();
     const auto elapsed             = elapsed_time();
     const auto ninst_per_sec       = ninst / elapsed;
     const auto ncsw_self           = context_switch_count_self();
@@ -519,7 +539,7 @@ XNUTracer::~XNUTracer() {
     const auto ncsw_per_sec_target = ncsw_target / elapsed;
     const auto ncsw_total          = ncsw_self + ncsw_target;
     const auto ncsw_per_sec_total  = ncsw_total / elapsed;
-    const auto nbytes              = m_log_buf.size();
+    const auto nbytes              = logger().num_bytes();
     // have to use format/locale, not print/locale
     const auto s = fmt::format(
         std::locale("en_US.UTF-8"),
@@ -529,6 +549,9 @@ XNUTracer::~XNUTracer() {
         ninst, elapsed, ninst_per_sec, ncsw_target, ncsw_self, ncsw_total, ncsw_per_sec_target,
         ncsw_per_sec_self, ncsw_per_sec_total, nbytes, (double)nbytes / ninst, nbytes / elapsed);
     fmt::print("{}\n", s);
+    if (m_trace_path != std::nullopt) {
+        logger().write_to_file(m_trace_path->string(), *m_macho_regions);
+    }
     resume();
 }
 
@@ -740,8 +763,8 @@ void XNUTracer::resume() {
     mach_check(task_resume(m_target_task), "resume() task_resume");
 }
 
-uint64_t XNUTracer::num_inst() const {
-    return m_num_inst;
+__attribute__((always_inline)) TraceLog &XNUTracer::logger() {
+    return m_log;
 }
 
 double XNUTracer::elapsed_time() const {
@@ -807,3 +830,23 @@ image_info MachORegions::lookup(uint64_t addr) {
     }
     assert(!"no region found");
 }
+
+uint64_t TraceLog::num_inst() const {
+    return m_num_inst;
+}
+
+size_t TraceLog::num_bytes() const {
+    size_t sz = 0;
+    for (const auto &thread_log : m_log_bufs) {
+        sz += thread_log.second.size();
+    }
+    return sz;
+}
+
+__attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) {
+    const auto msg_hdr = log_msg_hdr{.pc = pc};
+    std::copy((uint8_t *)&msg_hdr, (uint8_t *)&msg_hdr + sizeof(msg_hdr),
+              std::back_inserter(m_log_bufs[thread]));
+}
+
+void TraceLog::write_to_file(const std::string &path, const MachORegions &mach_regions) {}

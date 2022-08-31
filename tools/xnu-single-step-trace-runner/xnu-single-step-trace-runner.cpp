@@ -14,7 +14,7 @@
 #include <dispatch/dispatch.h>
 
 #include <argparse/argparse.hpp>
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 int main(int argc, const char **argv) {
     argparse::ArgumentParser parser(getprogname());

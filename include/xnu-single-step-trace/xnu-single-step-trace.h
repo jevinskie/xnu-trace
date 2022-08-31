@@ -13,11 +13,6 @@
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
 
-struct log_msg {
-    uint32_t thread;
-    uint64_t pc;
-} __attribute__((packed));
-
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
 
@@ -34,6 +29,8 @@ int64_t get_task_for_pid_count(task_t task);
 int32_t get_context_switch_count(pid_t pid);
 integer_t get_suspend_count(task_t task);
 
+void write_file(std::string path, const uint8_t *buf, size_t sz);
+std::vector<uint8_t> read_file(std::string path);
 void hexdump(const void *data, size_t size);
 
 std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
@@ -83,6 +80,22 @@ private:
     std::vector<image_info> m_regions;
 };
 
+class TraceLog {
+public:
+    __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
+    void write_to_file(const std::string &path, const MachORegions &mach_regions);
+    uint64_t num_inst() const;
+    size_t num_bytes() const;
+
+    struct log_msg_hdr {
+        uint64_t pc;
+    } __attribute__((packed));
+
+private:
+    uint64_t m_num_inst{};
+    std::map<thread_t, std::vector<uint8_t>> m_log_bufs;
+};
+
 class XNUTracer {
 public:
     XNUTracer(task_t target_task, std::optional<std::filesystem::path> trace_path);
@@ -99,12 +112,7 @@ public:
     dispatch_source_t breakpoint_exception_port_dispath_source();
     dispatch_source_t pipe_dispatch_source();
     void set_single_step(bool do_single_step);
-    template <typename T> __attribute((always_inline)) void log(const T &msg) {
-        ++m_num_inst;
-        std::copy((const uint8_t *)&msg, (const uint8_t *)&msg + sizeof(msg),
-                  std::back_inserter(m_log_buf));
-    }
-    uint64_t num_inst() const;
+    __attribute__((always_inline)) TraceLog &logger();
     double elapsed_time() const;
     uint64_t context_switch_count_self() const;
     uint64_t context_switch_count_target() const;
@@ -137,8 +145,7 @@ private:
     std::optional<int> m_tracer2target_fd;
     bool m_single_stepping{};
     bool m_measuring_stats{};
-    uint64_t m_num_inst{};
-    std::vector<uint8_t> m_log_buf;
+    TraceLog m_log{};
     double m_elapsed_time{};
     timespec m_start_time{};
     uint64_t m_target_total_csw{};
