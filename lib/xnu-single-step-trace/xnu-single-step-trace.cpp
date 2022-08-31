@@ -816,7 +816,20 @@ MachORegions::MachORegions(task_t target_task) : m_target_task{target_task} {
     reset();
 }
 
+MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions) {
+    for (uint64_t i = 0; i < num_regions; ++i) {
+        const char *path_ptr = (const char *)(region_buf + 1);
+        std::string path{path_ptr, region_buf->path_len};
+        m_regions.emplace_back(
+            image_info{.base = region_buf->base, .size = region_buf->size, .path = path});
+        region_buf =
+            (log_region *)((uint8_t *)region_buf + sizeof(*region_buf) + region_buf->path_len);
+    }
+    std::sort(m_regions.begin(), m_regions.end());
+}
+
 void MachORegions::reset() {
+    assert(m_target_task);
     mach_check(task_suspend(m_target_task), "region reset suspend");
     m_regions = get_dyld_image_infos(m_target_task);
     mach_check(task_resume(m_target_task), "region reset resume");
@@ -831,6 +844,41 @@ image_info MachORegions::lookup(uint64_t addr) {
     assert(!"no region found");
 }
 
+const std::vector<image_info> &MachORegions::regions() const {
+    return m_regions;
+}
+
+TraceLog::TraceLog() {
+    // nothing to do
+}
+
+TraceLog::TraceLog(const std::string &log_path) {
+    const auto trace_buf = read_file(log_path);
+    const auto trace_hdr = (log_hdr *)trace_buf.data();
+
+    auto region_ptr = (log_region *)((uint8_t *)trace_hdr + sizeof(*trace_hdr));
+    m_macho_regions = std::make_unique<MachORegions>(region_ptr, trace_hdr->num_regions);
+    for (uint64_t i = 0; i < trace_hdr->num_regions; ++i) {
+        region_ptr =
+            (log_region *)((uint8_t *)region_ptr + sizeof(*region_ptr) + region_ptr->path_len);
+    }
+
+    const auto thread_hdr_end = (log_thread_hdr *)(trace_buf.data() + trace_buf.size());
+    auto thread_hdr           = (log_thread_hdr *)region_ptr;
+    while (thread_hdr < thread_hdr_end) {
+        auto thread_log             = m_parsed_logs[thread_hdr->thread_id];
+        const auto thread_log_start = (uint8_t *)thread_hdr + sizeof(*thread_hdr);
+        const auto thread_log_end   = thread_log_start + thread_hdr->thread_log_sz;
+        auto inst_hdr               = (log_msg_hdr *)thread_log_start;
+        const auto inst_hdr_end     = (log_msg_hdr *)thread_log_end;
+        while (inst_hdr < inst_hdr_end) {
+            inst_hdr = inst_hdr + 1;
+            thread_log.emplace_back(*inst_hdr);
+        }
+        thread_hdr = (log_thread_hdr *)thread_log_end;
+    }
+}
+
 uint64_t TraceLog::num_inst() const {
     return m_num_inst;
 }
@@ -843,10 +891,44 @@ size_t TraceLog::num_bytes() const {
     return sz;
 }
 
+const MachORegions &TraceLog::macho_regions() const {
+    assert(m_macho_regions);
+    return *m_macho_regions;
+}
+
+const std::map<uint32_t, std::vector<log_msg_hdr>> TraceLog::parsed_logs() const {
+    return m_parsed_logs;
+}
+
 __attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) {
     const auto msg_hdr = log_msg_hdr{.pc = pc};
     std::copy((uint8_t *)&msg_hdr, (uint8_t *)&msg_hdr + sizeof(msg_hdr),
               std::back_inserter(m_log_bufs[thread]));
+    ++m_num_inst;
 }
 
-void TraceLog::write_to_file(const std::string &path, const MachORegions &mach_regions) {}
+void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_regions) {
+    const auto fh = fopen(path.c_str(), "wb");
+    assert(fh);
+
+    const log_hdr hdr_buf{.num_regions = macho_regions.regions().size()};
+    assert(fwrite(&hdr_buf, sizeof(hdr_buf), 1, fh) == 1);
+
+    for (const auto &region : macho_regions.regions()) {
+        const log_region region_buf{
+            .base = region.base, .size = region.size, .path_len = region.path.string().size()};
+        assert(fwrite(&region_buf, sizeof(region_buf), 1, fh) == 1);
+        assert(fwrite(region.path.c_str(), region.path.string().size(), 1, fh) == 1);
+    }
+
+    for (const auto &thread_buf_pair : m_log_bufs) {
+        const auto tid           = thread_buf_pair.first;
+        const auto buf           = thread_buf_pair.second;
+        const auto thread_log_sz = buf.size() * sizeof(decltype(buf)::value_type);
+        const log_thread_hdr thread_hdr{.thread_id = tid, .thread_log_sz = thread_log_sz};
+        assert(fwrite(&thread_hdr, sizeof(thread_hdr), 1, fh) == 1);
+        assert(fwrite(buf.data(), buf.size(), 1, fh) == 1);
+    }
+
+    assert(!fclose(fh));
+}

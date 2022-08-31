@@ -13,6 +13,25 @@
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
 
+struct log_msg_hdr {
+    uint64_t pc;
+} __attribute__((packed));
+
+struct log_region {
+    uint64_t base;
+    uint64_t size;
+    uint64_t path_len;
+} __attribute__((packed));
+
+struct log_thread_hdr {
+    uint32_t thread_id;
+    uint64_t thread_log_sz;
+} __attribute__((packed));
+
+struct log_hdr {
+    uint64_t num_regions;
+} __attribute__((packed));
+
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
 
@@ -72,28 +91,32 @@ private:
 class MachORegions {
 public:
     MachORegions(task_t target_task);
+    MachORegions(const log_region *region_buf, uint64_t num_regions);
     void reset();
+    const std::vector<image_info> &regions() const;
     image_info lookup(uint64_t addr);
 
 private:
-    const task_t m_target_task;
+    const task_t m_target_task{};
     std::vector<image_info> m_regions;
 };
 
 class TraceLog {
 public:
+    TraceLog();
+    TraceLog(const std::string &log_path);
     __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
-    void write_to_file(const std::string &path, const MachORegions &mach_regions);
+    void write_to_file(const std::string &path, const MachORegions &macho_regions);
     uint64_t num_inst() const;
     size_t num_bytes() const;
-
-    struct log_msg_hdr {
-        uint64_t pc;
-    } __attribute__((packed));
+    const MachORegions &macho_regions() const;
+    const std::map<uint32_t, std::vector<log_msg_hdr>> parsed_logs() const;
 
 private:
     uint64_t m_num_inst{};
-    std::map<thread_t, std::vector<uint8_t>> m_log_bufs;
+    std::unique_ptr<MachORegions> m_macho_regions;
+    std::map<uint32_t, std::vector<uint8_t>> m_log_bufs;
+    std::map<uint32_t, std::vector<log_msg_hdr>> m_parsed_logs;
 };
 
 class XNUTracer {
