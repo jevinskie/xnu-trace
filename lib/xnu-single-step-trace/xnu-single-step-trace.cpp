@@ -866,16 +866,16 @@ TraceLog::TraceLog(const std::string &log_path) {
     const auto thread_hdr_end = (log_thread_hdr *)(trace_buf.data() + trace_buf.size());
     auto thread_hdr           = (log_thread_hdr *)region_ptr;
     while (thread_hdr < thread_hdr_end) {
-        auto thread_log             = m_parsed_logs[thread_hdr->thread_id];
+        std::vector<log_msg_hdr> thread_log;
         const auto thread_log_start = (uint8_t *)thread_hdr + sizeof(*thread_hdr);
         const auto thread_log_end   = thread_log_start + thread_hdr->thread_log_sz;
         auto inst_hdr               = (log_msg_hdr *)thread_log_start;
         const auto inst_hdr_end     = (log_msg_hdr *)thread_log_end;
         while (inst_hdr < inst_hdr_end) {
-            inst_hdr = inst_hdr + 1;
             thread_log.emplace_back(*inst_hdr);
+            inst_hdr = inst_hdr + 1;
         }
-        fmt::print("thread_log sz: {:d}\n", thread_log.size());
+        m_parsed_logs.emplace(std::make_pair(thread_hdr->thread_id, thread_log));
         thread_hdr = (log_thread_hdr *)thread_log_end;
     }
 }
