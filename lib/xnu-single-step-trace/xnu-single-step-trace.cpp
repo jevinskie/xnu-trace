@@ -875,6 +875,7 @@ TraceLog::TraceLog(const std::string &log_path) {
             inst_hdr = inst_hdr + 1;
             thread_log.emplace_back(*inst_hdr);
         }
+        fmt::print("thread_log sz: {:d}\n", thread_log.size());
         thread_hdr = (log_thread_hdr *)thread_log_end;
     }
 }
@@ -896,7 +897,7 @@ const MachORegions &TraceLog::macho_regions() const {
     return *m_macho_regions;
 }
 
-const std::map<uint32_t, std::vector<log_msg_hdr>> TraceLog::parsed_logs() const {
+const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() const {
     return m_parsed_logs;
 }
 

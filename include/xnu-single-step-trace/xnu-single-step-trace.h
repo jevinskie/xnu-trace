@@ -110,7 +110,7 @@ public:
     uint64_t num_inst() const;
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;
-    const std::map<uint32_t, std::vector<log_msg_hdr>> parsed_logs() const;
+    const std::map<uint32_t, std::vector<log_msg_hdr>> &parsed_logs() const;
 
 private:
     uint64_t m_num_inst{};
