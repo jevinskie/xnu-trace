@@ -6,10 +6,7 @@
 #include <argparse/argparse.hpp>
 #include <fmt/format.h>
 
-void write_lighthouse_coverage(std::string path, const TraceLog &trace) {
-    // const auto trace_buf_start = (log_msg_hdr *)trace_buf.data();
-    // const auto trace_buf_end   = (log_msg_hdr *)(trace_buf.data() + trace_buf.size());
-
+void write_drcov_coverage(std::string path, const TraceLog &trace) {
     for (const auto &region : trace.macho_regions().regions()) {
         fmt::print("base: {:#018x} size: {:#010x} path: '{:s}'\n", region.base, region.size,
                    region.path.string());
@@ -36,7 +33,7 @@ void write_lighthouse_coverage(std::string path, const TraceLog &trace) {
 int main(int argc, const char **argv) {
     argparse::ArgumentParser parser(getprogname());
     parser.add_argument("-t", "--trace-file").required().help("input trace file path");
-    parser.add_argument("-l", "--lighthouse-file").help("output lighthouse coverage file path");
+    parser.add_argument("-d", "--drcov-file").help("output drcov coverage file path");
 
     try {
         parser.parse_args(argc, argv);
@@ -47,8 +44,8 @@ int main(int argc, const char **argv) {
 
     const auto trace = TraceLog(parser.get("--trace-file"));
 
-    if (const auto lighthouse_path = parser.present("--lighthouse-file")) {
-        write_lighthouse_coverage(*lighthouse_path, trace);
+    if (const auto drcov_path = parser.present("--drcov-file")) {
+        write_drcov_coverage(*drcov_path, trace);
     }
 
     return 0;
