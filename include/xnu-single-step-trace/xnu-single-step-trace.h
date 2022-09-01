@@ -8,10 +8,22 @@
 #include <span>
 #include <string>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
+
+struct bb_t {
+    uint64_t pc;
+    uint32_t sz;
+};
+
+struct drcov_bb_t {
+    uint32_t mod_off;
+    uint16_t sz;
+    uint16_t mod_id;
+} __attribute__((packed));
 
 struct log_msg_hdr {
     uint64_t pc;
@@ -94,7 +106,8 @@ public:
     MachORegions(const log_region *region_buf, uint64_t num_regions);
     void reset();
     const std::vector<image_info> &regions() const;
-    image_info lookup(uint64_t addr);
+    image_info lookup(uint64_t addr) const;
+    std::pair<image_info, size_t> lookup_idx(uint64_t addr) const;
 
 private:
     const task_t m_target_task{};

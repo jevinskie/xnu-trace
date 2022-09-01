@@ -835,11 +835,22 @@ void MachORegions::reset() {
     mach_check(task_resume(m_target_task), "region reset resume");
 }
 
-image_info MachORegions::lookup(uint64_t addr) {
+image_info MachORegions::lookup(uint64_t addr) const {
     for (const auto &img_info : m_regions) {
         if (img_info.base <= addr && addr <= img_info.base + img_info.size) {
             return img_info;
         }
+    }
+    assert(!"no region found");
+}
+
+std::pair<image_info, size_t> MachORegions::lookup_idx(uint64_t addr) const {
+    size_t idx = 0;
+    for (const auto &img_info : m_regions) {
+        if (img_info.base <= addr && addr <= img_info.base + img_info.size) {
+            return std::make_pair(img_info, idx);
+        }
+        ++idx;
     }
     assert(!"no region found");
 }
