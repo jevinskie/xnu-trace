@@ -271,7 +271,8 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
     res.emplace_back(image_info{.base = (uint64_t)all_img_infos->dyldImageLoadAddress,
                                 .size = get_text_size(read_macho_segs_target(
                                     target_task, (uint64_t)all_img_infos->dyldImageLoadAddress)),
-                                .path = read_cstr_target(target_task, all_img_infos->dyldPath)});
+                                .path = read_cstr_target(target_task, all_img_infos->dyldPath),
+                                .uuid = {}});
 
     const auto infos_buf = read_target(target_task, all_img_infos->infoArray,
                                        all_img_infos->infoArrayCount * sizeof(dyld_image_info));
@@ -282,7 +283,8 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
             image_info{.base = (uint64_t)img_info.imageLoadAddress,
                        .size = get_text_size(read_macho_segs_target(
                            target_task, (uint64_t)img_info.imageLoadAddress)),
-                       .path = read_cstr_target(target_task, img_info.imageFilePath)});
+                       .path = read_cstr_target(target_task, img_info.imageFilePath),
+                       .uuid = {}});
     }
 
     std::sort(res.begin(), res.end());
@@ -825,8 +827,9 @@ MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions) {
     for (uint64_t i = 0; i < num_regions; ++i) {
         const char *path_ptr = (const char *)(region_buf + 1);
         std::string path{path_ptr, region_buf->path_len};
-        m_regions.emplace_back(
-            image_info{.base = region_buf->base, .size = region_buf->size, .path = path});
+        image_info img_info{.base = region_buf->base, .size = region_buf->size, .path = path};
+        memcpy(img_info.uuid, region_buf->uuid, sizeof(img_info.uuid));
+        m_regions.emplace_back(img_info);
         region_buf =
             (log_region *)((uint8_t *)region_buf + sizeof(*region_buf) + region_buf->path_len);
     }
@@ -959,8 +962,9 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
     assert(fwrite(&hdr_buf, sizeof(hdr_buf), 1, fh) == 1);
 
     for (const auto &region : macho_regions.regions()) {
-        const log_region region_buf{
+        log_region region_buf{
             .base = region.base, .size = region.size, .path_len = region.path.string().size()};
+        memcpy(region_buf.uuid, region.uuid, sizeof(region_buf.uuid));
         assert(fwrite(&region_buf, sizeof(region_buf), 1, fh) == 1);
         assert(fwrite(region.path.c_str(), region.path.string().size(), 1, fh) == 1);
     }

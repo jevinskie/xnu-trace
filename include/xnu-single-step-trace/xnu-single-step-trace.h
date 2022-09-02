@@ -13,6 +13,7 @@
 
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
+#include <uuid/uuid.h>
 
 struct bb_t {
     uint64_t pc;
@@ -32,6 +33,7 @@ struct log_msg_hdr {
 struct log_region {
     uint64_t base;
     uint64_t size;
+    uuid_t uuid;
     uint64_t path_len;
 } __attribute__((packed));
 
@@ -70,6 +72,7 @@ struct image_info {
     uint64_t base;
     uint64_t size;
     std::filesystem::path path;
+    uuid_t uuid;
     auto operator<=>(const image_info &rhs) const {
         return base <=> rhs.base;
     }
