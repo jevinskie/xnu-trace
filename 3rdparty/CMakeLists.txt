@@ -9,6 +9,9 @@ add_subdirectory(CoreSymbolication)
 
 add_subdirectory(fmt)
 
+option(INT_TREE_ENABLE_TESTS "" OFF)
+add_subdirectory(interval-tree)
+
 option(LIEF_PYTHON_API "" OFF)
 option(LIEF_C_API "" OFF)
 option(LIEF_EXAMPLES "" OFF)

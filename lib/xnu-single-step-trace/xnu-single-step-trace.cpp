@@ -26,11 +26,13 @@
 #include <CoreSymbolication/CoreSymbolication.h>
 
 #include <fmt/format.h>
+#include <interval-tree/interval_tree.hpp>
 
 #include "mach_exc.h"
 
 namespace fs = std::filesystem;
 using namespace std::string_literals;
+using namespace lib_interval_tree;
 
 #define EXC_MSG_MAX_SIZE 4096
 
@@ -973,4 +975,30 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
     }
 
     assert(!fclose(fh));
+}
+
+std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs) {
+    std::vector<bb_t> bbs;
+
+    uint64_t bb_start = pcs[0];
+    uint64_t last_pc  = pcs[0] - 4;
+    for (const auto pc : pcs) {
+        if (last_pc + 4 != pc) {
+            bbs.emplace_back(bb_t{.pc = bb_start, .sz = (uint32_t)(last_pc + 4 - bb_start)});
+            bb_start = pc;
+        }
+        last_pc = pc;
+    }
+    if (bb_start != last_pc) {
+        bbs.emplace_back(bb_t{.pc = bb_start, .sz = (uint32_t)(last_pc + 4 - bb_start)});
+    }
+    return bbs;
+}
+
+std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs) {
+    std::vector<uint64_t> pcs;
+    for (const auto &msg : msgs) {
+        pcs.emplace_back(msg.pc);
+    }
+    return pcs;
 }

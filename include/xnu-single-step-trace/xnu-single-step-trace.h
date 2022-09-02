@@ -115,6 +115,9 @@ private:
     std::vector<image_info> m_regions;
 };
 
+std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
+std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs);
+
 class TraceLog {
 public:
     TraceLog();

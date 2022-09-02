@@ -16,3 +16,6 @@
 	url = https://github.com/jevinskie/CoreSymbolication-cmake
 [submodule "CoreSymbolication"]
 	branch = jev/main
+[submodule "3rdparty/interval-tree"]
+	path = 3rdparty/interval-tree
+	url = https://github.com/5cript/interval-tree
