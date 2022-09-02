@@ -5,6 +5,8 @@ option(CAPSTONE_ARM64_SUPPORT "" ON)
 option(CAPSTONE_BUILD_CSTOOL "" ON)
 add_subdirectory(capstone)
 
+add_subdirectory(CoreSymbolication)
+
 add_subdirectory(fmt)
 
 option(LIEF_PYTHON_API "" OFF)

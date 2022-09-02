@@ -23,6 +23,8 @@
 #include <pthread.h>
 #include <sys/proc_info.h>
 
+#include <CoreSymbolication/CoreSymbolication.h>
+
 #include <fmt/format.h>
 
 #include "mach_exc.h"
