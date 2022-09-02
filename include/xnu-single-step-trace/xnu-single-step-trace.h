@@ -83,6 +83,7 @@ struct region {
     uint64_t depth;
     std::optional<std::filesystem::path> path;
     vm_prot_t prot;
+    uint32_t tag;
     bool submap;
     auto operator<=>(const region &rhs) const {
         return base <=> rhs.base;

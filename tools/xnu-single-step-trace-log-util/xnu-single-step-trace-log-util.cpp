@@ -35,8 +35,8 @@ std::vector<uint64_t> extract_pcs_from_trace(const std::vector<log_msg_hdr> &msg
 
 void dump_log(const TraceLog &trace) {
     for (const auto &region : trace.macho_regions().regions()) {
-        fmt::print("base: {:#018x} size: {:#010x} path: '{:s}'\n", region.base, region.size,
-                   region.path.string());
+        fmt::print("base: {:#018x} => {:#018x} size: {:#010x} path: '{:s}'\n", region.base,
+                   region.base + region.size, region.size, region.path.string());
     }
 
     for (const auto &thread_trace_pair : trace.parsed_logs()) {

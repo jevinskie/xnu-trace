@@ -185,7 +185,8 @@ std::vector<region> get_vm_regions(task_t target_task) {
                                 .size   = sz,
                                 .depth  = depth,
                                 .prot   = info.protection,
-                                .submap = !!info.is_submap});
+                                .submap = !!info.is_submap,
+                                .tag    = info.user_tag});
         if (info.is_submap) {
             depth += 1;
             continue;
@@ -199,8 +200,8 @@ std::vector<region> get_vm_regions(task_t target_task) {
     for (const auto &map : res) {
         std::string l;
         std::fill_n(std::back_inserter(l), map.depth, '\t');
-        l += fmt::format("{:#018x}-{:#018x} {:s} {:#x}", map.base, map.base + map.size,
-                         prot_to_str(map.prot), map.size);
+        l += fmt::format("{:#018x}-{:#018x} {:s} {:#x} {:#04x}", map.base, map.base + map.size,
+                         prot_to_str(map.prot), map.size, map.tag);
         fmt::print("{:s}\n", l);
     }
 #endif
@@ -832,6 +833,33 @@ void MachORegions::reset() {
     assert(m_target_task);
     mach_check(task_suspend(m_target_task), "region reset suspend");
     m_regions = get_dyld_image_infos(m_target_task);
+    std::vector<uint64_t> region_bases;
+    for (const auto &region : m_regions) {
+        region_bases.emplace_back(region.base);
+    }
+    int num_jit_regions = 0;
+    for (const auto &vm_region : get_vm_regions(m_target_task)) {
+        if (!(vm_region.prot & VM_PROT_EXECUTE)) {
+            continue;
+        }
+        if (!(vm_region.prot & VM_PROT_READ)) {
+            fmt::print("found XO page at {:#018x}\n", vm_region.base);
+        }
+        if (std::find(region_bases.cbegin(), region_bases.cend(), vm_region.base) !=
+            region_bases.cend()) {
+            continue;
+        }
+        if (vm_region.tag != 0xFF) {
+            continue;
+        }
+        m_regions.emplace_back(image_info{
+            .base = vm_region.base,
+            .size = vm_region.size,
+            .path = fmt::format("/tmp/pid-{:d}-jit-region-{:d}-tag-{:02x}",
+                                pid_for_task(m_target_task), num_jit_regions, vm_region.tag)});
+        ++num_jit_regions;
+    }
+    std::sort(m_regions.begin(), m_regions.end());
     mach_check(task_resume(m_target_task), "region reset resume");
 }
 
