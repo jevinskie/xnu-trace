@@ -80,7 +80,11 @@ static void posix_check(int retval, std::string msg) {
     if (retval) {
         fmt::print(stderr, "Error: '{:s}' retval: {:d} errno: {:d} description: '{:s}'\n", msg,
                    retval, errno, strerror(errno));
-        exit(-1);
+        if (get_task_for_pid_count(mach_task_self())) {
+            __builtin_debugtrap();
+        } else {
+            exit(-1);
+        }
     }
 }
 
@@ -88,7 +92,11 @@ static void mach_check(kern_return_t kr, std::string msg) {
     if (kr != KERN_SUCCESS) {
         fmt::print(stderr, "Error: '{:s}' retval: {:d} description: '{:s}'\n", msg, kr,
                    mach_error_string(kr));
-        exit(-1);
+        if (get_task_for_pid_count(mach_task_self())) {
+            __builtin_debugtrap();
+        } else {
+            exit(-1);
+        }
     }
 }
 
@@ -192,8 +200,6 @@ std::vector<sym_info> get_symbols(task_t target_task) {
                    sym.size, sym.name, sym.img_name, sym.img_path);
     }
 #endif
-
-    usleep(10 * 1'000'000);
 
     return res;
 }
@@ -457,9 +463,9 @@ void set_single_step_thread(thread_t thread, bool do_ss) {
 
     const auto kr_thread_set =
         thread_set_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
-    // assert(kr_thread_set == KERN_SUCCESS);
-    mach_check(kr_thread_set,
-               fmt::format("single_step({:s}) thread_set_state", do_ss ? "true" : "false"));
+    assert(kr_thread_set == KERN_SUCCESS);
+    // mach_check(kr_thread_set,
+    //            fmt::format("single_step({:s}) thread_set_state", do_ss ? "true" : "false"));
 }
 
 void set_single_step_task(task_t task, bool do_ss) {
@@ -469,24 +475,24 @@ void set_single_step_task(task_t task, bool do_ss) {
     mach_msg_type_number_t dbg_cnt = ARM_DEBUG_STATE64_COUNT;
     const auto kr_task_get =
         task_get_state(task, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, &dbg_cnt);
-    mach_check(kr_task_get, "task_get_state");
+    mach_check(kr_task_get, "set_single_step_task task_get_state");
 
     dbg_state.__mdscr_el1 = (dbg_state.__mdscr_el1 & ~1) | do_ss;
 
     const auto kr_task_set =
         task_set_state(task, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
-    mach_check(kr_task_set, "task_set_state");
+    mach_check(kr_task_set, "set_single_step_task task_set_state");
 
     thread_act_array_t thread_list;
     mach_msg_type_number_t num_threads;
     const auto kr_threads = task_threads(task, &thread_list, &num_threads);
-    mach_check(kr_threads, "task_threads");
+    mach_check(kr_threads, "set_single_step_task task_threads");
     for (mach_msg_type_number_t i = 0; i < num_threads; ++i) {
         set_single_step_thread(thread_list[i], do_ss);
     }
     const auto kr_dealloc = vm_deallocate(mach_task_self(), (vm_address_t)thread_list,
                                           sizeof(thread_act_t) * num_threads);
-    mach_check(kr_dealloc, "vm_deallocate");
+    mach_check(kr_dealloc, "set_single_step_task vm_deallocate");
 }
 
 // Handle EXCEPTION_STATE_IDENTIY behavior
@@ -571,7 +577,9 @@ XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<fs::path
 }
 
 XNUTracer::~XNUTracer() {
-    uninstall_breakpoint_exception_handler();
+    if (task_is_valid(m_target_task)) {
+        set_single_step(false);
+    }
     stop_measuring_stats();
     g_tracer                       = nullptr;
     const auto ninst               = logger().num_inst();
@@ -704,20 +712,29 @@ void XNUTracer::setup_pipe_dispatch_source() {
         uint8_t rbuf;
         assert(read(*m_target2tracer_fd, &rbuf, 1) == 1);
         if (rbuf == 'y') {
-            set_single_step(true);
-            if (get_suspend_count(m_target_task) == 0 && !m_measuring_stats) {
-                start_measuring_stats();
-            }
+            // dispatch here so any pending exceptions in the queue are processed first
+            // this ensures we have handled all the single-step exceptions before we
+            // uninstall our exception handler
+            dispatch_async(m_queue, ^{
+                set_single_step(true);
+                if (get_suspend_count(m_target_task) == 0 && !m_measuring_stats) {
+                    start_measuring_stats();
+                }
+                const uint8_t cbuf = 'c';
+                assert(write(*m_tracer2target_fd, &cbuf, 1) == 1);
+            });
         } else if (rbuf == 'n') {
-            set_single_step(false);
-            if (get_suspend_count(m_target_task) == 0 && m_measuring_stats) {
-                stop_measuring_stats();
-            }
+            dispatch_async(m_queue, ^{
+                set_single_step(false);
+                if (get_suspend_count(m_target_task) == 0 && m_measuring_stats) {
+                    stop_measuring_stats();
+                }
+                const uint8_t cbuf = 'c';
+                assert(write(*m_tracer2target_fd, &cbuf, 1) == 1);
+            });
         } else {
             assert(!"unhandled");
         }
-        const uint8_t cbuf = 'c';
-        assert(write(*m_tracer2target_fd, &cbuf, 1) == 1);
     });
 }
 
@@ -770,6 +787,7 @@ dispatch_source_t XNUTracer::pipe_dispatch_source() {
 }
 
 void XNUTracer::set_single_step(const bool do_single_step) {
+    suspend();
     if (do_single_step) {
         m_macho_regions->reset();
         m_vm_regions->reset();
@@ -782,6 +800,7 @@ void XNUTracer::set_single_step(const bool do_single_step) {
         set_single_step_task(m_target_task, false);
         uninstall_breakpoint_exception_handler();
     }
+    resume();
     m_single_stepping = do_single_step;
 }
 
