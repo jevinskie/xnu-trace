@@ -34,6 +34,10 @@ int main(int argc, const char **argv) {
         .default_value(false)
         .implicit_value(true)
         .help("disable ASLR (spawned processes only)");
+    parser.add_argument("-S", "--symbolicate")
+        .default_value(false)
+        .implicit_value(true)
+        .help("record symbol information");
     parser.add_argument("-t", "--trace-file").help("output trace file path");
     parser.add_argument("spawn-args").remaining().help("spawn executable path and arguments");
 
@@ -48,6 +52,7 @@ int main(int argc, const char **argv) {
     const auto do_attach    = parser["--attach"] == true;
     const auto disable_aslr = parser["--no-aslr"] == true;
     const auto do_pipe      = parser["--pipe"] == true;
+    const auto symbolicate  = parser["--symbolicate"] == true;
 
     if ((!do_spawn && !do_attach) || (do_spawn && do_attach)) {
         fmt::print(stderr, "Must specify one of --spawn or --attach\n");
@@ -75,10 +80,11 @@ int main(int argc, const char **argv) {
 
     if (do_attach) {
         const auto target_name = *parser.present("--attach");
-        tracer                 = std::make_unique<XNUTracer>(target_name, trace_path);
+        tracer                 = std::make_unique<XNUTracer>(target_name, trace_path, symbolicate);
     } else if (do_spawn) {
         const auto spawn_args = parser.get<std::vector<std::string>>("spawn-args");
-        tracer = std::make_unique<XNUTracer>(spawn_args, trace_path, do_pipe, disable_aslr);
+        tracer =
+            std::make_unique<XNUTracer>(spawn_args, trace_path, do_pipe, disable_aslr, symbolicate);
     } else {
         assert(!"nothing to do");
     }

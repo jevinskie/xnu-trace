@@ -174,11 +174,14 @@ private:
 
 class XNUTracer {
 public:
-    XNUTracer(task_t target_task, std::optional<std::filesystem::path> trace_path);
-    XNUTracer(pid_t target_pid, std::optional<std::filesystem::path> trace_path);
-    XNUTracer(std::string target_name, std::optional<std::filesystem::path> trace_path);
+    XNUTracer(task_t target_task, std::optional<std::filesystem::path> trace_path,
+              bool symbolicate = false);
+    XNUTracer(pid_t target_pid, std::optional<std::filesystem::path> trace_path,
+              bool symbolicate = false);
+    XNUTracer(std::string target_name, std::optional<std::filesystem::path> trace_path,
+              bool symbolicate = false);
     XNUTracer(std::vector<std::string> spawn_args, std::optional<std::filesystem::path> trace_path,
-              bool pipe_ctrl = false, bool disable_aslr = true);
+              bool pipe_ctrl = false, bool disable_aslr = true, bool symbolicate = false);
     ~XNUTracer();
 
     void suspend();
@@ -205,7 +208,7 @@ private:
     void stop_measuring_stats();
     pid_t spawn_with_args(const std::vector<std::string> &spawn_args, bool pipe_ctrl,
                           bool disable_aslr);
-    void common_ctor(bool pipe_ctrl, bool was_spawned);
+    void common_ctor(bool pipe_ctrl, bool was_spawned, bool symbolicate);
 
 private:
     task_t m_target_task{TASK_NULL};

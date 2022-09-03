@@ -185,10 +185,15 @@ std::vector<sym_info> get_symbols(task_t target_task) {
     });
 
     std::sort(res.begin(), res.end());
+
+#if 1
     for (const auto &sym : res) {
         fmt::print("base: {:#018x} sz: {:d} name: {:s} img_name: {:s} img_path: {:s}\n", sym.base,
                    sym.size, sym.name, sym.img_name, sym.img_path);
     }
+#endif
+
+    usleep(10 * 1'000'000);
 
     return res;
 }
@@ -452,9 +457,9 @@ void set_single_step_thread(thread_t thread, bool do_ss) {
 
     const auto kr_thread_set =
         thread_set_state(thread, ARM_DEBUG_STATE64, (thread_state_t)&dbg_state, dbg_cnt);
-    assert(kr_thread_set == KERN_SUCCESS);
-    // mach_check(kr_thread_set,
-    //            fmt::format("single_step({:s}) thread_set_state", do_ss ? "true" : "false"));
+    // assert(kr_thread_set == KERN_SUCCESS);
+    mach_check(kr_thread_set,
+               fmt::format("single_step({:s}) thread_set_state", do_ss ? "true" : "false"));
 }
 
 void set_single_step_task(task_t task, bool do_ss) {
@@ -533,36 +538,36 @@ extern "C" kern_return_t trace_catch_mach_exception_raise_state(
 
 // XNUTracer class
 
-XNUTracer::XNUTracer(task_t target_task, std::optional<fs::path> trace_path)
+XNUTracer::XNUTracer(task_t target_task, std::optional<fs::path> trace_path, bool symbolicate)
     : m_target_task(target_task), m_trace_path{trace_path} {
     suspend();
-    common_ctor(false, false);
+    common_ctor(false, false, symbolicate);
 }
 
-XNUTracer::XNUTracer(pid_t target_pid, std::optional<fs::path> trace_path)
+XNUTracer::XNUTracer(pid_t target_pid, std::optional<fs::path> trace_path, bool symbolicate)
     : m_trace_path{trace_path} {
     const auto kr = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     suspend();
-    common_ctor(false, false);
+    common_ctor(false, false, symbolicate);
 }
 
-XNUTracer::XNUTracer(std::string target_name, std::optional<fs::path> trace_path)
+XNUTracer::XNUTracer(std::string target_name, std::optional<fs::path> trace_path, bool symbolicate)
     : m_trace_path{trace_path} {
     const auto target_pid = pid_for_name(target_name);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     suspend();
-    common_ctor(false, false);
+    common_ctor(false, false, symbolicate);
 }
 
 XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<fs::path> trace_path,
-                     bool pipe_ctrl, bool disable_aslr)
+                     bool pipe_ctrl, bool disable_aslr, bool symbolicate)
     : m_trace_path{trace_path} {
     const auto target_pid = spawn_with_args(spawn_args, pipe_ctrl, disable_aslr);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
-    common_ctor(pipe_ctrl, true);
+    common_ctor(pipe_ctrl, true, symbolicate);
 }
 
 XNUTracer::~XNUTracer() {
@@ -727,14 +732,16 @@ void XNUTracer::uninstall_breakpoint_exception_handler() {
     mach_check(kr_set_exc, "uninstall task_set_exception_ports");
 }
 
-void XNUTracer::common_ctor(bool pipe_ctrl, bool was_spawned) {
+void XNUTracer::common_ctor(bool pipe_ctrl, bool was_spawned, bool symbolicate) {
     fmt::print("XNUTracer {:s} PID {:d}\n", was_spawned ? "spawned" : "attached to", pid());
     assert(!g_tracer);
     g_tracer        = this;
     m_macho_regions = std::make_unique<MachORegions>(m_target_task);
     m_vm_regions    = std::make_unique<VMRegions>(m_target_task);
-    m_symbols       = std::make_unique<Symbols>(m_target_task);
-    m_queue         = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
+    if (symbolicate) {
+        m_symbols = std::make_unique<Symbols>(m_target_task);
+    }
+    m_queue = dispatch_queue_create("je.vin.tracer", DISPATCH_QUEUE_SERIAL);
     assert(m_queue);
     setup_proc_dispath_source();
     setup_breakpoint_exception_handler();
@@ -766,7 +773,9 @@ void XNUTracer::set_single_step(const bool do_single_step) {
     if (do_single_step) {
         m_macho_regions->reset();
         m_vm_regions->reset();
-        m_symbols->reset();
+        if (m_symbols) {
+            m_symbols->reset();
+        }
         install_breakpoint_exception_handler();
         set_single_step_task(m_target_task, true);
     } else {
