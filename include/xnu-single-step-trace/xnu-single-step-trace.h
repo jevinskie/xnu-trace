@@ -37,6 +37,12 @@ struct log_region {
     uint64_t path_len;
 } __attribute__((packed));
 
+struct log_sym {
+    uint64_t base;
+    uint64_t size;
+    uint64_t name_len;
+} __attribute__((packed));
+
 struct log_thread_hdr {
     uint32_t thread_id;
     uint64_t thread_log_sz;
@@ -44,6 +50,7 @@ struct log_thread_hdr {
 
 struct log_hdr {
     uint64_t num_regions;
+    uint64_t num_syms;
 } __attribute__((packed));
 
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
@@ -68,6 +75,19 @@ void hexdump(const void *data, size_t size);
 
 std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
 
+struct sym_info {
+    uint64_t base;
+    uint64_t size;
+    std::string name;
+    std::string img_path;
+    std::string img_name;
+    auto operator<=>(const sym_info &rhs) const {
+        return base <=> rhs.base;
+    }
+};
+
+std::vector<sym_info> get_symbols(task_t target_task);
+
 struct image_info {
     uint64_t base;
     uint64_t size;
@@ -91,6 +111,19 @@ struct region {
     auto operator<=>(const region &rhs) const {
         return base <=> rhs.base;
     }
+};
+
+class Symbols {
+public:
+    Symbols(task_t target_task);
+    Symbols(const log_sym *sym_buf, uint64_t num_syms);
+    void reset();
+    const std::vector<sym_info> &syms() const;
+    sym_info lookup(uint64_t addr) const;
+
+private:
+    const task_t m_target_task{};
+    std::vector<sym_info> m_syms;
 };
 
 class VMRegions {
@@ -197,5 +230,6 @@ private:
     int32_t m_self_start_num_csw{};
     std::unique_ptr<MachORegions> m_macho_regions;
     std::unique_ptr<VMRegions> m_vm_regions;
+    std::unique_ptr<Symbols> m_symbols;
     std::optional<std::filesystem::path> m_trace_path;
 };
