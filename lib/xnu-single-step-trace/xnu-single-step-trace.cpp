@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <set>
 #include <spawn.h>
 #include <vector>
 
@@ -863,7 +864,8 @@ void MachORegions::reset() {
             .base = vm_region.base,
             .size = vm_region.size,
             .path = fmt::format("/tmp/pid-{:d}-jit-region-{:d}-tag-{:02x}",
-                                pid_for_task(m_target_task), num_jit_regions, vm_region.tag)});
+                                pid_for_task(m_target_task), num_jit_regions, vm_region.tag),
+            .uuid = {}});
         ++num_jit_regions;
     }
     std::sort(m_regions.begin(), m_regions.end());
@@ -955,6 +957,23 @@ __attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) 
 }
 
 void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_regions) {
+    std::set<uint64_t> pcs;
+    for (const auto &thread_buf_pair : m_log_bufs) {
+        const auto buf = thread_buf_pair.second;
+        for (const auto pc : extract_pcs_from_trace(
+                 {(log_msg_hdr *)buf.data(), buf.size() / sizeof(log_msg_hdr)})) {
+            pcs.emplace(pc);
+        }
+    }
+    interval_tree_t<uint64_t> pc_intervals;
+    for (const auto pc : pcs) {
+        pc_intervals.insert_overlap({pc, pc + 4});
+    }
+    for (const auto &pc_int : pc_intervals) {
+        fmt::print("low {:#018x} high: {:#018x} size: {:d}\n", pc_int.low(), pc_int.high(),
+                   pc_int.size());
+    }
+
     const auto fh = fopen(path.c_str(), "wb");
     assert(fh);
 
