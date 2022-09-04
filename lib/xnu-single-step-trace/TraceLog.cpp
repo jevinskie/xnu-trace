@@ -43,8 +43,14 @@ TraceLog::TraceLog(const std::string &log_path) {
             (log_region *)((uint8_t *)region_ptr + sizeof(*region_ptr) + region_ptr->path_len);
     }
 
+    auto syms_ptr = (log_sym *)region_ptr;
+    m_symbols     = std::make_unique<Symbols>(syms_ptr, trace_hdr->num_syms);
+    for (uint64_t i = 0; i < trace_hdr->num_syms; ++i) {
+        syms_ptr = (log_sym *)((uint8_t *)syms_ptr + sizeof(*syms_ptr) + syms_ptr->name_len);
+    }
+
     const auto thread_hdr_end = (log_thread_hdr *)(trace_buf.data() + trace_buf.size());
-    auto thread_hdr           = (log_thread_hdr *)region_ptr;
+    auto thread_hdr           = (log_thread_hdr *)syms_ptr;
     while (thread_hdr < thread_hdr_end) {
         std::vector<log_msg_hdr> thread_log;
         const auto thread_log_start = (uint8_t *)thread_hdr + sizeof(*thread_hdr);
@@ -75,6 +81,11 @@ size_t TraceLog::num_bytes() const {
 const MachORegions &TraceLog::macho_regions() const {
     assert(m_macho_regions);
     return *m_macho_regions;
+}
+
+const Symbols &TraceLog::symbols() const {
+    assert(m_symbols);
+    return *m_symbols;
 }
 
 const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() const {
@@ -115,7 +126,7 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
         syms                = get_symbols_in_intervals(all_syms, pc_intervals);
     }
 
-#if 1
+#if 0
     for (const auto &sym : syms) {
         fmt::print("base: {:#018x} sz: {:d} name: {:s} img_name: {:s} img_path: {:s}\n", sym.base,
                    sym.size, sym.name, sym.img_name, sym.img_path);
@@ -125,7 +136,7 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
     const auto fh = fopen(path.c_str(), "wb");
     assert(fh);
 
-    const log_hdr hdr_buf{.num_regions = macho_regions.regions().size()};
+    const log_hdr hdr_buf{.num_regions = macho_regions.regions().size(), .num_syms = syms.size()};
     assert(fwrite(&hdr_buf, sizeof(hdr_buf), 1, fh) == 1);
 
     for (const auto &region : macho_regions.regions()) {
@@ -134,6 +145,12 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
         memcpy(region_buf.uuid, region.uuid, sizeof(region_buf.uuid));
         assert(fwrite(&region_buf, sizeof(region_buf), 1, fh) == 1);
         assert(fwrite(region.path.c_str(), region.path.string().size(), 1, fh) == 1);
+    }
+
+    for (const auto &sym : syms) {
+        log_sym sym_buf{.base = sym.base, .size = sym.size, .name_len = sym.name.size()};
+        assert(fwrite(&sym_buf, sizeof(sym_buf), 1, fh) == 1);
+        assert(fwrite(sym.name.c_str(), sym.name.size(), 1, fh) == 1);
     }
 
     for (const auto &thread_buf_pair : m_log_bufs) {

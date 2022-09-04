@@ -16,11 +16,8 @@ std::vector<sym_info> get_symbols(task_t target_task) {
         const std::string sym_owner_path = sym_owner_path_cstr ? sym_owner_path_cstr : "n/a";
         const auto sym_owner_name_cstr   = CSSymbolOwnerGetName(sym_owner);
         const std::string sym_owner_name = sym_owner_name_cstr ? sym_owner_name_cstr : "n/a";
-        res.emplace_back(sym_info{.base     = rng.location,
-                                  .size     = rng.length,
-                                  .name     = name,
-                                  .img_path = sym_owner_path,
-                                  .img_name = sym_owner_name});
+        res.emplace_back(sym_info{
+            .base = rng.location, .size = rng.length, .name = name, .img_path = sym_owner_path});
         return 0;
     });
 
@@ -47,18 +44,14 @@ Symbols::Symbols(task_t target_task) : m_target_task{target_task} {
 }
 
 Symbols::Symbols(const log_sym *sym_buf, uint64_t num_syms) {
-#if 0
     for (uint64_t i = 0; i < num_syms; ++i) {
         const char *name_ptr = (const char *)(sym_buf + 1);
-        std::string path{path_ptr, region_buf->path_len};
-        image_info img_info{.base = region_buf->base, .size = region_buf->size, .path = path};
-        memcpy(img_info.uuid, region_buf->uuid, sizeof(img_info.uuid));
-        m_regions.emplace_back(img_info);
-        region_buf =
-            (log_region *)((uint8_t *)region_buf + sizeof(*region_buf) + region_buf->path_len);
+        std::string name{name_ptr, sym_buf->name_len};
+        sym_info sym{.base = sym_buf->base, .size = sym_buf->size, .name = name};
+        m_syms.emplace_back(sym);
+        sym_buf = (log_sym *)((uint8_t *)sym_buf + sizeof(*sym_buf) + sym_buf->name_len);
     }
     std::sort(m_syms.begin(), m_syms.end());
-#endif
 }
 
 void Symbols::reset() {

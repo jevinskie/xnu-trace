@@ -83,7 +83,6 @@ struct sym_info {
     uint64_t size;
     std::string name;
     std::string img_path;
-    std::string img_name;
     auto operator<=>(const sym_info &rhs) const {
         return base <=> rhs.base;
     }
@@ -172,11 +171,13 @@ public:
     uint64_t num_inst() const;
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;
+    const Symbols &symbols() const;
     const std::map<uint32_t, std::vector<log_msg_hdr>> &parsed_logs() const;
 
 private:
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;
+    std::unique_ptr<Symbols> m_symbols;
     std::map<uint32_t, std::vector<uint8_t>> m_log_bufs;
     std::map<uint32_t, std::vector<log_msg_hdr>> m_parsed_logs;
 };
