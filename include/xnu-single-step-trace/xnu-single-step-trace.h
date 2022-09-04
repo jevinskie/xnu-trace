@@ -83,7 +83,7 @@ struct sym_info {
     uint64_t base;
     uint64_t size;
     std::string name;
-    std::string img_path;
+    std::filesystem::path path;
     auto operator<=>(const sym_info &rhs) const {
         return base <=> rhs.base;
     }
@@ -151,8 +151,8 @@ public:
     MachORegions(const log_region *region_buf, uint64_t num_regions);
     void reset();
     const std::vector<image_info> &regions() const;
-    image_info lookup(uint64_t addr) const;
-    std::pair<image_info, size_t> lookup_idx(uint64_t addr) const;
+    const image_info &lookup(uint64_t addr) const;
+    std::pair<const image_info &, size_t> lookup_idx(uint64_t addr) const;
 
 private:
     const task_t m_target_task{};

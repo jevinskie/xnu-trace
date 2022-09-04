@@ -17,7 +17,7 @@ std::vector<sym_info> get_symbols(task_t target_task) {
         const auto *sym_owner_name_cstr  = CSSymbolOwnerGetName(sym_owner);
         const std::string sym_owner_name = sym_owner_name_cstr ? sym_owner_name_cstr : "n/a";
         res.emplace_back(sym_info{
-            .base = rng.location, .size = rng.length, .name = name, .img_path = sym_owner_path});
+            .base = rng.location, .size = rng.length, .name = name, .path = sym_owner_path});
         return 0;
     });
 
@@ -49,7 +49,7 @@ Symbols::Symbols(const log_sym *sym_buf, uint64_t num_syms) {
         const std::string name{name_ptr, sym_buf->name_len};
         const auto *path_ptr = (char *)(sym_buf + 1) + sym_buf->name_len;
         const std::string path{path_ptr, sym_buf->path_len};
-        sym_info sym{.base = sym_buf->base, .size = sym_buf->size, .name = name, .img_path = path};
+        sym_info sym{.base = sym_buf->base, .size = sym_buf->size, .name = name, .path = path};
         m_syms.emplace_back(sym);
         sym_buf = (log_sym *)((uint8_t *)sym_buf + sizeof(*sym_buf) + sym_buf->name_len +
                               sym_buf->path_len);

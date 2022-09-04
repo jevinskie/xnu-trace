@@ -19,7 +19,7 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
     if (symbolicate) {
         for (const auto &sym : trace.symbols().syms()) {
             fmt::print("base: {:#018x} sz: {:d} name: {:s} img: {:s}\n", sym.base, sym.size,
-                       sym.name, fs::path{sym.img_path}.filename().string());
+                       sym.name, fs::path{sym.path}.filename().string());
         }
     }
 
@@ -30,6 +30,33 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
         const auto bbs = extract_bbs_from_pc_trace(extract_pcs_from_trace(log));
         for (const auto &bb : bbs) {
             fmt::print("BB: {:#018x} [{:d}]\n", bb.pc, bb.sz);
+        }
+    }
+}
+
+void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
+    std::vector<std::vector<bb_t>> tbbs;
+    for (const auto &ttp : trace.parsed_logs()) {
+        tbbs.emplace_back(extract_bbs_from_pc_trace(extract_pcs_from_trace(ttp.second)));
+    }
+    const auto macho_regions        = trace.macho_regions();
+    const auto syms                 = trace.symbols();
+    const image_info *last_img_info = nullptr;
+    for (const auto &bbs : tbbs) {
+        for (const auto &bb : bbs) {
+            const auto img_info = macho_regions.lookup(bb.pc);
+            const auto *sym     = syms.lookup(bb.pc);
+            if (last_img_info && sym && sym->name == "_fopen") {
+                fmt::print("found fopen last path: {:s} off: {:#x}\n", last_img_info->path.string(),
+                           bb.pc - sym->base);
+            }
+            if (last_img_info &&
+                fs::path{last_img_info->path}.filename().string() == calling_image && sym &&
+                sym->base == bb.pc) {
+                fmt::print("{:s} calls {:s} in {:s}\n", calling_image, sym->name,
+                           fs::path{sym->path}.filename().string());
+            }
+            last_img_info = &img_info;
         }
     }
 }
@@ -47,7 +74,7 @@ void write_lighthouse_coverage(std::string path, const TraceLog &trace, bool sym
     const auto syms          = trace.symbols();
     for (const auto &bbs : tbbs) {
         for (const auto &bb : bbs) {
-            const auto [img_info, idx] = macho_regions.lookup_idx(bb.pc);
+            const auto img_info = macho_regions.lookup(bb.pc);
             if (!symbolicate) {
                 fmt::print(fh, "{:s}+{:x}\n", img_info.path.filename().string(),
                            bb.pc - img_info.base);
@@ -119,6 +146,7 @@ int main(int argc, const char **argv) {
     parser.add_argument("-t", "--trace-file").required().help("input trace file path");
     parser.add_argument("-d", "--drcov-file").help("output drcov coverage file path");
     parser.add_argument("-l", "--lighthouse-file").help("output lighthouse coverage file path");
+    parser.add_argument("-c", "--calls-from").help("find calls from given image");
     parser.add_argument("-S", "--symbolicate")
         .default_value(false)
         .implicit_value(true)
@@ -149,6 +177,10 @@ int main(int argc, const char **argv) {
 
     if (parser.get<bool>("--dump")) {
         dump_log(trace, symbolicate);
+    }
+
+    if (const auto calling_image = parser.present("--calls-from")) {
+        dump_calls_from(trace, *calling_image);
     }
 
     return 0;

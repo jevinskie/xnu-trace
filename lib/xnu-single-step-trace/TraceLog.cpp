@@ -127,10 +127,10 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
         syms                = get_symbols_in_intervals(all_syms, pc_intervals);
     }
 
-#if 1
+#if 0
     for (const auto &sym : syms) {
-        fmt::print("base: {:#018x} sz: {:d} name: {:s} img_path: {:s}\n", sym.base, sym.size,
-                   sym.name, sym.img_path);
+        fmt::print("base: {:#018x} sz: {:d} name: {:s} path: {:s}\n", sym.base, sym.size, sym.name,
+                   sym.path.string());
     }
 #endif
 
@@ -152,10 +152,10 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
         log_sym sym_buf{.base     = sym.base,
                         .size     = sym.size,
                         .name_len = sym.name.size(),
-                        .path_len = sym.img_path.size()};
+                        .path_len = sym.path.string().size()};
         assert(fwrite(&sym_buf, sizeof(sym_buf), 1, fh) == 1);
         assert(fwrite(sym.name.c_str(), sym.name.size(), 1, fh) == 1);
-        assert(fwrite(sym.img_path.c_str(), sym.img_path.size(), 1, fh) == 1);
+        assert(fwrite(sym.path.c_str(), sym.path.string().size(), 1, fh) == 1);
     }
 
     for (const auto &thread_buf_pair : m_log_bufs) {
