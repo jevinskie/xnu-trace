@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <filesystem>
+#include <set>
 
 #include <argparse/argparse.hpp>
 #include <fmt/format.h>
@@ -39,29 +40,28 @@ void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
     for (const auto &ttp : trace.parsed_logs()) {
         tbbs.emplace_back(extract_bbs_from_pc_trace(extract_pcs_from_trace(ttp.second)));
     }
-    const auto macho_regions        = trace.macho_regions();
-    const auto syms                 = trace.symbols();
-    const image_info *last_img_info = nullptr;
-    const bb_t *last_bb             = nullptr;
+    const auto macho_regions = trace.macho_regions();
+    const auto syms          = trace.symbols();
+    std::optional<image_info> last_img_info;
+    std::set<sym_info> called_syms;
     for (const auto &bbs : tbbs) {
         for (const auto &bb : bbs) {
             const auto img_info = macho_regions.lookup(bb.pc);
             const auto *sym     = syms.lookup(bb.pc);
-            if (last_img_info && sym && sym->name == "_fopen") {
-                fmt::print(
-                    "found fopen last path: {:s} this path: {:s} off: {:#x} last_bb pc: {:#018x}\n",
-                    last_img_info->path.string(), img_info.path.string(), bb.pc - sym->base,
-                    last_bb->pc);
-            }
-            if (last_img_info &&
-                fs::path{last_img_info->path}.filename().string() == calling_image && sym &&
+            if (last_img_info && last_img_info->path.filename().string() == calling_image && sym &&
                 sym->base == bb.pc) {
-                fmt::print("{:s} calls {:s} in {:s}\n", calling_image, sym->name,
-                           fs::path{sym->path}.filename().string());
+                called_syms.emplace(*sym);
             }
-            last_img_info = &img_info;
-            last_bb       = &bb;
+            last_img_info = img_info;
         }
+    }
+    for (const auto &sym : called_syms) {
+        std::string sym_name = sym.name;
+        if (sym_name == "n/a") {
+            sym_name = fmt::format("{:#018x}", sym.base);
+        }
+        fmt::print("{:s} calls '{:s}' in {:s}\n", calling_image, sym_name,
+                   sym.path.filename().string());
     }
 }
 
