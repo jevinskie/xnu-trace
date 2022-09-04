@@ -30,15 +30,6 @@ constexpr U roundup_pow2_mul(U num, std::size_t pow2_mul) {
     return (num + mask) & ~mask;
 }
 
-// MachORegions.cpp
-
-std::vector<segment_command_64> read_macho_segs_target(task_t target_task, uint64_t macho_hdr_addr);
-std::vector<segment_command_64> read_macho_segs_target(task_t target_task,
-                                                       const mach_header_64 *macho_hdr);
-
-// VMRegions.cpp
-std::vector<region> get_vm_regions(task_t target_task);
-
 // utils.cpp
 
 void posix_check(int retval, std::string msg);
@@ -66,4 +57,8 @@ void set_single_step_thread(thread_t thread, bool do_ss);
 void set_single_step_task(task_t task, bool do_ss);
 
 // macho.cpp
+
+std::vector<segment_command_64> read_macho_segs_target(task_t target_task, uint64_t macho_hdr_addr);
+std::vector<segment_command_64> read_macho_segs_target(task_t target_task,
+                                                       const mach_header_64 *macho_hdr);
 uint64_t get_text_size(const std::vector<segment_command_64> &segments);

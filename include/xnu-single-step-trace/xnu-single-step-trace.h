@@ -127,6 +127,8 @@ private:
     std::vector<sym_info> m_syms;
 };
 
+std::vector<region> get_vm_regions(task_t target_task);
+
 class VMRegions {
 public:
     VMRegions(task_t target_task);
