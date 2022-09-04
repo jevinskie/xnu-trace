@@ -44,6 +44,7 @@ struct log_sym {
     uint64_t base;
     uint64_t size;
     uint64_t name_len;
+    uint64_t path_len;
 } __attribute__((packed));
 
 struct log_thread_hdr {
@@ -124,7 +125,7 @@ public:
     Symbols(const log_sym *sym_buf, uint64_t num_syms);
     void reset();
     const std::vector<sym_info> &syms() const;
-    sym_info lookup(uint64_t addr) const;
+    const sym_info *lookup(uint64_t addr) const;
 
 private:
     const task_t m_target_task{};

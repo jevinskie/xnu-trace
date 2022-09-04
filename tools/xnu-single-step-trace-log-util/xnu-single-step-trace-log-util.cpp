@@ -3,14 +3,24 @@
 #undef NDEBUG
 #include <cassert>
 #include <cstdint>
+#include <filesystem>
 
 #include <argparse/argparse.hpp>
 #include <fmt/format.h>
 
-void dump_log(const TraceLog &trace) {
+namespace fs = std::filesystem;
+
+void dump_log(const TraceLog &trace, bool symbolicate = false) {
     for (const auto &region : trace.macho_regions().regions()) {
         fmt::print("base: {:#018x} => {:#018x} size: {:#010x} path: '{:s}'\n", region.base,
                    region.base + region.size, region.size, region.path.string());
+    }
+
+    if (symbolicate) {
+        for (const auto &sym : trace.symbols().syms()) {
+            fmt::print("base: {:#018x} sz: {:d} name: {:s} img: {:s}\n", sym.base, sym.size,
+                       sym.name, fs::path{sym.img_path}.filename().string());
+        }
     }
 
     for (const auto &thread_trace_pair : trace.parsed_logs()) {
@@ -24,7 +34,7 @@ void dump_log(const TraceLog &trace) {
     }
 }
 
-void write_lighthouse_coverage(std::string path, const TraceLog &trace) {
+void write_lighthouse_coverage(std::string path, const TraceLog &trace, bool symbolicate = false) {
     std::vector<std::vector<bb_t>> tbbs;
     for (const auto &ttp : trace.parsed_logs()) {
         tbbs.emplace_back(extract_bbs_from_pc_trace(extract_pcs_from_trace(ttp.second)));
@@ -34,10 +44,23 @@ void write_lighthouse_coverage(std::string path, const TraceLog &trace) {
     assert(fh);
 
     const auto macho_regions = trace.macho_regions();
+    const auto syms          = trace.symbols();
     for (const auto &bbs : tbbs) {
         for (const auto &bb : bbs) {
             const auto [img_info, idx] = macho_regions.lookup_idx(bb.pc);
-            fmt::print(fh, "{:s}+{:x}\n", img_info.path.filename().string(), bb.pc - img_info.base);
+            if (!symbolicate) {
+                fmt::print(fh, "{:s}+{:x}\n", img_info.path.filename().string(),
+                           bb.pc - img_info.base);
+            } else {
+                const auto *sym = syms.lookup(bb.pc);
+                if (sym) {
+                    fmt::print(fh, "{:s}+{:x} {:s}+{:x}\n", img_info.path.filename().string(),
+                               bb.pc - img_info.base, sym->name, bb.pc - sym->base);
+                } else {
+                    fmt::print(fh, "{:s}+{:x}\n", img_info.path.filename().string(),
+                               bb.pc - img_info.base);
+                }
+            }
         }
     }
 
@@ -96,6 +119,10 @@ int main(int argc, const char **argv) {
     parser.add_argument("-t", "--trace-file").required().help("input trace file path");
     parser.add_argument("-d", "--drcov-file").help("output drcov coverage file path");
     parser.add_argument("-l", "--lighthouse-file").help("output lighthouse coverage file path");
+    parser.add_argument("-S", "--symbolicate")
+        .default_value(false)
+        .implicit_value(true)
+        .help("print symbol information");
     parser.add_argument("-D", "--dump")
         .default_value(false)
         .implicit_value(true)
@@ -108,6 +135,8 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
+    const auto symbolicate = parser["--symbolicate"] == true;
+
     const auto trace = TraceLog(parser.get("--trace-file"));
 
     if (const auto path = parser.present("--drcov-file")) {
@@ -115,11 +144,11 @@ int main(int argc, const char **argv) {
     }
 
     if (const auto path = parser.present("--lighthouse-file")) {
-        write_lighthouse_coverage(*path, trace);
+        write_lighthouse_coverage(*path, trace, symbolicate);
     }
 
     if (parser.get<bool>("--dump")) {
-        dump_log(trace);
+        dump_log(trace, symbolicate);
     }
 
     return 0;
