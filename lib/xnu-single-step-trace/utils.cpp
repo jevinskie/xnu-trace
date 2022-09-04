@@ -1,5 +1,29 @@
 #include "common.h"
 
+void posix_check(int retval, std::string msg) {
+    if (retval) {
+        fmt::print(stderr, "Error: '{:s}' retval: {:d} errno: {:d} description: '{:s}'\n", msg,
+                   retval, errno, strerror(errno));
+        if (get_task_for_pid_count(mach_task_self())) {
+            __builtin_debugtrap();
+        } else {
+            exit(-1);
+        }
+    }
+}
+
+void mach_check(kern_return_t kr, std::string msg) {
+    if (kr != KERN_SUCCESS) {
+        fmt::print(stderr, "Error: '{:s}' retval: {:d} description: '{:s}'\n", msg, kr,
+                   mach_error_string(kr));
+        if (get_task_for_pid_count(mach_task_self())) {
+            __builtin_debugtrap();
+        } else {
+            exit(-1);
+        }
+    }
+}
+
 double timespec_diff(const timespec &a, const timespec &b) {
     timespec c;
     c.tv_sec  = a.tv_sec - b.tv_sec;

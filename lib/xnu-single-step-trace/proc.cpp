@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <libproc.h>
+
 int32_t get_context_switch_count(pid_t pid) {
     proc_taskinfo ti;
     const auto res = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &ti, sizeof(ti));

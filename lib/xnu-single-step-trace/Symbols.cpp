@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <CoreSymbolication/CoreSymbolication.h>
+
 std::vector<sym_info> get_symbols(task_t target_task) {
     const auto cs = CSSymbolicatorCreateWithTask(target_task);
     assert(!CSIsNull(cs));

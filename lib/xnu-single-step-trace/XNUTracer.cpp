@@ -1,5 +1,22 @@
 #include "common.h"
 
+#include <spawn.h>
+
+#ifndef _POSIX_SPAWN_DISABLE_ASLR
+#define _POSIX_SPAWN_DISABLE_ASLR 0x0100
+#endif
+
+#define EXC_MSG_MAX_SIZE 4096
+
+extern "C" char **environ;
+
+using dispatch_mig_callback_t = boolean_t (*)(mach_msg_header_t *message, mach_msg_header_t *reply);
+
+extern "C" mach_msg_return_t dispatch_mig_server(dispatch_source_t ds, size_t maxmsgsz,
+                                                 dispatch_mig_callback_t callback);
+
+extern "C" boolean_t mach_exc_server(mach_msg_header_t *message, mach_msg_header_t *reply);
+
 XNUTracer *g_tracer;
 
 XNUTracer::XNUTracer(task_t target_task, std::optional<fs::path> trace_path, bool symbolicate)

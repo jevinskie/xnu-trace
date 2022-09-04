@@ -1,7 +1,5 @@
 #include "common.h"
 
-#define EXC_MSG_MAX_SIZE 4096
-
 // Handle EXCEPTION_STATE_IDENTIY behavior
 extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(
     mach_port_t exception_port, mach_port_t thread, mach_port_t task, exception_type_t exception,
