@@ -64,7 +64,7 @@ void Symbols::reset() {
 
 sym_info Symbols::lookup(uint64_t addr) const {
     for (const auto &sym : m_syms) {
-        if (sym.base <= addr && addr <= sym.base + sym.size) {
+        if (sym.base <= addr && addr < sym.base + sym.size) {
             return sym;
         }
     }
