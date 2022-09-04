@@ -1,6 +1,7 @@
 add_executable(xnu-single-step-trace-runner xnu-single-step-trace-runner.cpp)
 
 target_link_libraries(xnu-single-step-trace-runner xnu-single-step-trace argparse fmt)
+target_compile_options(xnu-single-step-trace-runner PRIVATE -Wall -Wextra -Wpedantic)
 
 add_custom_command(TARGET xnu-single-step-trace-runner
                    POST_BUILD

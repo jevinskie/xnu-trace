@@ -42,13 +42,16 @@ void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
     const auto macho_regions        = trace.macho_regions();
     const auto syms                 = trace.symbols();
     const image_info *last_img_info = nullptr;
+    const bb_t *last_bb             = nullptr;
     for (const auto &bbs : tbbs) {
         for (const auto &bb : bbs) {
             const auto img_info = macho_regions.lookup(bb.pc);
             const auto *sym     = syms.lookup(bb.pc);
             if (last_img_info && sym && sym->name == "_fopen") {
-                fmt::print("found fopen last path: {:s} off: {:#x}\n", last_img_info->path.string(),
-                           bb.pc - sym->base);
+                fmt::print(
+                    "found fopen last path: {:s} this path: {:s} off: {:#x} last_bb pc: {:#018x}\n",
+                    last_img_info->path.string(), img_info.path.string(), bb.pc - sym->base,
+                    last_bb->pc);
             }
             if (last_img_info &&
                 fs::path{last_img_info->path}.filename().string() == calling_image && sym &&
@@ -57,6 +60,7 @@ void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
                            fs::path{sym->path}.filename().string());
             }
             last_img_info = &img_info;
+            last_bb       = &bb;
         }
     }
 }
