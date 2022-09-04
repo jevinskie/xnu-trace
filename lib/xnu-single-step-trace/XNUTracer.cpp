@@ -77,7 +77,7 @@ XNUTracer::~XNUTracer() {
         ncsw_per_sec_self, ncsw_per_sec_total, nbytes, (double)nbytes / ninst, nbytes / elapsed);
     fmt::print("{}\n", s);
     if (m_trace_path != std::nullopt) {
-        logger().write_to_file(m_trace_path->string(), *m_macho_regions);
+        logger().write_to_file(m_trace_path->string(), *m_macho_regions, m_symbols.get());
     }
     resume();
 }

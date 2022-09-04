@@ -16,6 +16,8 @@
 #include <mach/mach.h>
 #include <uuid/uuid.h>
 
+#include <interval-tree/interval_tree.hpp>
+
 struct bb_t {
     uint64_t pc;
     uint32_t sz;
@@ -87,8 +89,6 @@ struct sym_info {
     }
 };
 
-std::vector<sym_info> get_symbols(task_t target_task);
-
 struct image_info {
     uint64_t base;
     uint64_t size;
@@ -113,6 +113,11 @@ struct region {
         return base <=> rhs.base;
     }
 };
+
+std::vector<sym_info> get_symbols(task_t target_task);
+std::vector<sym_info>
+get_symbols_in_intervals(const std::vector<sym_info> &syms,
+                         const lib_interval_tree::interval_tree_t<uint64_t> &intervals);
 
 class Symbols {
 public:
@@ -162,7 +167,8 @@ public:
     TraceLog();
     TraceLog(const std::string &log_path);
     __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
-    void write_to_file(const std::string &path, const MachORegions &macho_regions);
+    void write_to_file(const std::string &path, const MachORegions &macho_regions,
+                       const Symbols *symbols);
     uint64_t num_inst() const;
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;

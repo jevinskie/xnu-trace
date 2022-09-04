@@ -88,7 +88,8 @@ __attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) 
     ++m_num_inst;
 }
 
-void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_regions) {
+void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_regions,
+                             const Symbols *symbols) {
     std::set<uint64_t> pcs;
     for (const auto &thread_buf_pair : m_log_bufs) {
         const auto buf = thread_buf_pair.second;
@@ -101,10 +102,25 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
     for (const auto pc : pcs) {
         pc_intervals.insert_overlap({pc, pc + 4});
     }
+#if 0
     for (const auto &pc_int : pc_intervals) {
         fmt::print("low {:#018x} high: {:#018x} size: {:d}\n", pc_int.low(), pc_int.high(),
                    pc_int.size());
     }
+#endif
+
+    std::vector<sym_info> syms;
+    if (symbols) {
+        const auto all_syms = symbols->syms();
+        syms                = get_symbols_in_intervals(all_syms, pc_intervals);
+    }
+
+#if 1
+    for (const auto &sym : syms) {
+        fmt::print("base: {:#018x} sz: {:d} name: {:s} img_name: {:s} img_path: {:s}\n", sym.base,
+                   sym.size, sym.name, sym.img_name, sym.img_path);
+    }
+#endif
 
     const auto fh = fopen(path.c_str(), "wb");
     assert(fh);

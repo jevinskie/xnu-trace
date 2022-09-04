@@ -9,7 +9,6 @@
 #include <mach-o/loader.h>
 
 #include <fmt/format.h>
-#include <interval-tree/interval_tree.hpp>
 
 namespace fs = std::filesystem;
 using namespace std::string_literals;

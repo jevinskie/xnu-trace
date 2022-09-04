@@ -26,13 +26,19 @@ std::vector<sym_info> get_symbols(task_t target_task) {
 
     std::sort(res.begin(), res.end());
 
-#if 1
-    for (const auto &sym : res) {
-        fmt::print("base: {:#018x} sz: {:d} name: {:s} img_name: {:s} img_path: {:s}\n", sym.base,
-                   sym.size, sym.name, sym.img_name, sym.img_path);
-    }
-#endif
+    return res;
+}
 
+std::vector<sym_info> get_symbols_in_intervals(const std::vector<sym_info> &syms,
+                                               const interval_tree_t<uint64_t> &intervals) {
+    std::vector<sym_info> res;
+    const auto missing = intervals.cend();
+    for (const auto &sym : syms) {
+        if (intervals.overlap_find({sym.base, sym.base + sym.size}) != missing) {
+            res.emplace_back(sym);
+        }
+    }
+    std::sort(res.begin(), res.end());
     return res;
 }
 
