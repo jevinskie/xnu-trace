@@ -1,9 +1,21 @@
 
 set(INSTTRACE_SRC
-    xnu-single-step-trace.cpp
+    common.h
+    dyld.cpp
+    exception_handlers.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/mach_excServer.c
+    mach.cpp
+    macho.cpp
+    MachORegions.cpp
+    Symbols.cpp
+    TraceLog.cpp
+    utils.cpp
+    VMRegions.cpp
+    XNUTracer.cpp
 )
 
 set(INSTTRACE_HDR_STANDALONE
+    xnu-single-step-trace.h
 )
 
 set(INSTTRACE_HDR)
@@ -13,12 +25,12 @@ foreach(HDR ${INSTTRACE_HDR_STANDALONE})
 endforeach()
 
 foreach(SRC ${INSTTRACE_SRC})
-    string(REGEX REPLACE "\.cpp$" ".h" HDR ${SRC})
-    set(HDR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/xnu-single-step-trace/${HDR}")
-    list(APPEND INSTTRACE_HDR ${HDR})
+    get_filename_component(HDR_NAME ${SRC} NAME_WLE)
+    set(HDR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/xnu-single-step-trace/${HDR_NAME}.h")
+    if(EXISTS ${HDR})
+        list(APPEND INSTTRACE_HDR ${HDR})
+    endif()
 endforeach()
-
-list(APPEND INSTTRACE_SRC mach_excServer.c)
 
 add_custom_command(OUTPUT
     ${CMAKE_CURRENT_BINARY_DIR}/mach_exc.h
