@@ -12,3 +12,7 @@ set_target_properties(xnu-single-step-trace-runner PROPERTIES
     XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO"
     # XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
 )
+
+install(TARGETS xnu-single-step-trace-runner
+    RUNTIME DESTINATION bin
+)

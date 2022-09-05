@@ -11,17 +11,18 @@ struct _GumTracerStalkerTransformer {
 };
 
 static void tracer_cb(GumCpuContext *context, gpointer user_data) {
-    // fmt::print(".");
-    // printf(".");
-    // __builtin_debugtrap();
+    (void)context;
+    (void)user_data;
+    // write(STDOUT_FILENO, ".", 1);
     ++g_num_inst;
 }
 
 static void gum_tracer_stalker_transformer_transform_block(GumStalkerTransformer *transformer,
                                                            GumStalkerIterator *iterator,
                                                            GumStalkerOutput *output) {
+    (void)transformer;
+    (void)output;
     while (gum_stalker_iterator_next(iterator, nullptr)) {
-        // fmt::print(".");
         gum_stalker_iterator_put_callout(iterator, tracer_cb, nullptr, nullptr);
         gum_stalker_iterator_keep(iterator);
     }
@@ -29,6 +30,7 @@ static void gum_tracer_stalker_transformer_transform_block(GumStalkerTransformer
 
 static void gum_tracer_stalker_transformer_iface_init(gpointer g_iface, gpointer iface_data) {
     auto *iface = (GumStalkerTransformerInterface *)g_iface;
+    (void)iface_data;
 
     iface->transform_block = gum_tracer_stalker_transformer_transform_block;
 }
@@ -38,9 +40,13 @@ G_DEFINE_TYPE_EXTENDED(GumTracerStalkerTransformer, gum_tracer_stalker_transform
                        G_IMPLEMENT_INTERFACE(GUM_TYPE_STALKER_TRANSFORMER,
                                              gum_tracer_stalker_transformer_iface_init))
 
-static void gum_tracer_stalker_transformer_class_init(GumTracerStalkerTransformerClass *klass) {}
+static void gum_tracer_stalker_transformer_class_init(GumTracerStalkerTransformerClass *klass) {
+    (void)klass;
+}
 
-static void gum_tracer_stalker_transformer_init(GumTracerStalkerTransformer *self) {}
+static void gum_tracer_stalker_transformer_init(GumTracerStalkerTransformer *self) {
+    (void)self;
+}
 
 static GumStalkerTransformer *gum_stalker_transformer_make_tracer(void) {
     return (GumStalkerTransformer *)g_object_new(GUM_TYPE_TRACER_STALKER_TRANSFORMER, nullptr);
@@ -78,4 +84,30 @@ void FridaStalker::unfollow() {
 
 void FridaStalker::unfollow(GumThreadId thread_id) {
     gum_stalker_unfollow(m_stalker, thread_id);
+}
+
+// C API
+
+stalker_t create_stalker(void) {
+    return (stalker_t) new FridaStalker{};
+}
+
+void destroy_stalker(stalker_t stalker) {
+    delete (FridaStalker *)stalker;
+}
+
+void stalker_follow_me(stalker_t stalker) {
+    ((FridaStalker *)stalker)->follow();
+}
+
+void stalker_follow_thread(stalker_t stalker, GumThreadId thread_id) {
+    ((FridaStalker *)stalker)->follow(thread_id);
+}
+
+void stalker_unfollow_me(stalker_t stalker) {
+    ((FridaStalker *)stalker)->unfollow();
+}
+
+void stalker_unfollow_thread(stalker_t stalker, GumThreadId thread_id) {
+    ((FridaStalker *)stalker)->unfollow(thread_id);
 }

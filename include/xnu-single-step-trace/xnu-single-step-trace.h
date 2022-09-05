@@ -20,6 +20,8 @@
 #include <frida-gum.h>
 #include <interval-tree/interval_tree.hpp>
 
+#include "xnu-single-step-trace-c.h"
+
 struct bb_t {
     uint64_t pc;
     uint32_t sz;

@@ -18,6 +18,7 @@ set(INSTTRACE_SRC
 
 set(INSTTRACE_HDR_STANDALONE
     xnu-single-step-trace.h
+    xnu-single-step-trace-c.h
 )
 
 set(INSTTRACE_HDR)
@@ -44,14 +45,20 @@ add_custom_command(OUTPUT
 
 # INSTTRACE_HDR added for Xcode project generation
 add_library(xnu-single-step-trace ${INSTTRACE_SRC} ${INSTTRACE_HDR})
+set_target_properties(xnu-single-step-trace PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
 
-
-target_link_libraries(xnu-single-step-trace PUBLIC interval-tree PUBLIC frida-gum PRIVATE capstone CoreSymbolication fmt LIEF::LIEF)
+target_link_libraries(xnu-single-step-trace PUBLIC interval-tree PUBLIC frida-gum PRIVATE CoreSymbolication fmt LIEF::LIEF)
 target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
 
 target_include_directories(xnu-single-step-trace
-    PUBLIC ../../include
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../include
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+install(TARGETS xnu-single-step-trace
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    PUBLIC_HEADER DESTINATION include/xnu-single-step-trace
 )
 
 # target_compile_options(xnu-single-step-trace PRIVATE -Xclang -fdump-record-layouts)
