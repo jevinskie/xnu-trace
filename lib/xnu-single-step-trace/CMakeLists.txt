@@ -44,7 +44,7 @@ add_custom_command(OUTPUT
 )
 
 # INSTTRACE_HDR added for Xcode project generation
-add_library(xnu-single-step-trace ${INSTTRACE_SRC} ${INSTTRACE_HDR})
+add_library(xnu-single-step-trace SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
 set_target_properties(xnu-single-step-trace PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
 
 target_link_libraries(xnu-single-step-trace PUBLIC interval-tree PUBLIC frida-gum PRIVATE CoreSymbolication fmt LIEF::LIEF)

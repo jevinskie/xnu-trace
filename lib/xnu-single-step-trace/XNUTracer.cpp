@@ -15,7 +15,7 @@ using dispatch_mig_callback_t = boolean_t (*)(mach_msg_header_t *message, mach_m
 extern "C" mach_msg_return_t dispatch_mig_server(dispatch_source_t ds, size_t maxmsgsz,
                                                  dispatch_mig_callback_t callback);
 
-extern "C" boolean_t mach_exc_server(mach_msg_header_t *message, mach_msg_header_t *reply);
+extern "C" boolean_t mach_exc_trace_server(mach_msg_header_t *message, mach_msg_header_t *reply);
 
 XNUTracer *g_tracer;
 
@@ -169,7 +169,7 @@ void XNUTracer::setup_breakpoint_exception_port_dispath_source() {
         dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, m_breakpoint_exc_port, 0, m_queue);
     assert(m_breakpoint_exc_source);
     dispatch_source_set_event_handler(m_breakpoint_exc_source, ^{
-        dispatch_mig_server(m_breakpoint_exc_source, EXC_MSG_MAX_SIZE, mach_exc_server);
+        dispatch_mig_server(m_breakpoint_exc_source, EXC_MSG_MAX_SIZE, mach_exc_trace_server);
     });
 }
 

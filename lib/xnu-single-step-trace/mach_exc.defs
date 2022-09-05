@@ -1,2 +1,3 @@
 #define catch_ trace_catch_
+ServerDemux mach_exc_trace_server;
 #include <mach/mach_exc.defs>
