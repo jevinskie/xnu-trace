@@ -4,13 +4,6 @@
 [submodule "3rdparty/argparse"]
 	path = 3rdparty/argparse
 	url = https://github.com/p-ranav/argparse
-[submodule "3rdparty/capstone"]
-	path = 3rdparty/capstone
-	url = https://github.com/capstone-engine/capstone
-	branch = next
-[submodule "3rdparty/LIEF"]
-	path = 3rdparty/LIEF
-	url = https://github.com/lief-project/LIEF
 [submodule "3rdparty/CoreSymbolication"]
 	path = 3rdparty/CoreSymbolication
 	url = https://github.com/jevinskie/CoreSymbolication-cmake

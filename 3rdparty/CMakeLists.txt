@@ -1,31 +1,11 @@
 add_subdirectory(argparse)
 
-option(CAPSTONE_ARCHITECTURE_DEFAULT "" OFF)
-option(CAPSTONE_ARM64_SUPPORT "" ON)
-option(CAPSTONE_BUILD_CSTOOL "" ON)
-add_subdirectory(capstone)
-
 add_subdirectory(CoreSymbolication)
 
 add_subdirectory(fmt)
 
 option(INT_TREE_ENABLE_TESTS "" OFF)
 add_subdirectory(interval-tree)
-
-set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
-option(LIEF_PYTHON_API "" OFF)
-option(LIEF_C_API "" OFF)
-option(LIEF_EXAMPLES "" OFF)
-option(LIEF_LOGGING "" ON)
-option(LIEF_LOGGING_DEBUG "" ON)
-option(LIEF_ENABLE_JSON "" OFF)
-option(LIEF_ELF "" OFF)
-option(LIEF_PE "" OFF)
-option(LIEF_MACHO "" ON)
-option(LIEF_DEX "" OFF)
-option(LIEF_ART "" OFF)
-add_subdirectory(LIEF)
-
 
 cmake_policy(SET CMP0135 NEW)
 include(FetchContent)
