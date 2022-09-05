@@ -5,7 +5,7 @@ target_compile_options(xnu-single-step-trace-runner PRIVATE -Wall -Wextra -Wpeda
 
 add_custom_command(TARGET xnu-single-step-trace-runner
                    POST_BUILD
-                   COMMAND codesign -s - --entitlements ${CMAKE_CURRENT_SOURCE_DIR}/ent.xml $<TARGET_FILE:xnu-single-step-trace-runner>
+                   COMMAND codesign -s - -o linker-signed --entitlements ${CMAKE_CURRENT_SOURCE_DIR}/ent.xml $<TARGET_FILE:xnu-single-step-trace-runner>
 )
 
 set_target_properties(xnu-single-step-trace-runner PROPERTIES
