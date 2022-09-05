@@ -79,6 +79,7 @@ int main(int argc, const char **argv) {
     std::unique_ptr<FridaStalker> stalker;
     if (do_stalker) {
         stalker = std::make_unique<FridaStalker>();
+        fmt::print("stalking start\n");
         stalker->follow();
     }
 
@@ -104,6 +105,7 @@ int main(int argc, const char **argv) {
 
     if (stalker) {
         stalker->unfollow();
+        fmt::print("stalking end\n");
         stalker.reset();
     }
 
