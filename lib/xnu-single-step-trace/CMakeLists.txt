@@ -46,7 +46,7 @@ add_custom_command(OUTPUT
 add_library(xnu-single-step-trace ${INSTTRACE_SRC} ${INSTTRACE_HDR})
 
 
-target_link_libraries(xnu-single-step-trace PUBLIC interval-tree PRIVATE capstone CoreSymbolication fmt frida-gum LIEF::LIEF)
+target_link_libraries(xnu-single-step-trace PUBLIC interval-tree PUBLIC frida-gum PRIVATE capstone CoreSymbolication fmt LIEF::LIEF)
 target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
 
 target_include_directories(xnu-single-step-trace

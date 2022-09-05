@@ -16,6 +16,8 @@
 #include <mach/mach.h>
 #include <uuid/uuid.h>
 
+#undef G_DISABLE_ASSERT
+#include <frida-gum.h>
 #include <interval-tree/interval_tree.hpp>
 
 struct bb_t {
@@ -246,4 +248,17 @@ private:
     std::unique_ptr<VMRegions> m_vm_regions;
     std::unique_ptr<Symbols> m_symbols;
     std::optional<std::filesystem::path> m_trace_path;
+};
+
+class FridaStalker {
+public:
+    FridaStalker();
+    ~FridaStalker();
+    void follow();
+    void follow(GumThreadId thread_id);
+    void unfollow();
+    void unfollow(GumThreadId thread_id);
+
+private:
+    GumStalker *m_stalker;
 };

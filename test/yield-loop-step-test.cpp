@@ -3,6 +3,7 @@
 #include <csignal>
 #include <cstdint>
 #include <fcntl.h>
+#include <memory>
 #include <unistd.h>
 
 #include <mach/mach_init.h>
@@ -63,7 +64,7 @@ int main(int argc, const char **argv) {
 
     const auto crash_on_attach = parser["--crash-on-attach"] == true;
     const auto forever         = parser["--forever"] == true;
-    const auto stalker         = parser["--frida-stalker"] == true;
+    const auto do_stalker      = parser["--frida-stalker"] == true;
 
     uint64_t num_yields  = 0;
     const auto task_self = mach_task_self();
@@ -73,6 +74,12 @@ int main(int argc, const char **argv) {
 
     if (do_pipe) {
         pipe_set_single_step(true);
+    }
+
+    std::unique_ptr<FridaStalker> stalker;
+    if (do_stalker) {
+        stalker = std::make_unique<FridaStalker>();
+        stalker->follow();
     }
 
     while (!should_stop) {
@@ -93,6 +100,11 @@ int main(int argc, const char **argv) {
         fmt::print("writing stop to pipe\n");
         pipe_set_single_step(false);
         fmt::print("wrote stop to pipe\n");
+    }
+
+    if (stalker) {
+        stalker->unfollow();
+        stalker.reset();
     }
 
     fmt::print("num_yields: {:d}\n", num_yields);
