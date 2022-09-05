@@ -109,7 +109,7 @@ int main(int argc, const char **argv) {
         stalker.reset();
     }
 
-    fmt::print("num_yields: {:d}\n", num_yields);
+    fmt::print("final num_yields: {:d}\n", num_yields);
     fmt::print("yield-loop-step-test end\n");
     return 0;
 }

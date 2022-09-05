@@ -1,5 +1,7 @@
 #include "common.h"
 
+uint64_t g_num_inst;
+
 #define GUM_TYPE_TRACER_STALKER_TRANSFORMER (gum_tracer_stalker_transformer_get_type())
 GUM_DECLARE_FINAL_TYPE(GumTracerStalkerTransformer, gum_tracer_stalker_transformer, GUM,
                        TRACER_STALKER_TRANSFORMER, GObject)
@@ -12,6 +14,7 @@ static void tracer_cb(GumCpuContext *context, gpointer user_data) {
     // fmt::print(".");
     // printf(".");
     // __builtin_debugtrap();
+    ++g_num_inst;
 }
 
 static void gum_tracer_stalker_transformer_transform_block(GumStalkerTransformer *transformer,
@@ -48,11 +51,13 @@ FridaStalker::FridaStalker() {
     assert(gum_stalker_is_supported());
     m_stalker = gum_stalker_new();
     assert(m_stalker);
+    gum_stalker_set_trust_threshold(m_stalker, 0);
 }
 
 FridaStalker::~FridaStalker() {
     g_object_unref(m_stalker);
     gum_deinit_embedded();
+    fmt::print("g_num_inst: {:d}\n", g_num_inst);
 }
 
 void FridaStalker::follow() {
