@@ -42,6 +42,10 @@ int main(int argc, const char **argv) {
         .help("run forever")
         .default_value(false)
         .implicit_value(true);
+    parser.add_argument("-F", "--frida-stalker")
+        .help("frida stalker mode")
+        .default_value(false)
+        .implicit_value(true);
 
     try {
         parser.parse_args(argc, argv);
@@ -59,6 +63,7 @@ int main(int argc, const char **argv) {
 
     const auto crash_on_attach = parser["--crash-on-attach"] == true;
     const auto forever         = parser["--forever"] == true;
+    const auto stalker         = parser["--frida-stalker"] == true;
 
     uint64_t num_yields  = 0;
     const auto task_self = mach_task_self();

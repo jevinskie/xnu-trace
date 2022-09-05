@@ -12,6 +12,7 @@ add_subdirectory(fmt)
 option(INT_TREE_ENABLE_TESTS "" OFF)
 add_subdirectory(interval-tree)
 
+set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
 option(LIEF_PYTHON_API "" OFF)
 option(LIEF_C_API "" OFF)
 option(LIEF_EXAMPLES "" OFF)
