@@ -185,7 +185,7 @@ public:
     TraceLog(const std::string &log_path);
     __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
     void write_to_file(const std::string &path, const MachORegions &macho_regions,
-                       const Symbols *symbols);
+                       const Symbols *symbols = nullptr);
     uint64_t num_inst() const;
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;
@@ -267,12 +267,13 @@ private:
 
 class __attribute__((visibility("default"))) FridaStalker {
 public:
-    FridaStalker();
+    FridaStalker(bool symbolicate = false);
     ~FridaStalker();
     void follow();
     void follow(GumThreadId thread_id);
     void unfollow();
     void unfollow(GumThreadId thread_id);
+    void write_trace(const std::string &trace_path);
     __attribute__((always_inline)) TraceLog &logger();
 
 private:
@@ -285,5 +286,5 @@ private:
     TraceLog m_log;
     MachORegions m_macho_regions;
     VMRegions m_vm_regions;
-    Symbols m_symbols;
+    std::unique_ptr<Symbols> m_symbols;
 };

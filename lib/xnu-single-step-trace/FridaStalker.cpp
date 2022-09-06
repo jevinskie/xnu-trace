@@ -1,8 +1,7 @@
 #include "common.h"
 
-FridaStalker::FridaStalker()
-    : m_macho_regions{mach_task_self()}, m_vm_regions{mach_task_self()}, m_symbols{
-                                                                             mach_task_self()} {
+FridaStalker::FridaStalker(bool symbolicate)
+    : m_macho_regions{mach_task_self()}, m_vm_regions{mach_task_self()} {
     gum_init_embedded();
     assert(gum_stalker_is_supported());
     m_stalker = gum_stalker_new();
@@ -11,6 +10,9 @@ FridaStalker::FridaStalker()
     m_transformer =
         gum_stalker_transformer_make_from_callback(transform_cb, (gpointer)this, nullptr);
     assert(m_transformer);
+    if (symbolicate) {
+        m_symbols = std::make_unique<Symbols>(mach_task_self());
+    }
 }
 
 FridaStalker::~FridaStalker() {
@@ -36,6 +38,10 @@ void FridaStalker::unfollow(GumThreadId thread_id) {
     gum_stalker_unfollow(m_stalker, thread_id);
 }
 
+void FridaStalker::write_trace(const std::string &trace_path) {
+    logger().write_to_file(trace_path, m_macho_regions, m_symbols.get());
+}
+
 __attribute__((always_inline)) TraceLog &FridaStalker::logger() {
     return m_log;
 }
@@ -57,8 +63,8 @@ void FridaStalker::instruction_cb(GumCpuContext *context, gpointer user_data) {
 
 // C API
 
-stalker_t create_stalker(void) {
-    return (stalker_t) new FridaStalker{};
+stalker_t create_stalker(int symbolicate) {
+    return (stalker_t) new FridaStalker{!!symbolicate};
 }
 
 void destroy_stalker(stalker_t stalker) {
@@ -79,4 +85,8 @@ void stalker_unfollow_me(stalker_t stalker) {
 
 void stalker_unfollow_thread(stalker_t stalker, GumThreadId thread_id) {
     ((FridaStalker *)stalker)->unfollow(thread_id);
+}
+
+void stalker_write_trace(stalker_t stalker, const char *path) {
+    ((FridaStalker *)stalker)->write_trace(path);
 }
