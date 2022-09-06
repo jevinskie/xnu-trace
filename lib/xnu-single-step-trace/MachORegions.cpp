@@ -19,7 +19,9 @@ MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions) {
 
 void MachORegions::reset() {
     assert(m_target_task);
-    mach_check(task_suspend(m_target_task), "region reset suspend");
+    if (m_target_task != mach_task_self()) {
+        mach_check(task_suspend(m_target_task), "region reset suspend");
+    }
     m_regions = get_dyld_image_infos(m_target_task);
     std::vector<uint64_t> region_bases;
     for (const auto &region : m_regions) {
@@ -49,7 +51,9 @@ void MachORegions::reset() {
         ++num_jit_regions;
     }
     std::sort(m_regions.begin(), m_regions.end());
-    mach_check(task_resume(m_target_task), "region reset resume");
+    if (m_target_task != mach_task_self()) {
+        mach_check(task_resume(m_target_task), "region reset resume");
+    }
 }
 
 const image_info &MachORegions::lookup(uint64_t addr) const {

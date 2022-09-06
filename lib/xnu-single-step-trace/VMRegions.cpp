@@ -59,8 +59,11 @@ VMRegions::VMRegions(task_t target_task) : m_target_task{target_task} {
 }
 
 void VMRegions::reset() {
-    mach_check(task_suspend(m_target_task), "region reset suspend");
+    if (m_target_task != mach_task_self()) {
+        mach_check(task_suspend(m_target_task), "region reset suspend");
+    }
     m_all_regions = get_vm_regions(m_target_task);
-
-    mach_check(task_resume(m_target_task), "region reset resume");
+    if (m_target_task != mach_task_self()) {
+        mach_check(task_resume(m_target_task), "region reset resume");
+    }
 }

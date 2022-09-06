@@ -260,7 +260,12 @@ public:
     void follow(GumThreadId thread_id);
     void unfollow();
     void unfollow(GumThreadId thread_id);
+    __attribute__((always_inline)) TraceLog &logger();
 
 private:
     GumStalker *m_stalker;
+    TraceLog m_log;
+    std::unique_ptr<MachORegions> m_macho_regions;
+    std::unique_ptr<VMRegions> m_vm_regions;
+    std::unique_ptr<Symbols> m_symbols;
 };

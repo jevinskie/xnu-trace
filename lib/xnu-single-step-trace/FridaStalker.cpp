@@ -58,6 +58,10 @@ FridaStalker::FridaStalker() {
     m_stalker = gum_stalker_new();
     assert(m_stalker);
     gum_stalker_set_trust_threshold(m_stalker, 0);
+
+    m_macho_regions = std::make_unique<MachORegions>(mach_task_self());
+    m_vm_regions    = std::make_unique<VMRegions>(mach_task_self());
+    m_symbols       = std::make_unique<Symbols>(mach_task_self());
 }
 
 FridaStalker::~FridaStalker() {
@@ -84,6 +88,10 @@ void FridaStalker::unfollow() {
 
 void FridaStalker::unfollow(GumThreadId thread_id) {
     gum_stalker_unfollow(m_stalker, thread_id);
+}
+
+__attribute__((always_inline)) TraceLog &FridaStalker::logger() {
+    return m_log;
 }
 
 // C API

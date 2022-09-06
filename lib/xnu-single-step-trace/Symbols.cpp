@@ -59,10 +59,14 @@ Symbols::Symbols(const log_sym *sym_buf, uint64_t num_syms) {
 
 void Symbols::reset() {
     assert(m_target_task);
-    mach_check(task_suspend(m_target_task), "symbols reset suspend");
+    if (m_target_task != mach_task_self()) {
+        mach_check(task_suspend(m_target_task), "symbols reset suspend");
+    }
     m_syms = get_symbols(m_target_task);
     std::sort(m_syms.begin(), m_syms.end());
-    mach_check(task_resume(m_target_task), "symbols reset resume");
+    if (m_target_task != mach_task_self()) {
+        mach_check(task_resume(m_target_task), "symbols reset resume");
+    }
 }
 
 const sym_info *Symbols::lookup(uint64_t addr) const {
