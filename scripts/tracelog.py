@@ -1,4 +1,5 @@
 import struct
+from pathlib import Path
 
 from attrs import define
 
@@ -87,3 +88,16 @@ class TraceLog:
             print(f"thread {thread_id:d}")
             for pc in pc_log:
                 print(f"{pc:#018x}")
+
+    def pcs_for_image(self, img_name: str) -> list[int]:
+        for r in self.macho_regions:
+            if Path(r.path).name == img_name:
+                start = r.base
+                end = r.base + r.size
+                break
+        else:
+            raise ValueError(f"can't find {img_name} in macho_regions")
+        pcs = []
+        for tpcs in self.traces.values():
+            pcs += [pc for pc in tpcs if start <= pc < end]
+        return pcs
