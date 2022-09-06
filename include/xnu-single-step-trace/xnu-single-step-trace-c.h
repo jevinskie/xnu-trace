@@ -8,12 +8,19 @@ extern "C" {
 
 typedef void *stalker_t;
 
-stalker_t create_stalker(void);
-void destroy_stalker(stalker_t stalker);
-void stalker_follow_me(stalker_t stalker);
-void stalker_follow_thread(stalker_t stalker, GumThreadId thread_id);
-void stalker_unfollow_me(stalker_t stalker);
-void stalker_unfollow_thread(stalker_t stalker, GumThreadId thread_id);
+__attribute__((visibility("default"))) stalker_t create_stalker(void);
+
+__attribute__((visibility("default"))) void destroy_stalker(stalker_t stalker);
+
+__attribute__((visibility("default"))) void stalker_follow_me(stalker_t stalker);
+
+__attribute__((visibility("default"))) void stalker_follow_thread(stalker_t stalker,
+                                                                  GumThreadId thread_id);
+
+__attribute__((visibility("default"))) void stalker_unfollow_me(stalker_t stalker);
+
+__attribute__((visibility("default"))) void stalker_unfollow_thread(stalker_t stalker,
+                                                                    GumThreadId thread_id);
 
 #ifdef __cplusplus
 }

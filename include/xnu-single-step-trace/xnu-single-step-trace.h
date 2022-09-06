@@ -64,24 +64,32 @@ struct log_hdr {
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
 
-void pipe_set_single_step(bool do_ss);
+__attribute__((visibility("default"))) void pipe_set_single_step(bool do_ss);
 
 void set_single_step_thread(thread_t thread, bool do_ss);
 void set_single_step_task(task_t thread, bool do_ss);
 
-pid_t pid_for_name(std::string process_name);
-pid_t pid_for_task(task_t task);
+__attribute__((visibility("default"))) pid_t pid_for_name(std::string process_name);
 
-bool task_is_valid(task_t task);
-int64_t get_task_for_pid_count(task_t task);
-int32_t get_context_switch_count(pid_t pid);
-integer_t get_suspend_count(task_t task);
+__attribute__((visibility("default"))) pid_t pid_for_task(task_t task);
 
-void write_file(std::string path, const uint8_t *buf, size_t sz);
-std::vector<uint8_t> read_file(std::string path);
-void hexdump(const void *data, size_t size);
+__attribute__((visibility("default"))) bool task_is_valid(task_t task);
 
-std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
+__attribute__((visibility("default"))) int64_t get_task_for_pid_count(task_t task);
+
+__attribute__((visibility("default"))) int32_t get_context_switch_count(pid_t pid);
+
+__attribute__((visibility("default"))) integer_t get_suspend_count(task_t task);
+
+__attribute__((visibility("default"))) void write_file(std::string path, const uint8_t *buf,
+                                                       size_t sz);
+
+__attribute__((visibility("default"))) std::vector<uint8_t> read_file(std::string path);
+
+__attribute__((visibility("default"))) void hexdump(const void *data, size_t size);
+
+__attribute__((visibility("default"))) std::vector<uint8_t>
+read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
 
 struct sym_info {
     uint64_t base;
@@ -103,7 +111,8 @@ struct image_info {
     }
 };
 
-std::vector<image_info> get_dyld_image_infos(task_t target_task);
+__attribute__((visibility("default"))) std::vector<image_info>
+get_dyld_image_infos(task_t target_task);
 
 struct region {
     uint64_t base;
@@ -118,12 +127,13 @@ struct region {
     }
 };
 
-std::vector<sym_info> get_symbols(task_t target_task);
-std::vector<sym_info>
+__attribute__((visibility("default"))) std::vector<sym_info> get_symbols(task_t target_task);
+
+__attribute__((visibility("default"))) std::vector<sym_info>
 get_symbols_in_intervals(const std::vector<sym_info> &syms,
                          const lib_interval_tree::interval_tree_t<uint64_t> &intervals);
 
-class Symbols {
+class __attribute__((visibility("default"))) Symbols {
 public:
     Symbols(task_t target_task);
     Symbols(const log_sym *sym_buf, uint64_t num_syms);
@@ -136,9 +146,9 @@ private:
     std::vector<sym_info> m_syms;
 };
 
-std::vector<region> get_vm_regions(task_t target_task);
+__attribute__((visibility("default"))) std::vector<region> get_vm_regions(task_t target_task);
 
-class VMRegions {
+class __attribute__((visibility("default"))) VMRegions {
 public:
     VMRegions(task_t target_task);
 
@@ -149,7 +159,7 @@ private:
     std::vector<region> m_all_regions;
 };
 
-class MachORegions {
+class __attribute__((visibility("default"))) MachORegions {
 public:
     MachORegions(task_t target_task);
     MachORegions(const log_region *region_buf, uint64_t num_regions);
@@ -163,10 +173,13 @@ private:
     std::vector<image_info> m_regions;
 };
 
-std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
-std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs);
+__attribute__((visibility("default"))) std::vector<bb_t>
+extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
 
-class TraceLog {
+__attribute__((visibility("default"))) std::vector<uint64_t>
+extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs);
+
+class __attribute__((visibility("default"))) TraceLog {
 public:
     TraceLog();
     TraceLog(const std::string &log_path);
@@ -187,7 +200,7 @@ private:
     std::map<uint32_t, std::vector<log_msg_hdr>> m_parsed_logs;
 };
 
-class XNUTracer {
+class __attribute__((visibility("default"))) XNUTracer {
 public:
     XNUTracer(task_t target_task, std::optional<std::filesystem::path> trace_path,
               bool symbolicate = false);
@@ -252,7 +265,7 @@ private:
     std::optional<std::filesystem::path> m_trace_path;
 };
 
-class FridaStalker {
+class __attribute__((visibility("default"))) FridaStalker {
 public:
     FridaStalker();
     ~FridaStalker();
@@ -263,9 +276,14 @@ public:
     __attribute__((always_inline)) TraceLog &logger();
 
 private:
+    static void transform_cb(GumStalkerIterator *iterator, GumStalkerOutput *output,
+                             gpointer user_data);
+    static void instruction_cb(GumCpuContext *context, gpointer user_data);
+
     GumStalker *m_stalker;
+    GumStalkerTransformer *m_transformer;
     TraceLog m_log;
-    std::unique_ptr<MachORegions> m_macho_regions;
-    std::unique_ptr<VMRegions> m_vm_regions;
-    std::unique_ptr<Symbols> m_symbols;
+    MachORegions m_macho_regions;
+    VMRegions m_vm_regions;
+    Symbols m_symbols;
 };

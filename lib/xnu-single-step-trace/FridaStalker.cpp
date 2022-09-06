@@ -1,85 +1,31 @@
 #include "common.h"
 
-uint64_t g_num_inst;
-
-#define GUM_TYPE_TRACER_STALKER_TRANSFORMER (gum_tracer_stalker_transformer_get_type())
-GUM_DECLARE_FINAL_TYPE(GumTracerStalkerTransformer, gum_tracer_stalker_transformer, GUM,
-                       TRACER_STALKER_TRANSFORMER, GObject)
-
-struct _GumTracerStalkerTransformer {
-    GObject parent;
-};
-
-static void tracer_cb(GumCpuContext *context, gpointer user_data) {
-    (void)context;
-    (void)user_data;
-    // write(STDOUT_FILENO, ".", 1);
-    ++g_num_inst;
-}
-
-static void gum_tracer_stalker_transformer_transform_block(GumStalkerTransformer *transformer,
-                                                           GumStalkerIterator *iterator,
-                                                           GumStalkerOutput *output) {
-    (void)transformer;
-    (void)output;
-    while (gum_stalker_iterator_next(iterator, nullptr)) {
-        gum_stalker_iterator_put_callout(iterator, tracer_cb, nullptr, nullptr);
-        gum_stalker_iterator_keep(iterator);
-    }
-}
-
-static void gum_tracer_stalker_transformer_iface_init(gpointer g_iface, gpointer iface_data) {
-    auto *iface = (GumStalkerTransformerInterface *)g_iface;
-    (void)iface_data;
-
-    iface->transform_block = gum_tracer_stalker_transformer_transform_block;
-}
-
-G_DEFINE_TYPE_EXTENDED(GumTracerStalkerTransformer, gum_tracer_stalker_transformer, G_TYPE_OBJECT,
-                       0,
-                       G_IMPLEMENT_INTERFACE(GUM_TYPE_STALKER_TRANSFORMER,
-                                             gum_tracer_stalker_transformer_iface_init))
-
-static void gum_tracer_stalker_transformer_class_init(GumTracerStalkerTransformerClass *klass) {
-    (void)klass;
-}
-
-static void gum_tracer_stalker_transformer_init(GumTracerStalkerTransformer *self) {
-    (void)self;
-}
-
-static GumStalkerTransformer *gum_stalker_transformer_make_tracer(void) {
-    return (GumStalkerTransformer *)g_object_new(GUM_TYPE_TRACER_STALKER_TRANSFORMER, nullptr);
-}
-
-FridaStalker::FridaStalker() {
+FridaStalker::FridaStalker()
+    : m_macho_regions{mach_task_self()}, m_vm_regions{mach_task_self()}, m_symbols{
+                                                                             mach_task_self()} {
     gum_init_embedded();
     assert(gum_stalker_is_supported());
     m_stalker = gum_stalker_new();
     assert(m_stalker);
     gum_stalker_set_trust_threshold(m_stalker, 0);
-
-    m_macho_regions = std::make_unique<MachORegions>(mach_task_self());
-    m_vm_regions    = std::make_unique<VMRegions>(mach_task_self());
-    m_symbols       = std::make_unique<Symbols>(mach_task_self());
+    m_transformer =
+        gum_stalker_transformer_make_from_callback(transform_cb, (gpointer)this, nullptr);
+    assert(m_transformer);
 }
 
 FridaStalker::~FridaStalker() {
     g_object_unref(m_stalker);
+    g_object_unref(m_transformer);
     gum_deinit_embedded();
-    fmt::print("g_num_inst: {:d}\n", g_num_inst);
+    fmt::print("num_inst: {:d}\n", logger().num_inst());
 }
 
 void FridaStalker::follow() {
-    auto *trace_transformer = gum_stalker_transformer_make_tracer();
-    assert(trace_transformer);
-    gum_stalker_follow_me(m_stalker, trace_transformer, nullptr);
+    gum_stalker_follow_me(m_stalker, m_transformer, nullptr);
 }
 
 void FridaStalker::follow(GumThreadId thread_id) {
-    auto *trace_transformer = gum_stalker_transformer_make_tracer();
-    assert(trace_transformer);
-    gum_stalker_follow(m_stalker, thread_id, trace_transformer, nullptr);
+    gum_stalker_follow(m_stalker, thread_id, m_transformer, nullptr);
 }
 
 void FridaStalker::unfollow() {
@@ -92,6 +38,21 @@ void FridaStalker::unfollow(GumThreadId thread_id) {
 
 __attribute__((always_inline)) TraceLog &FridaStalker::logger() {
     return m_log;
+}
+
+void FridaStalker::transform_cb(GumStalkerIterator *iterator, GumStalkerOutput *output,
+                                gpointer user_data) {
+    (void)output;
+    while (gum_stalker_iterator_next(iterator, nullptr)) {
+        gum_stalker_iterator_put_callout(iterator, instruction_cb, user_data, nullptr);
+        gum_stalker_iterator_keep(iterator);
+    }
+}
+
+void FridaStalker::instruction_cb(GumCpuContext *context, gpointer user_data) {
+    (void)context;
+    auto thiz = (FridaStalker *)user_data;
+    thiz->logger().log(gum_process_get_current_thread_id(), context->pc);
 }
 
 // C API
