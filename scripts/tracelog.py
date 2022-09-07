@@ -14,7 +14,7 @@ log_msg_hdr_t = struct.Struct("=Q")
 class MachORegion:
     base: int
     size: int
-    base_unslid: int
+    slide: int
     uuid: bytes
     path: str
 
@@ -45,13 +45,13 @@ class TraceLog:
             region_unpacked = log_region_t.unpack_from(tl_buf, offset=region_buf_off)
             base = region_unpacked[0]
             sz = region_unpacked[1]
-            base_unslid = region_unpacked[2]
+            slide = region_unpacked[2]
             uuid = bytes(region_unpacked[3:-1])
             path_len = region_unpacked[-1]
             path_start = region_buf_off + log_region_t.size
             path_end = path_start + path_len
             path = tl_buf[path_start:path_end].decode("utf-8")
-            macho_regions.append(MachORegion(base, sz, base_unslid, uuid, path))
+            macho_regions.append(MachORegion(base, sz, slide, uuid, path))
             region_buf_off += log_region_t.size + path_len
 
         syms = []

@@ -39,3 +39,16 @@ uint64_t get_text_size(const std::vector<segment_command_64> &segments) {
     assert(num_exec_segs == 1);
     return exec_file_sz;
 }
+
+uint64_t get_text_base(const std::vector<segment_command_64> &segments) {
+    uint32_t num_exec_segs = 0;
+    uint64_t base;
+    for (const auto &seg : segments) {
+        if (seg.maxprot & VM_PROT_EXECUTE) {
+            ++num_exec_segs;
+            base = seg.vmaddr;
+        }
+    }
+    assert(num_exec_segs == 1);
+    return base;
+}

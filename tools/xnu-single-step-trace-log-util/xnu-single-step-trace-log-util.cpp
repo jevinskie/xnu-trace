@@ -13,8 +13,9 @@ namespace fs = std::filesystem;
 
 void dump_log(const TraceLog &trace, bool symbolicate = false) {
     for (const auto &region : trace.macho_regions().regions()) {
-        fmt::print("base: {:#018x} => {:#018x} size: {:#010x} path: '{:s}'\n", region.base,
-                   region.base + region.size, region.size, region.path.string());
+        fmt::print("base: {:#018x} => {:#018x} size: {:#010x} slide: {:#x} path: '{:s}'\n",
+                   region.base, region.base + region.size, region.size, region.slide,
+                   region.path.string());
     }
 
     if (symbolicate) {
@@ -51,11 +52,8 @@ void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
             const auto &img_info = macho_regions.lookup(bb.pc);
             const auto *sym      = syms.lookup(bb.pc);
             if (last_img_info && last_img_info == &target_img_info && sym && sym->base == bb.pc) {
-                const auto calling_pc = last_bb->pc + last_bb->sz - 4;
-                const auto calling_pc_unslid =
-                    calling_pc - (last_img_info->base - last_img_info->base_unslid);
-                fmt::print("name: {:s} base: {:#018x} base_unslid: {:#018x} calling_pc: {:#018x}\n",
-                           sym->name, last_img_info->base, last_img_info->base_unslid, calling_pc);
+                const auto calling_pc        = last_bb->pc + last_bb->sz - 4;
+                const auto calling_pc_unslid = calling_pc - last_img_info->slide;
                 auto [callers, found] =
                     called_syms.emplace(std::make_pair(*sym, std::set<uint64_t>{}));
                 callers->second.emplace(calling_pc_unslid);

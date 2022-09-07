@@ -61,3 +61,4 @@ std::vector<segment_command_64> read_macho_segs_target(task_t target_task, uint6
 std::vector<segment_command_64> read_macho_segs_target(task_t target_task,
                                                        const mach_header_64 *macho_hdr);
 uint64_t get_text_size(const std::vector<segment_command_64> &segments);
+uint64_t get_text_base(const std::vector<segment_command_64> &segments);

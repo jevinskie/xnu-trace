@@ -15,33 +15,30 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
         return res;
     }
 
-    res.emplace_back(image_info{.base = (uint64_t)all_img_infos->dyldImageLoadAddress,
-                                .size = get_text_size(read_macho_segs_target(
-                                    target_task, (uint64_t)all_img_infos->dyldImageLoadAddress)),
-                                .path = read_cstr_target(target_task, all_img_infos->dyldPath),
-                                .uuid = {}});
+    const auto dyld_base       = (uint64_t)all_img_infos->dyldImageLoadAddress;
+    const auto dyld_macho_segs = read_macho_segs_target(target_task, dyld_base);
+
+    res.emplace_back(image_info{.base  = dyld_base,
+                                .size  = get_text_size(dyld_macho_segs),
+                                .slide = dyld_base - get_text_base(dyld_macho_segs),
+                                .path  = read_cstr_target(target_task, all_img_infos->dyldPath),
+                                .uuid  = {}});
 
     const auto infos_buf = read_target(target_task, all_img_infos->infoArray,
                                        all_img_infos->infoArrayCount * sizeof(dyld_image_info));
     const auto img_infos = std::span<const dyld_image_info>{(dyld_image_info *)infos_buf.data(),
                                                             all_img_infos->infoArrayCount};
     for (const auto &img_info : img_infos) {
-        const auto path = res.emplace_back(
-            image_info{.base = (uint64_t)img_info.imageLoadAddress,
-                       .size = get_text_size(read_macho_segs_target(
-                           target_task, (uint64_t)img_info.imageLoadAddress)),
-                       .path = read_cstr_target(target_task, img_info.imageFilePath),
-                       .uuid = {}});
+        const auto img_base   = (uint64_t)img_info.imageLoadAddress;
+        const auto macho_segs = read_macho_segs_target(target_task, img_base);
+        res.emplace_back(image_info{.base  = img_base,
+                                    .size  = get_text_size(macho_segs),
+                                    .slide = img_base - get_text_base(macho_segs),
+                                    .path  = read_cstr_target(target_task, img_info.imageFilePath),
+                                    .uuid  = {}});
     }
 
     std::sort(res.begin(), res.end());
-
-#if 0
-    for (const auto &img_info : res) {
-        fmt::print("img_info base: {:#018x} sz: {:#010x} path: '{:s}'\n", img_info.base,
-                   img_info.size, img_info.path.string());
-    }
-#endif
 
     return res;
 }

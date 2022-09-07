@@ -128,10 +128,10 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
     assert(fwrite(&hdr_buf, sizeof(hdr_buf), 1, fh) == 1);
 
     for (const auto &region : macho_regions.regions()) {
-        log_region region_buf{.base        = region.base,
-                              .size        = region.size,
-                              .base_unslid = region.base_unslid,
-                              .path_len    = region.path.string().size()};
+        log_region region_buf{.base     = region.base,
+                              .size     = region.size,
+                              .slide    = region.slide,
+                              .path_len = region.path.string().size()};
         memcpy(region_buf.uuid, region.uuid, sizeof(region_buf.uuid));
         assert(fwrite(&region_buf, sizeof(region_buf), 1, fh) == 1);
         assert(fwrite(region.path.c_str(), region.path.string().size(), 1, fh) == 1);
