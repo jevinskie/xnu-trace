@@ -1,5 +1,15 @@
 add_subdirectory(argparse)
 
+option(ZSTD_LEGACY_SUPPORT "" OFF)
+option(ZSTD_BUILD_PROGRAMS "" OFF)
+option(ZSTD_BUILD_STATIC "" ON)
+add_subdirectory(zstd/build/cmake)
+
+set(ZLIB_FOUND OFF)
+set(BZIP2_FOUND OFF)
+set(LIBLZMA_FOUND OFF)
+add_subdirectory(bxzstr)
+
 add_subdirectory(CoreSymbolication)
 
 add_subdirectory(fmt)
@@ -20,3 +30,4 @@ FetchContent_GetProperties(frida-gum-prebuilt SOURCE_DIR FRIDA_GUM_SRC_DIR)
 add_library(frida-gum STATIC IMPORTED GLOBAL)
 set_target_properties(frida-gum PROPERTIES IMPORTED_LOCATION ${FRIDA_GUM_SRC_DIR}/libfrida-gum.a)
 target_include_directories(frida-gum INTERFACE ${FRIDA_GUM_SRC_DIR})
+

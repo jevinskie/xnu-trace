@@ -22,6 +22,11 @@
 
 #include "xnu-single-step-trace-c.h"
 
+namespace bxz {
+class ifstream;
+class ofstream;
+} // namespace bxz
+
 struct bb_t {
     uint64_t pc;
     uint32_t sz;
@@ -290,4 +295,20 @@ private:
     MachORegions m_macho_regions;
     VMRegions m_vm_regions;
     std::unique_ptr<Symbols> m_symbols;
+};
+
+class __attribute__((visibility("default"))) CompressedFile {
+public:
+    CompressedFile(const std::filesystem::path &path, bool read, int ratio);
+    std::vector<uint8_t> read();
+    void write(std::span<const uint8_t> buf);
+    template <typename T> void write(const T &buf) {
+        write({(uint8_t *)&buf, sizeof(buf)});
+    }
+    void write(const void *buf, size_t size);
+    void write(const uint8_t *buf, size_t size);
+
+private:
+    std::unique_ptr<bxz::ifstream> m_ifstream;
+    std::unique_ptr<bxz::ofstream> m_ofstream;
 };
