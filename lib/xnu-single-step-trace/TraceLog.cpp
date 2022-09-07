@@ -114,25 +114,12 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
     for (const auto pc : pcs) {
         pc_intervals.insert_overlap({pc, pc + 4});
     }
-#if 0
-    for (const auto &pc_int : pc_intervals) {
-        fmt::print("low {:#018x} high: {:#018x} size: {:d}\n", pc_int.low(), pc_int.high(),
-                   pc_int.size());
-    }
-#endif
 
     std::vector<sym_info> syms;
     if (symbols) {
         const auto all_syms = symbols->syms();
         syms                = get_symbols_in_intervals(all_syms, pc_intervals);
     }
-
-#if 0
-    for (const auto &sym : syms) {
-        fmt::print("base: {:#018x} sz: {:d} name: {:s} path: {:s}\n", sym.base, sym.size, sym.name,
-                   sym.path.string());
-    }
-#endif
 
     const auto fh = fopen(path.c_str(), "wb");
     assert(fh);
@@ -141,8 +128,10 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
     assert(fwrite(&hdr_buf, sizeof(hdr_buf), 1, fh) == 1);
 
     for (const auto &region : macho_regions.regions()) {
-        log_region region_buf{
-            .base = region.base, .size = region.size, .path_len = region.path.string().size()};
+        log_region region_buf{.base        = region.base,
+                              .size        = region.size,
+                              .base_unslid = region.base_unslid,
+                              .path_len    = region.path.string().size()};
         memcpy(region_buf.uuid, region.uuid, sizeof(region_buf.uuid));
         assert(fwrite(&region_buf, sizeof(region_buf), 1, fh) == 1);
         assert(fwrite(region.path.c_str(), region.path.string().size(), 1, fh) == 1);

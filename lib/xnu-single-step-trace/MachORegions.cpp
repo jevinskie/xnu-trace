@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <CoreSymbolication/CoreSymbolication.h>
+
 MachORegions::MachORegions(task_t target_task) : m_target_task{target_task} {
     reset();
 }
@@ -8,7 +10,10 @@ MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions) {
     for (uint64_t i = 0; i < num_regions; ++i) {
         const char *path_ptr = (const char *)(region_buf + 1);
         std::string path{path_ptr, region_buf->path_len};
-        image_info img_info{.base = region_buf->base, .size = region_buf->size, .path = path};
+        image_info img_info{.base        = region_buf->base,
+                            .size        = region_buf->size,
+                            .base_unslid = region_buf->base_unslid,
+                            .path        = path};
         memcpy(img_info.uuid, region_buf->uuid, sizeof(img_info.uuid));
         m_regions.emplace_back(img_info);
         region_buf =
@@ -23,10 +28,22 @@ void MachORegions::reset() {
         mach_check(task_suspend(m_target_task), "region reset suspend");
     }
     m_regions = get_dyld_image_infos(m_target_task);
+
+    const auto cs = CSSymbolicatorCreateWithTask(m_target_task);
+    assert(!CSIsNull(cs));
+    for (auto &region : m_regions) {
+        const auto sym_owner =
+            CSSymbolicatorGetSymbolOwnerWithAddressAtTime(cs, region.base, kCSNow);
+        assert(!CSIsNull(sym_owner));
+        region.base_unslid = CSSymbolOwnerGetBaseAddress(sym_owner);
+    }
+    CSRelease(cs);
+
     std::vector<uint64_t> region_bases;
     for (const auto &region : m_regions) {
         region_bases.emplace_back(region.base);
     }
+
     int num_jit_regions = 0;
     for (const auto &vm_region : get_vm_regions(m_target_task)) {
         if (!(vm_region.prot & VM_PROT_EXECUTE)) {
@@ -50,7 +67,9 @@ void MachORegions::reset() {
             .uuid = {}});
         ++num_jit_regions;
     }
+
     std::sort(m_regions.begin(), m_regions.end());
+
     if (m_target_task != mach_task_self()) {
         mach_check(task_resume(m_target_task), "region reset resume");
     }

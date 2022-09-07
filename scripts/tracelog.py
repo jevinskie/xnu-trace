@@ -4,7 +4,7 @@ from pathlib import Path
 from attrs import define
 
 log_hdr_t = struct.Struct("=QQ")
-log_region_t = struct.Struct("=QQ16BQ")
+log_region_t = struct.Struct("=QQQ16BQ")
 log_sym_t = struct.Struct("=QQQQ")
 log_thread_hdr_t = struct.Struct("=IQ")
 log_msg_hdr_t = struct.Struct("=Q")
@@ -14,6 +14,7 @@ log_msg_hdr_t = struct.Struct("=Q")
 class MachORegion:
     base: int
     size: int
+    base_unslid: int
     uuid: bytes
     path: str
 
@@ -44,12 +45,13 @@ class TraceLog:
             region_unpacked = log_region_t.unpack_from(tl_buf, offset=region_buf_off)
             base = region_unpacked[0]
             sz = region_unpacked[1]
-            uuid = bytes(region_unpacked[2:-1])
+            base_unslid = region_unpacked[2]
+            uuid = bytes(region_unpacked[3:-1])
             path_len = region_unpacked[-1]
             path_start = region_buf_off + log_region_t.size
             path_end = path_start + path_len
             path = tl_buf[path_start:path_end].decode("utf-8")
-            macho_regions.append(MachORegion(base, sz, uuid, path))
+            macho_regions.append(MachORegion(base, sz, base_unslid, uuid, path))
             region_buf_off += log_region_t.size + path_len
 
         syms = []

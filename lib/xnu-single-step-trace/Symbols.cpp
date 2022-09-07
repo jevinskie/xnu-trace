@@ -20,6 +20,7 @@ std::vector<sym_info> get_symbols(task_t target_task) {
             .base = rng.location, .size = rng.length, .name = name, .path = sym_owner_path});
         return 0;
     });
+    CSRelease(cs);
 
     std::sort(res.begin(), res.end());
 

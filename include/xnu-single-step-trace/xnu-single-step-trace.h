@@ -40,6 +40,7 @@ struct log_msg_hdr {
 struct log_region {
     uint64_t base;
     uint64_t size;
+    uint64_t base_unslid;
     uuid_t uuid;
     uint64_t path_len;
 } __attribute__((packed));
@@ -104,6 +105,7 @@ struct sym_info {
 struct image_info {
     uint64_t base;
     uint64_t size;
+    uint64_t base_unslid;
     std::filesystem::path path;
     uuid_t uuid;
     auto operator<=>(const image_info &rhs) const {
