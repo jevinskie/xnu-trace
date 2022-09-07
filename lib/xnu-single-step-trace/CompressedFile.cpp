@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <bxzstr.hpp>
+
 CompressedFile::CompressedFile(const std::filesystem::path &path, bool read, int ratio) {
     return;
 }
