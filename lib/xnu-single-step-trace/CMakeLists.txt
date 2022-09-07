@@ -1,6 +1,7 @@
 
 set(INSTTRACE_SRC
     common.h
+    CompressedFile.cpp
     dyld.cpp
     exception_handlers.cpp
     FridaStalker.cpp

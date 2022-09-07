@@ -1,10 +1,15 @@
 add_subdirectory(argparse)
 
-option(ZSTD_LEGACY_SUPPORT "" OFF)
+option(ZSTD_LEGACY_SUPPORT "" ON)
 option(ZSTD_BUILD_PROGRAMS "" OFF)
 option(ZSTD_BUILD_STATIC "" ON)
 option(ZSTD_BUILD_SHARED "" OFF)
 add_subdirectory(zstd/build/cmake)
+target_include_directories(libzstd_static
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/zstd/lib>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/zstd/lib/common>
+)
 
 set(ZLIB_FOUND OFF)
 set(BZIP2_FOUND OFF)

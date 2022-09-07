@@ -299,8 +299,9 @@ private:
 
 class __attribute__((visibility("default"))) CompressedFile {
 public:
-    CompressedFile(const std::filesystem::path &path, bool read, int ratio);
+    CompressedFile(const std::filesystem::path &path, bool read, int level);
     std::vector<uint8_t> read();
+    std::vector<uint8_t> read(size_t size);
     void write(std::span<const uint8_t> buf);
     template <typename T> void write(const T &buf) {
         write({(uint8_t *)&buf, sizeof(buf)});
