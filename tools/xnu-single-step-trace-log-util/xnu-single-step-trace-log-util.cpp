@@ -40,28 +40,35 @@ void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
     for (const auto &ttp : trace.parsed_logs()) {
         tbbs.emplace_back(extract_bbs_from_pc_trace(extract_pcs_from_trace(ttp.second)));
     }
-    const auto macho_regions = trace.macho_regions();
-    const auto syms          = trace.symbols();
-    std::optional<image_info> last_img_info;
-    std::set<sym_info> called_syms;
+    const auto macho_regions        = trace.macho_regions();
+    const auto syms                 = trace.symbols();
+    const auto &target_img_info     = macho_regions.lookup(calling_image);
+    const image_info *last_img_info = nullptr;
+    const bb_t *last_bb             = nullptr;
+    std::map<sym_info, std::set<uint64_t>> called_syms;
     for (const auto &bbs : tbbs) {
         for (const auto &bb : bbs) {
-            const auto img_info = macho_regions.lookup(bb.pc);
-            const auto *sym     = syms.lookup(bb.pc);
-            if (last_img_info && last_img_info->path.filename().string() == calling_image && sym &&
-                sym->base == bb.pc) {
-                called_syms.emplace(*sym);
+            const auto &img_info = macho_regions.lookup(bb.pc);
+            const auto *sym      = syms.lookup(bb.pc);
+            if (last_img_info && last_img_info == &target_img_info && sym && sym->base == bb.pc) {
+                const auto calling_pc = last_bb->pc + last_bb->sz - 4;
+                auto [callers, found] =
+                    called_syms.emplace(std::make_pair(*sym, std::set<uint64_t>{}));
+                callers->second.emplace(calling_pc);
             }
-            last_img_info = img_info;
+            last_img_info = &img_info;
+            last_bb       = &bb;
         }
     }
-    for (const auto &sym : called_syms) {
-        std::string sym_name = sym.name;
+    for (const auto &sym_it : called_syms) {
+        std::string sym_name   = sym_it.first.name;
+        const auto &sym        = sym_it.first;
+        const auto &caller_pcs = sym_it.second;
         if (sym_name == "n/a") {
             sym_name = fmt::format("{:#018x}", sym.base);
         }
-        fmt::print("{:s} calls '{:s}' in {:s}\n", calling_image, sym_name,
-                   sym.path.filename().string());
+        fmt::print("{:s} calls '{:s}' in {:s} from: {:#018x}\n", calling_image, sym_name,
+                   sym.path.filename().string(), fmt::join(caller_pcs, ", "));
     }
 }
 

@@ -76,6 +76,17 @@ std::pair<const image_info &, size_t> MachORegions::lookup_idx(uint64_t addr) co
     assert(!"no region found");
 }
 
+const image_info &MachORegions::lookup(const std::string &image_name) const {
+    std::vector<const image_info *> matches;
+    for (const auto &img_info : m_regions) {
+        if (img_info.path.filename().string() == image_name) {
+            matches.emplace_back(&img_info);
+        }
+    }
+    assert(matches.size() == 1);
+    return *matches[0];
+}
+
 const std::vector<image_info> &MachORegions::regions() const {
     return m_regions;
 }
