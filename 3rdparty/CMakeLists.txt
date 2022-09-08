@@ -1,6 +1,6 @@
 add_subdirectory(argparse)
 
-option(ZSTD_LEGACY_SUPPORT "" ON)
+option(ZSTD_LEGACY_SUPPORT "" OFF)
 option(ZSTD_BUILD_PROGRAMS "" OFF)
 option(ZSTD_BUILD_STATIC "" ON)
 option(ZSTD_BUILD_SHARED "" OFF)

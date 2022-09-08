@@ -1,9 +1,27 @@
 #include "common.h"
 
 #include <bxzstr.hpp>
+#include <zstd.h>
 
-CompressedFile::CompressedFile(const std::filesystem::path &path, bool read, int level) {
+size_t zstd_decompressed_size(std::span<const uint8_t> buf_head) {
+    assert(buf_head.size() >= 18); // ZSTD_FRAMEHEADERSIZE_MAX
+    const auto sz = ZSTD_getFrameContentSize((void *)buf_head.data(), buf_head.size());
+    assert(sz != ZSTD_CONTENTSIZE_UNKNOWN && sz != ZSTD_CONTENTSIZE_ERROR);
+    return sz;
+}
+
+size_t zstd_decompressed_size(const fs::path &zstd_path) {
+    uint8_t buf[18]; // ZSTD_FRAMEHEADERSIZE_MAX
+    auto *fh = fopen(zstd_path.c_str(), "rb");
+    assert(fh);
+    assert(fread((void *)buf, sizeof(buf), 1, fh) == 1);
+    assert(!fclose(fh));
+    return zstd_decompressed_size(buf);
+}
+
+CompressedFile::CompressedFile(const fs::path &path, bool read, int level) {
     if (read) {
+        m_decomp_size = zstd_decompressed_size(path);
         m_ifstream =
             std::make_unique<bxz::ifstream>(path.string(), std::ios::in | std::ios_base::binary);
     } else {
@@ -20,12 +38,15 @@ CompressedFile::CompressedFile(const std::filesystem::path &path, bool read, int
 
 std::vector<uint8_t> CompressedFile::read() {
     assert(m_ifstream);
-    return {std::istreambuf_iterator<char>{*m_ifstream}, std::istreambuf_iterator<char>{}};
+    std::vector<uint8_t> buf(m_decomp_size);
+    std::copy(std::istreambuf_iterator<char>{*m_ifstream}, std::istreambuf_iterator<char>{},
+              std::back_inserter(buf));
+    return buf;
 }
 
 std::vector<uint8_t> CompressedFile::read(size_t size) {
     assert(m_ifstream);
-    std::vector<uint8_t> buf(size, 0);
+    std::vector<uint8_t> buf(size);
     m_ifstream->read((char *)buf.data(), size);
     return buf;
 }

@@ -297,11 +297,22 @@ private:
     std::unique_ptr<Symbols> m_symbols;
 };
 
+__attribute__((visibility("default"))) size_t
+zstd_decompressed_size(std::span<const uint8_t> buf_head);
+__attribute__((visibility("default"))) size_t
+zstd_decompressed_size(const std::filesystem::path &zstd_path);
+
 class __attribute__((visibility("default"))) CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, int level);
     std::vector<uint8_t> read();
     std::vector<uint8_t> read(size_t size);
+    template <typename T> T read() {
+        T buf{};
+        const auto rbuf = read(sizeof(T));
+        memcpy(&buf, rbuf.data(), sizeof(T));
+        return buf;
+    }
     void write(std::span<const uint8_t> buf);
     template <typename T> void write(const T &buf) {
         write({(uint8_t *)&buf, sizeof(buf)});
@@ -312,4 +323,5 @@ public:
 private:
     std::unique_ptr<bxz::ifstream> m_ifstream;
     std::unique_ptr<bxz::ofstream> m_ofstream;
+    size_t m_decomp_size;
 };
