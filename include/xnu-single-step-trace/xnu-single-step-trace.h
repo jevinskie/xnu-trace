@@ -63,9 +63,12 @@ struct log_thread_hdr {
 } __attribute__((packed));
 
 struct log_hdr {
+    uint64_t magic;
     uint64_t num_regions;
     uint64_t num_syms;
 } __attribute__((packed));
+
+constexpr uint64_t log_hdr_magic = 0x8d3a'dfb8'a584'33f9ull;
 
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
@@ -193,7 +196,7 @@ public:
     TraceLog(const std::string &log_path);
     __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
     void write_to_file(const std::string &path, const MachORegions &macho_regions,
-                       const Symbols *symbols = nullptr);
+                       int compression_level, const Symbols *symbols = nullptr);
     uint64_t num_inst() const;
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;
@@ -211,13 +214,14 @@ private:
 class __attribute__((visibility("default"))) XNUTracer {
 public:
     XNUTracer(task_t target_task, std::optional<std::filesystem::path> trace_path,
-              bool symbolicate = false);
+              bool symbolicate = false, int compression_level = 10);
     XNUTracer(pid_t target_pid, std::optional<std::filesystem::path> trace_path,
-              bool symbolicate = false);
+              bool symbolicate = false, int compression_level = 10);
     XNUTracer(std::string target_name, std::optional<std::filesystem::path> trace_path,
-              bool symbolicate = false);
+              bool symbolicate = false, int compression_level = 10);
     XNUTracer(std::vector<std::string> spawn_args, std::optional<std::filesystem::path> trace_path,
-              bool pipe_ctrl = false, bool disable_aslr = true, bool symbolicate = false);
+              bool pipe_ctrl = false, bool disable_aslr = true, bool symbolicate = false,
+              int compression_level = 10);
     ~XNUTracer();
 
     void suspend();
@@ -271,6 +275,7 @@ private:
     std::unique_ptr<VMRegions> m_vm_regions;
     std::unique_ptr<Symbols> m_symbols;
     std::optional<std::filesystem::path> m_trace_path;
+    int m_compression_level{};
 };
 
 class __attribute__((visibility("default"))) FridaStalker {
@@ -281,7 +286,7 @@ public:
     void follow(GumThreadId thread_id);
     void unfollow();
     void unfollow(GumThreadId thread_id);
-    void write_trace(const std::string &trace_path);
+    void write_trace(const std::string &trace_path, int compression_level);
     __attribute__((always_inline)) TraceLog &logger();
 
 private:
@@ -305,12 +310,13 @@ zstd_decompressed_size(const std::filesystem::path &zstd_path);
 class __attribute__((visibility("default"))) CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, int level);
+    ~CompressedFile();
     std::vector<uint8_t> read();
     std::vector<uint8_t> read(size_t size);
+    void read(uint8_t *buf, size_t size);
     template <typename T> T read() {
         T buf{};
-        const auto rbuf = read(sizeof(T));
-        memcpy(&buf, rbuf.data(), sizeof(T));
+        read((uint8_t *)&buf, sizeof(T));
         return buf;
     }
     void write(std::span<const uint8_t> buf);
@@ -319,6 +325,7 @@ public:
     }
     void write(const void *buf, size_t size);
     void write(const uint8_t *buf, size_t size);
+    void write(const char *buf, size_t size);
 
 private:
     std::unique_ptr<bxz::ifstream> m_ifstream;

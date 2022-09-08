@@ -105,7 +105,7 @@ int main(int argc, const char **argv) {
 
     if (stalker) {
         stalker->unfollow();
-        stalker->write_trace("yield-loop-step-test-trace.bin");
+        stalker->write_trace("yield-loop-step-test-trace.bin", 0);
         fmt::print("stalking end\n");
         stalker.reset();
     }

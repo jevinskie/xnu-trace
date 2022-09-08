@@ -38,8 +38,8 @@ void FridaStalker::unfollow(GumThreadId thread_id) {
     gum_stalker_unfollow(m_stalker, thread_id);
 }
 
-void FridaStalker::write_trace(const std::string &trace_path) {
-    logger().write_to_file(trace_path, m_macho_regions, m_symbols.get());
+void FridaStalker::write_trace(const std::string &trace_path, int compression_level) {
+    logger().write_to_file(trace_path, m_macho_regions, compression_level, m_symbols.get());
 }
 
 __attribute__((always_inline)) TraceLog &FridaStalker::logger() {
@@ -87,6 +87,6 @@ void stalker_unfollow_thread(stalker_t stalker, GumThreadId thread_id) {
     ((FridaStalker *)stalker)->unfollow(thread_id);
 }
 
-void stalker_write_trace(stalker_t stalker, const char *path) {
-    ((FridaStalker *)stalker)->write_trace(path);
+void stalker_write_trace(stalker_t stalker, const char *path, int compression_level) {
+    ((FridaStalker *)stalker)->write_trace(path, compression_level);
 }

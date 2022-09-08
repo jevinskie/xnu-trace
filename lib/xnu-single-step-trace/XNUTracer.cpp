@@ -19,22 +19,25 @@ extern "C" boolean_t mach_exc_trace_server(mach_msg_header_t *message, mach_msg_
 
 XNUTracer *g_tracer;
 
-XNUTracer::XNUTracer(task_t target_task, std::optional<fs::path> trace_path, bool symbolicate)
-    : m_target_task(target_task), m_trace_path{trace_path} {
+XNUTracer::XNUTracer(task_t target_task, std::optional<fs::path> trace_path, bool symbolicate,
+                     int compression_level)
+    : m_target_task(target_task), m_trace_path{trace_path}, m_compression_level{compression_level} {
     suspend();
     common_ctor(false, false, symbolicate);
 }
 
-XNUTracer::XNUTracer(pid_t target_pid, std::optional<fs::path> trace_path, bool symbolicate)
-    : m_trace_path{trace_path} {
+XNUTracer::XNUTracer(pid_t target_pid, std::optional<fs::path> trace_path, bool symbolicate,
+                     int compression_level)
+    : m_trace_path{trace_path}, m_compression_level{compression_level} {
     const auto kr = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
     suspend();
     common_ctor(false, false, symbolicate);
 }
 
-XNUTracer::XNUTracer(std::string target_name, std::optional<fs::path> trace_path, bool symbolicate)
-    : m_trace_path{trace_path} {
+XNUTracer::XNUTracer(std::string target_name, std::optional<fs::path> trace_path, bool symbolicate,
+                     int compression_level)
+    : m_trace_path{trace_path}, m_compression_level{compression_level} {
     const auto target_pid = pid_for_name(target_name);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
@@ -43,8 +46,8 @@ XNUTracer::XNUTracer(std::string target_name, std::optional<fs::path> trace_path
 }
 
 XNUTracer::XNUTracer(std::vector<std::string> spawn_args, std::optional<fs::path> trace_path,
-                     bool pipe_ctrl, bool disable_aslr, bool symbolicate)
-    : m_trace_path{trace_path} {
+                     bool pipe_ctrl, bool disable_aslr, bool symbolicate, int compression_level)
+    : m_trace_path{trace_path}, m_compression_level{compression_level} {
     const auto target_pid = spawn_with_args(spawn_args, pipe_ctrl, disable_aslr);
     const auto kr         = task_for_pid(mach_task_self(), target_pid, &m_target_task);
     mach_check(kr, fmt::format("task_for_pid({:d}", target_pid));
@@ -77,7 +80,8 @@ XNUTracer::~XNUTracer() {
         ncsw_per_sec_self, ncsw_per_sec_total, nbytes, (double)nbytes / ninst, nbytes / elapsed);
     fmt::print("{}\n", s);
     if (m_trace_path != std::nullopt) {
-        logger().write_to_file(m_trace_path->string(), *m_macho_regions, m_symbols.get());
+        logger().write_to_file(m_trace_path->string(), *m_macho_regions, m_compression_level,
+                               m_symbols.get());
     }
     resume();
 }

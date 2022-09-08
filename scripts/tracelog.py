@@ -3,7 +3,7 @@ from pathlib import Path
 
 from attrs import define
 
-log_hdr_t = struct.Struct("=QQ")
+log_hdr_t = struct.Struct("=QQQ")
 log_region_t = struct.Struct("=QQQ16BQ")
 log_sym_t = struct.Struct("=QQQQ")
 log_thread_hdr_t = struct.Struct("=IQ")
@@ -37,7 +37,9 @@ class TraceLog:
         tl_buf = open(trace_path, "rb").read()
         tl_buf_sz = len(tl_buf)
 
-        num_regions, num_syms = log_hdr_t.unpack_from(tl_buf, offset=0)
+        magic, num_regions, num_syms = log_hdr_t.unpack_from(tl_buf, offset=0)
+
+        assert magic == 0x8D3A_DFB8_A584_33F9
 
         macho_regions = []
         region_buf_off = log_hdr_t.size

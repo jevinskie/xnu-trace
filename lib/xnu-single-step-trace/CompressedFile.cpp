@@ -36,6 +36,8 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, int level) {
     return;
 }
 
+CompressedFile::~CompressedFile() = default;
+
 std::vector<uint8_t> CompressedFile::read() {
     assert(m_ifstream);
     std::vector<uint8_t> buf(m_decomp_size);
@@ -51,6 +53,11 @@ std::vector<uint8_t> CompressedFile::read(size_t size) {
     return buf;
 }
 
+void CompressedFile::read(uint8_t *buf, size_t size) {
+    assert(m_ifstream);
+    m_ifstream->read((char *)buf, size);
+}
+
 void CompressedFile::write(std::span<const uint8_t> buf) {
     assert(m_ofstream);
     m_ofstream->write((const char *)buf.data(), buf.size());
@@ -63,4 +70,8 @@ void CompressedFile::write(const void *buf, size_t size) {
 
 void CompressedFile::write(const uint8_t *buf, size_t size) {
     write({buf, size});
+}
+
+void CompressedFile::write(const char *buf, size_t size) {
+    write({(uint8_t *)buf, size});
 }

@@ -101,7 +101,7 @@ __attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) 
 }
 
 void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_regions,
-                             const Symbols *symbols) {
+                             int compression_level, const Symbols *symbols) {
     std::set<uint64_t> pcs;
     for (const auto &thread_buf_pair : m_log_bufs) {
         const auto buf = thread_buf_pair.second;
@@ -121,11 +121,12 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
         syms                = get_symbols_in_intervals(all_syms, pc_intervals);
     }
 
-    const auto fh = fopen(path.c_str(), "wb");
-    assert(fh);
+    CompressedFile fh{path, false, compression_level};
 
-    const log_hdr hdr_buf{.num_regions = macho_regions.regions().size(), .num_syms = syms.size()};
-    assert(fwrite(&hdr_buf, sizeof(hdr_buf), 1, fh) == 1);
+    const log_hdr hdr_buf{.magic       = log_hdr_magic,
+                          .num_regions = macho_regions.regions().size(),
+                          .num_syms    = syms.size()};
+    fh.write(hdr_buf);
 
     for (const auto &region : macho_regions.regions()) {
         log_region region_buf{.base     = region.base,
@@ -133,8 +134,8 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
                               .slide    = region.slide,
                               .path_len = region.path.string().size()};
         memcpy(region_buf.uuid, region.uuid, sizeof(region_buf.uuid));
-        assert(fwrite(&region_buf, sizeof(region_buf), 1, fh) == 1);
-        assert(fwrite(region.path.c_str(), region.path.string().size(), 1, fh) == 1);
+        fh.write(region_buf);
+        fh.write(region.path.c_str(), region.path.string().size());
     }
 
     for (const auto &sym : syms) {
@@ -142,9 +143,9 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
                         .size     = sym.size,
                         .name_len = sym.name.size(),
                         .path_len = sym.path.string().size()};
-        assert(fwrite(&sym_buf, sizeof(sym_buf), 1, fh) == 1);
-        assert(fwrite(sym.name.c_str(), sym.name.size(), 1, fh) == 1);
-        assert(fwrite(sym.path.c_str(), sym.path.string().size(), 1, fh) == 1);
+        fh.write(sym_buf);
+        fh.write(sym.name.c_str(), sym.name.size());
+        fh.write(sym.path.c_str(), sym.path.string().size());
     }
 
     for (const auto &thread_buf_pair : m_log_bufs) {
@@ -152,9 +153,7 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
         const auto buf           = thread_buf_pair.second;
         const auto thread_log_sz = buf.size() * sizeof(decltype(buf)::value_type);
         const log_thread_hdr thread_hdr{.thread_id = tid, .thread_log_sz = thread_log_sz};
-        assert(fwrite(&thread_hdr, sizeof(thread_hdr), 1, fh) == 1);
-        assert(fwrite(buf.data(), buf.size(), 1, fh) == 1);
+        fh.write(thread_hdr);
+        fh.write(buf);
     }
-
-    assert(!fclose(fh));
 }

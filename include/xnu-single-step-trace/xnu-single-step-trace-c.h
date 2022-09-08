@@ -22,8 +22,8 @@ __attribute__((visibility("default"))) void stalker_unfollow_me(stalker_t stalke
 __attribute__((visibility("default"))) void stalker_unfollow_thread(stalker_t stalker,
                                                                     GumThreadId thread_id);
 
-__attribute__((visibility("default"))) void stalker_write_trace(stalker_t stalker,
-                                                                const char *path);
+__attribute__((visibility("default"))) void stalker_write_trace(stalker_t stalker, const char *path,
+                                                                int compression_level);
 
 #ifdef __cplusplus
 }
