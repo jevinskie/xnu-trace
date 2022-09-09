@@ -33,40 +33,43 @@ TraceLog::TraceLog() {
 }
 
 TraceLog::TraceLog(const std::string &log_path) {
-    // const auto trace_buf = std::vector<uint8_t>{};
-    const auto trace_buf =
-        CompressedFile<log_meta_hdr>(fs::path{log_path} / "meta.bin", true, log_meta_hdr_magic)
-            .read();
-    const auto trace_hdr = (log_meta_hdr *)(trace_buf.data() + sizeof(log_comp_hdr));
+    fs::path path{log_path};
+    CompressedFile<log_meta_hdr> meta_fh{path / "meta.bin", true, log_meta_hdr_magic};
+    const auto meta_buf = meta_fh.read();
+    const auto meta_hdr = meta_fh.header();
 
-    auto region_ptr = (log_region *)((uint8_t *)trace_hdr + sizeof(*trace_hdr));
-    m_macho_regions = std::make_unique<MachORegions>(region_ptr, trace_hdr->num_regions);
-    for (uint64_t i = 0; i < trace_hdr->num_regions; ++i) {
+    auto region_ptr = (log_region *)meta_buf.data();
+    m_macho_regions = std::make_unique<MachORegions>(region_ptr, meta_hdr.num_regions);
+    for (uint64_t i = 0; i < meta_hdr.num_regions; ++i) {
         region_ptr =
             (log_region *)((uint8_t *)region_ptr + sizeof(*region_ptr) + region_ptr->path_len);
     }
 
     auto syms_ptr = (log_sym *)region_ptr;
-    m_symbols     = std::make_unique<Symbols>(syms_ptr, trace_hdr->num_syms);
-    for (uint64_t i = 0; i < trace_hdr->num_syms; ++i) {
+    m_symbols     = std::make_unique<Symbols>(syms_ptr, meta_hdr.num_syms);
+    for (uint64_t i = 0; i < meta_hdr.num_syms; ++i) {
         syms_ptr = (log_sym *)((uint8_t *)syms_ptr + sizeof(*syms_ptr) + syms_ptr->name_len +
                                syms_ptr->path_len);
     }
 
-    const auto thread_hdr_end = (log_thread_hdr *)(trace_buf.data() + trace_buf.size());
-    auto thread_hdr           = (log_thread_hdr *)syms_ptr;
-    while (thread_hdr < thread_hdr_end) {
+    for (const auto &dirent : std::filesystem::directory_iterator{path}) {
+        if (dirent.path().filename() == "meta.bin") {
+            continue;
+        }
+        assert(dirent.path().filename().string().starts_with("trace-"));
+
+        CompressedFile<log_thread_hdr> thread_fh{dirent.path(), true, log_thread_hdr_magic};
+        const auto thread_buf = thread_fh.read();
+        const auto thread_hdr = thread_fh.header();
+
         std::vector<log_msg_hdr> thread_log;
-        const auto thread_log_start = (uint8_t *)thread_hdr + sizeof(*thread_hdr);
-        const auto thread_log_end   = thread_log_start + thread_hdr->thread_log_sz;
-        auto inst_hdr               = (log_msg_hdr *)thread_log_start;
-        const auto inst_hdr_end     = (log_msg_hdr *)thread_log_end;
+        auto inst_hdr           = (log_msg_hdr *)thread_buf.data();
+        const auto inst_hdr_end = (log_msg_hdr *)(thread_buf.data() + thread_buf.size());
         while (inst_hdr < inst_hdr_end) {
             thread_log.emplace_back(*inst_hdr);
             inst_hdr = inst_hdr + 1;
         }
-        m_parsed_logs.emplace(std::make_pair(thread_hdr->thread_id, thread_log));
-        thread_hdr = (log_thread_hdr *)thread_log_end;
+        m_parsed_logs.emplace(std::make_pair(thread_hdr.thread_id, thread_log));
     }
 }
 
@@ -103,8 +106,10 @@ __attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) 
     ++m_num_inst;
 }
 
-void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_regions,
-                             int compression_level, const Symbols *symbols) {
+void TraceLog::write_to_dir(const std::string &dir_path, const MachORegions &macho_regions,
+                            int compression_level, const Symbols *symbols) {
+    fs::path path{dir_path};
+
     std::set<uint64_t> pcs;
     for (const auto &thread_buf_pair : m_log_bufs) {
         const auto buf = thread_buf_pair.second;
@@ -127,7 +132,9 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
     const log_meta_hdr meta_hdr_buf{.num_regions = macho_regions.regions().size(),
                                     .num_syms    = syms.size()};
 
-    CompressedFile<log_meta_hdr> fh{fs::path{path}, false, log_meta_hdr_magic, &meta_hdr_buf, 0};
+    fs::create_directory(path);
+    CompressedFile<log_meta_hdr> meta_fh{path / "meta.bin", false, log_meta_hdr_magic,
+                                         &meta_hdr_buf, 0};
 
     for (const auto &region : macho_regions.regions()) {
         log_region region_buf{.base     = region.base,
@@ -135,8 +142,8 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
                               .slide    = region.slide,
                               .path_len = region.path.string().size()};
         memcpy(region_buf.uuid, region.uuid, sizeof(region_buf.uuid));
-        fh.write(region_buf);
-        fh.write(region.path.c_str(), region.path.string().size());
+        meta_fh.write(region_buf);
+        meta_fh.write(region.path.c_str(), region.path.string().size());
     }
 
     for (const auto &sym : syms) {
@@ -144,17 +151,19 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
                         .size     = sym.size,
                         .name_len = sym.name.size(),
                         .path_len = sym.path.string().size()};
-        fh.write(sym_buf);
-        fh.write(sym.name.c_str(), sym.name.size());
-        fh.write(sym.path.c_str(), sym.path.string().size());
+        meta_fh.write(sym_buf);
+        meta_fh.write(sym.name.c_str(), sym.name.size());
+        meta_fh.write(sym.path.c_str(), sym.path.string().size());
     }
 
     for (const auto &thread_buf_pair : m_log_bufs) {
-        const auto tid           = thread_buf_pair.first;
-        const auto buf           = thread_buf_pair.second;
-        const auto thread_log_sz = buf.size() * sizeof(decltype(buf)::value_type);
-        const log_thread_hdr thread_hdr{.thread_id = tid, .thread_log_sz = thread_log_sz};
-        fh.write(thread_hdr);
-        fh.write(buf);
+        const auto tid = thread_buf_pair.first;
+        const auto buf = thread_buf_pair.second;
+        const log_thread_hdr thread_hdr{.thread_id = tid};
+        CompressedFile<log_thread_hdr> thread_fh{path / fmt::format("thread-{:d}.bin", tid), false,
+                                                 log_thread_hdr_magic, &thread_hdr,
+                                                 compression_level};
+        thread_fh.write(thread_hdr);
+        thread_fh.write(buf);
     }
 }

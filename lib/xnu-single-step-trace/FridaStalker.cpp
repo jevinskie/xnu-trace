@@ -39,7 +39,7 @@ void FridaStalker::unfollow(GumThreadId thread_id) {
 }
 
 void FridaStalker::write_trace(const std::string &trace_path, int compression_level) {
-    logger().write_to_file(trace_path, m_macho_regions, compression_level, m_symbols.get());
+    logger().write_to_dir(trace_path, m_macho_regions, compression_level, m_symbols.get());
 }
 
 __attribute__((always_inline)) TraceLog &FridaStalker::logger() {

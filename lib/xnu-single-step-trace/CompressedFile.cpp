@@ -11,7 +11,7 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
     : m_is_read{read} {
     if (read) {
         m_fh = fopen(path.c_str(), "rb");
-        assert(m_fh);
+        posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
         log_comp_hdr comp_hdr;
         assert(fread(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         assert(comp_hdr.magic == hdr_magic);
@@ -25,7 +25,7 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
     } else {
         assert(hdr);
         m_fh = fopen(path.c_str(), "wb");
-        assert(m_fh);
+        posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
         log_comp_hdr comp_hdr{.magic = hdr_magic, .is_compressed = level != 0};
         assert(fwrite(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         if (level) {

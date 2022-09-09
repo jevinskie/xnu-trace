@@ -198,8 +198,8 @@ public:
     TraceLog();
     TraceLog(const std::string &log_path);
     __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
-    void write_to_file(const std::string &path, const MachORegions &macho_regions,
-                       int compression_level, const Symbols *symbols = nullptr);
+    void write_to_dir(const std::string &dir_path, const MachORegions &macho_regions,
+                      int compression_level, const Symbols *symbols = nullptr);
     uint64_t num_inst() const;
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;
@@ -313,7 +313,7 @@ public:
                    const void *hdr = nullptr, int level = 10);
     ~CompressedFile();
 
-    template <typename T> const T &header() {
+    template <typename T> const T &header() const {
         assert(m_is_read);
         assert(sizeof(T) == m_hdr_buf.size());
         return *(T *)m_hdr_buf.data();
@@ -355,4 +355,8 @@ public:
                    const HeaderT *hdr = nullptr, int level = 10)
         : jev::xnutrace::detail::CompressedFile::CompressedFile{path,      read, sizeof(HeaderT),
                                                                 hdr_magic, hdr,  level} {};
+
+    const HeaderT &header() const {
+        return jev::xnutrace::detail::CompressedFile::header<HeaderT>();
+    }
 };
