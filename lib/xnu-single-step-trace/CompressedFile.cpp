@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <algorithm>
+
 #include <zstd.h>
 
 CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
@@ -26,6 +28,14 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
         assert(fwrite(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         if (level) {
             m_comp_ctx = ZSTD_createCCtx();
+            assert(m_comp_ctx);
+            zstd_check(ZSTD_CCtx_setParameter(m_comp_ctx, ZSTD_c_compressionLevel, level),
+                       "zstd set compression level");
+            zstd_check(ZSTD_CCtx_setParameter(m_comp_ctx, ZSTD_c_checksumFlag, true),
+                       "zstd enable checksums");
+            zstd_check(ZSTD_CCtx_setParameter(m_comp_ctx, ZSTD_c_nbWorkers,
+                                              std::min(1u, get_num_cores() / 2)),
+                       "zstd set num threads");
         }
     }
     return;

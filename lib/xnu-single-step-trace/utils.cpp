@@ -1,9 +1,13 @@
 #include "common.h"
 
-void posix_check(int retval, std::string msg) {
+#include <sys/sysctl.h>
+
+#include <zstd.h>
+
+void posix_check(int retval, const std::string &msg) {
     if (retval) {
-        fmt::print(stderr, "Error: '{:s}' retval: {:d} errno: {:d} description: '{:s}'\n", msg,
-                   retval, errno, strerror(errno));
+        fmt::print(stderr, "POSIX error: '{:s}' retval: {:d} errno: {:d} description: '{:s}'\n",
+                   msg, retval, errno, strerror(errno));
         if (get_task_for_pid_count(mach_task_self())) {
             __builtin_debugtrap();
         } else {
@@ -12,9 +16,9 @@ void posix_check(int retval, std::string msg) {
     }
 }
 
-void mach_check(kern_return_t kr, std::string msg) {
+void mach_check(kern_return_t kr, const std::string &msg) {
     if (kr != KERN_SUCCESS) {
-        fmt::print(stderr, "Error: '{:s}' retval: {:d} description: '{:s}'\n", msg, kr,
+        fmt::print(stderr, "Mach error: '{:s}' retval: {:d} description: '{:s}'\n", msg, kr,
                    mach_error_string(kr));
         if (get_task_for_pid_count(mach_task_self())) {
             __builtin_debugtrap();
@@ -22,6 +26,25 @@ void mach_check(kern_return_t kr, std::string msg) {
             exit(-1);
         }
     }
+}
+
+void zstd_check(size_t retval, const std::string &msg) {
+    if (ZSTD_isError(retval)) {
+        fmt::print(stderr, "Zstd error: '{:s}' retval: {:#018x} description: '{:s}'\n", msg, retval,
+                   ZSTD_getErrorName(retval));
+        if (get_task_for_pid_count(mach_task_self())) {
+            __builtin_debugtrap();
+        } else {
+            exit(-1);
+        }
+    }
+}
+
+uint32_t get_num_cores() {
+    uint32_t num;
+    size_t sz = sizeof(num);
+    posix_check(sysctlbyname("hw.logicalcpu", &num, &sz, nullptr, 0), "get num cores");
+    return num;
 }
 
 double timespec_diff(const timespec &a, const timespec &b) {

@@ -31,8 +31,10 @@ constexpr U roundup_pow2_mul(U num, std::size_t pow2_mul) {
 
 // utils.cpp
 
-void posix_check(int retval, std::string msg);
-void mach_check(kern_return_t kr, std::string msg);
+void posix_check(int retval, const std::string &msg);
+void mach_check(kern_return_t kr, const std::string &msg);
+void zstd_check(size_t retval, const std::string &msg);
+uint32_t get_num_cores();
 double timespec_diff(const timespec &a, const timespec &b);
 void write_file(std::string path, const uint8_t *buf, size_t sz);
 std::vector<uint8_t> read_file(std::string path);

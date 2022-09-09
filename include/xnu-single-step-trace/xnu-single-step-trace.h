@@ -22,8 +22,8 @@
 
 #include "xnu-single-step-trace-c.h"
 
-struct ZSTD_CCtx;
-struct ZSTD_DCtx;
+struct ZSTD_CCtx_s;
+struct ZSTD_DCtx_s;
 
 struct bb_t {
     uint64_t pc;
@@ -305,11 +305,6 @@ private:
     std::unique_ptr<Symbols> m_symbols;
 };
 
-__attribute__((visibility("default"))) size_t
-zstd_decompressed_size(std::span<const uint8_t> buf_head);
-__attribute__((visibility("default"))) size_t
-zstd_decompressed_size(const std::filesystem::path &zstd_path);
-
 class __attribute__((visibility("default"))) CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
@@ -345,8 +340,8 @@ public:
 
 private:
     FILE *m_fh{};
-    ZSTD_CCtx *m_comp_ctx{};
-    ZSTD_DCtx *m_decomp_ctx{};
+    ZSTD_CCtx_s *m_comp_ctx{};
+    ZSTD_DCtx_s *m_decomp_ctx{};
     bool m_is_read;
     std::vector<uint8_t> m_hdr_buf;
     size_t m_decomp_size;
