@@ -132,6 +132,7 @@ void TraceLog::write_to_dir(const std::string &dir_path, const MachORegions &mac
     const log_meta_hdr meta_hdr_buf{.num_regions = macho_regions.regions().size(),
                                     .num_syms    = syms.size()};
 
+    fs::remove_all(path);
     fs::create_directory(path);
     CompressedFile<log_meta_hdr> meta_fh{path / "meta.bin", false, log_meta_hdr_magic,
                                          &meta_hdr_buf, 0};

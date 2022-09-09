@@ -12,6 +12,9 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
     if (read) {
         m_fh = fopen(path.c_str(), "rb");
         posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
+        if (level) {
+            posix_check(setvbuf(m_fh, nullptr, _IONBF, 0), "compressed stream buffer disable");
+        }
         log_comp_hdr comp_hdr;
         assert(fread(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         assert(comp_hdr.magic == hdr_magic);
@@ -21,11 +24,16 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
         if (comp_hdr.is_compressed) {
             m_decomp_ctx = ZSTD_createDCtx();
             assert(m_decomp_ctx);
+            m_in_buf.resize(ZSTD_DStreamInSize());
+            m_out_buf.resize(ZSTD_DStreamOutSize());
         }
     } else {
         assert(hdr);
         m_fh = fopen(path.c_str(), "wb");
         posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
+        if (level) {
+            posix_check(setvbuf(m_fh, nullptr, _IONBF, 0), "compressed stream buffer disable");
+        }
         log_comp_hdr comp_hdr{.magic = hdr_magic, .is_compressed = level != 0};
         assert(fwrite(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         if (level) {
@@ -38,12 +46,28 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
             zstd_check(ZSTD_CCtx_setParameter(m_comp_ctx, ZSTD_c_nbWorkers,
                                               std::min(1u, get_num_cores() / 2)),
                        "zstd set num threads");
+            m_in_buf.resize(ZSTD_CStreamInSize());
+            m_out_buf.resize(ZSTD_CStreamOutSize());
         }
     }
-    return;
+    fmt::print("zstd buf sizes in/out: {:0.3f} / {:0.3f} KB\n", m_in_buf.size() / 1024.0,
+               m_out_buf.size() / 1024.0);
 }
 
 CompressedFile::~CompressedFile() {
+    if (m_comp_ctx) {
+        ZSTD_inBuffer input{.src = nullptr, .size = 0};
+        ZSTD_outBuffer output{.dst = m_out_buf.data(), .size = m_out_buf.size()};
+        const auto remaining = ZSTD_compressStream2(m_comp_ctx, &output, &input, ZSTD_e_end);
+        zstd_check(remaining, "final write ZSTD_compressStream2");
+        assert(remaining == 0);
+        if (output.pos) {
+            assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
+        }
+        zstd_check(ZSTD_freeCCtx(m_comp_ctx), "zstd free comp ctx");
+    } else if (m_decomp_ctx) {
+        zstd_check(ZSTD_freeDCtx(m_decomp_ctx), "zstd free decomp ctx");
+    }
     if (!m_is_read) {
         assert(!fseek(m_fh, offsetof(log_comp_hdr, decompressed_size), SEEK_SET));
         assert(fwrite(&m_decomp_size, sizeof(m_decomp_size), 1, m_fh) == 1);
@@ -56,21 +80,21 @@ std::vector<uint8_t> CompressedFile::read() {
 }
 
 std::vector<uint8_t> CompressedFile::read(size_t size) {
-    assert(m_is_read);
     std::vector<uint8_t> buf(size);
-    if (!m_comp_ctx) {
-        assert(fread(buf.data(), size, 1, m_fh) == 1);
-    } else {
-        assert(!"not implemented");
-    }
+    read(buf.data(), size);
     return buf;
 }
 
 void CompressedFile::read(uint8_t *buf, size_t size) {
-    if (!m_comp_ctx) {
+    assert(m_is_read);
+    if (!m_decomp_ctx) {
         assert(fread(buf, size, 1, m_fh) == 1);
     } else {
-        assert(!"not implemented");
+        const auto to_read = size;
+        // while (true) {
+        // ZSTD_inBuffer input{m_in_buf.buf(), buffIn, read, 0 };
+
+        // }
     }
 }
 
@@ -79,7 +103,18 @@ void CompressedFile::write(std::span<const uint8_t> buf) {
     if (!m_comp_ctx) {
         assert(fwrite(buf.data(), buf.size(), 1, m_fh) == 1);
     } else {
-        assert(!"not implemented");
+        ZSTD_inBuffer input{.src = buf.data(), .size = buf.size()};
+        bool done = false;
+        do {
+            ZSTD_outBuffer output{.dst = m_out_buf.data(), .size = m_out_buf.size()};
+            const auto remaining =
+                ZSTD_compressStream2(m_comp_ctx, &output, &input, ZSTD_e_continue);
+            zstd_check(remaining, "write ZSTD_compressStream2");
+            if (output.pos) {
+                assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
+            }
+            done = input.pos == input.size;
+        } while (!done);
     }
     m_decomp_size += buf.size();
     return;

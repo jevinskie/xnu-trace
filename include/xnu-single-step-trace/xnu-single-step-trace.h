@@ -25,6 +25,9 @@
 struct ZSTD_CCtx_s;
 struct ZSTD_DCtx_s;
 
+template <typename T>
+concept POD = std::is_trivial_v<T> && std::is_standard_layout_v<T>;
+
 struct bb_t {
     uint64_t pc;
     uint32_t sz;
@@ -322,27 +325,32 @@ public:
     std::vector<uint8_t> read();
     std::vector<uint8_t> read(size_t size);
     void read(uint8_t *buf, size_t size);
-    template <typename T> T read() {
+    template <typename T>
+    requires POD<T> T read() {
         T buf;
         read((uint8_t *)&buf, sizeof(T));
         return buf;
     }
 
     void write(std::span<const uint8_t> buf);
-    template <typename T> void write(const T &buf) {
-        write({(uint8_t *)&buf, sizeof(buf)});
-    }
     void write(const void *buf, size_t size);
     void write(const uint8_t *buf, size_t size);
     void write(const char *buf, size_t size);
+    template <typename T>
+    requires POD<T>
+    void write(const T &buf) {
+        write({(uint8_t *)&buf, sizeof(buf)});
+    }
 
 private:
     FILE *m_fh{};
     ZSTD_CCtx_s *m_comp_ctx{};
+    std::vector<uint8_t> m_in_buf;
+    std::vector<uint8_t> m_out_buf;
     ZSTD_DCtx_s *m_decomp_ctx{};
     bool m_is_read;
     std::vector<uint8_t> m_hdr_buf;
-    size_t m_decomp_size;
+    size_t m_decomp_size{};
 };
 
 } // namespace jev::xnutrace::detail
