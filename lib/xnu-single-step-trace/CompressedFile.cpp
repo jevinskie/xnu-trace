@@ -1,66 +1,75 @@
 #include "common.h"
 
-#include <bxzstr.hpp>
 #include <zstd.h>
 
-size_t zstd_decompressed_size(std::span<const uint8_t> buf_head) {
-    assert(buf_head.size() >= 18); // ZSTD_FRAMEHEADERSIZE_MAX
-    const auto sz = ZSTD_getFrameContentSize((void *)buf_head.data(), buf_head.size());
-    assert(sz != ZSTD_CONTENTSIZE_UNKNOWN && sz != ZSTD_CONTENTSIZE_ERROR);
-    return sz;
-}
-
-size_t zstd_decompressed_size(const fs::path &zstd_path) {
-    uint8_t buf[18]; // ZSTD_FRAMEHEADERSIZE_MAX
-    auto *fh = fopen(zstd_path.c_str(), "rb");
-    assert(fh);
-    assert(fread((void *)buf, sizeof(buf), 1, fh) == 1);
-    assert(!fclose(fh));
-    return zstd_decompressed_size(buf);
-}
-
-CompressedFile::CompressedFile(const fs::path &path, bool read, int level) {
+CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
+                               const void *hdr, int level)
+    : m_is_read{read} {
     if (read) {
-        m_decomp_size = zstd_decompressed_size(path);
-        m_ifstream =
-            std::make_unique<bxz::ifstream>(path.string(), std::ios::in | std::ios_base::binary);
+        m_fh = fopen(path.c_str(), "rb");
+        assert(m_fh);
+        log_comp_hdr comp_hdr;
+        assert(fread(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
+        assert(comp_hdr.magic == hdr_magic);
+        m_decomp_size = comp_hdr.decompressed_size;
+        m_hdr_buf.resize(hdr_sz);
+        assert(fread(m_hdr_buf.data(), hdr_sz, 1, m_fh) == 1);
+        if (comp_hdr.is_compressed) {
+            m_decomp_ctx = ZSTD_createDCtx();
+            assert(m_decomp_ctx);
+        }
     } else {
+        assert(hdr);
+        m_fh = fopen(path.c_str(), "wb");
+        assert(m_fh);
+        log_comp_hdr comp_hdr{.magic = hdr_magic, .is_compressed = level != 0};
+        assert(fwrite(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         if (level) {
-            m_ofstream = std::make_unique<bxz::ofstream>(
-                path.string(), std::ios::out | std::ios_base::binary, bxz::zstd, level);
-        } else {
-            m_ofstream = std::make_unique<bxz::ofstream>(
-                path.string(), std::ios::out | std::ios_base::binary, bxz::plaintext, 0);
+            m_comp_ctx = ZSTD_createCCtx();
         }
     }
     return;
 }
 
-CompressedFile::~CompressedFile() = default;
+CompressedFile::~CompressedFile() {
+    if (!m_is_read) {
+        assert(!fseek(m_fh, offsetof(log_comp_hdr, decompressed_size), SEEK_SET));
+        assert(fwrite(&m_decomp_size, sizeof(m_decomp_size), 1, m_fh) == 1);
+    }
+    assert(!fclose(m_fh));
+}
 
 std::vector<uint8_t> CompressedFile::read() {
-    assert(m_ifstream);
-    std::vector<uint8_t> buf(m_decomp_size);
-    std::copy(std::istreambuf_iterator<char>{*m_ifstream}, std::istreambuf_iterator<char>{},
-              std::back_inserter(buf));
-    return buf;
+    return read(m_decomp_size);
 }
 
 std::vector<uint8_t> CompressedFile::read(size_t size) {
-    assert(m_ifstream);
+    assert(m_is_read);
     std::vector<uint8_t> buf(size);
-    m_ifstream->read((char *)buf.data(), size);
+    if (!m_comp_ctx) {
+        assert(fread(buf.data(), size, 1, m_fh) == 1);
+    } else {
+        assert(!"not implemented");
+    }
     return buf;
 }
 
 void CompressedFile::read(uint8_t *buf, size_t size) {
-    assert(m_ifstream);
-    m_ifstream->read((char *)buf, size);
+    if (!m_comp_ctx) {
+        assert(fread(buf, size, 1, m_fh) == 1);
+    } else {
+        assert(!"not implemented");
+    }
 }
 
 void CompressedFile::write(std::span<const uint8_t> buf) {
-    assert(m_ofstream);
-    m_ofstream->write((const char *)buf.data(), buf.size());
+    assert(!m_is_read);
+    if (!m_comp_ctx) {
+        assert(fwrite(buf.data(), buf.size(), 1, m_fh) == 1);
+    } else {
+        assert(!"not implemented");
+    }
+    m_decomp_size += buf.size();
     return;
 }
 

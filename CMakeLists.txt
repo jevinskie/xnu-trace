@@ -17,10 +17,10 @@ endif ()
 
 add_compile_options(-ggdb3)
 
-# add_compile_options(-O0 -fno-omit-frame-pointer)
+add_compile_options(-O0 -fno-omit-frame-pointer)
 
-add_compile_options(-Os -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections)
-add_link_options(-Os -Wl,-dead_strip)
+# add_compile_options(-Os -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections)
+# add_link_options(-Os -Wl,-dead_strip)
 
 # add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)

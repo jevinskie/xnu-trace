@@ -22,10 +22,8 @@
 
 #include "xnu-single-step-trace-c.h"
 
-namespace bxz {
-class ifstream;
-class ofstream;
-} // namespace bxz
+struct ZSTD_CCtx;
+struct ZSTD_DCtx;
 
 struct bb_t {
     uint64_t pc;
@@ -57,18 +55,23 @@ struct log_sym {
     uint64_t path_len;
 } __attribute__((packed));
 
-struct log_thread_hdr {
-    uint32_t thread_id;
-    uint64_t thread_log_sz;
+struct log_comp_hdr {
+    uint64_t magic;
+    uint64_t is_compressed;
+    uint64_t decompressed_size;
 } __attribute__((packed));
 
-struct log_hdr {
-    uint64_t magic;
+struct log_thread_hdr {
+    uint32_t thread_id;
+} __attribute__((packed));
+
+struct log_meta_hdr {
     uint64_t num_regions;
     uint64_t num_syms;
 } __attribute__((packed));
 
-constexpr uint64_t log_hdr_magic = 0x8d3a'dfb8'a584'33f9ull;
+constexpr uint64_t log_meta_hdr_magic   = 0x8d3a'dfb8'4154'454dull;
+constexpr uint64_t log_thread_hdr_magic = 0x8d3a'dfb8'4452'4854ull;
 
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
@@ -286,7 +289,7 @@ public:
     void follow(GumThreadId thread_id);
     void unfollow();
     void unfollow(GumThreadId thread_id);
-    void write_trace(const std::string &trace_path, int compression_level);
+    void write_trace(const std::string &trace_path, int compression_level = 10);
     __attribute__((always_inline)) TraceLog &logger();
 
 private:
@@ -309,16 +312,29 @@ zstd_decompressed_size(const std::filesystem::path &zstd_path);
 
 class __attribute__((visibility("default"))) CompressedFile {
 public:
-    CompressedFile(const std::filesystem::path &path, bool read, int level);
+    CompressedFile(const std::filesystem::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
+                   const void *hdr = nullptr, int level = 10);
+    template <typename HeaderT>
+    CompressedFile(const std::filesystem::path &path, bool read, uint64_t hdr_magic,
+                   const HeaderT *hdr = nullptr, int level = 10)
+        : CompressedFile{path, read, sizeof(HeaderT), hdr_magic, hdr, level} {};
     ~CompressedFile();
+
+    template <typename T> const T &header() {
+        assert(m_is_read);
+        assert(sizeof(T) == m_hdr_buf.size());
+        return *(T *)m_hdr_buf.data();
+    }
+
     std::vector<uint8_t> read();
     std::vector<uint8_t> read(size_t size);
     void read(uint8_t *buf, size_t size);
     template <typename T> T read() {
-        T buf{};
+        T buf;
         read((uint8_t *)&buf, sizeof(T));
         return buf;
     }
+
     void write(std::span<const uint8_t> buf);
     template <typename T> void write(const T &buf) {
         write({(uint8_t *)&buf, sizeof(buf)});
@@ -328,7 +344,10 @@ public:
     void write(const char *buf, size_t size);
 
 private:
-    std::unique_ptr<bxz::ifstream> m_ifstream;
-    std::unique_ptr<bxz::ofstream> m_ofstream;
+    FILE *m_fh{};
+    ZSTD_CCtx *m_comp_ctx{};
+    ZSTD_DCtx *m_decomp_ctx{};
+    bool m_is_read;
+    std::vector<uint8_t> m_hdr_buf;
     size_t m_decomp_size;
 };

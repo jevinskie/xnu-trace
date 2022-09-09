@@ -15,7 +15,3 @@
 [submodule "3rdparty/zstd"]
 	path = 3rdparty/zstd
 	url = https://github.com/facebook/zstd
-[submodule "3rdparty/bxzstr"]
-	path = 3rdparty/bxzstr
-	url = https://github.com/jevinskie/bxzstr
-	branch = jev/main

@@ -33,8 +33,9 @@ TraceLog::TraceLog() {
 }
 
 TraceLog::TraceLog(const std::string &log_path) {
-    const auto trace_buf = read_file(log_path);
+    const auto trace_buf = CompressedFile{log_path, true}.read();
     const auto trace_hdr = (log_hdr *)trace_buf.data();
+    assert(trace_hdr->magic == log_hdr_magic);
 
     auto region_ptr = (log_region *)((uint8_t *)trace_hdr + sizeof(*trace_hdr));
     m_macho_regions = std::make_unique<MachORegions>(region_ptr, trace_hdr->num_regions);

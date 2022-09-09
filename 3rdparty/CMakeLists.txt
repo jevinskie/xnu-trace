@@ -11,11 +11,6 @@ target_include_directories(libzstd_static
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/zstd/lib/common>
 )
 
-set(ZLIB_FOUND OFF)
-set(BZIP2_FOUND OFF)
-set(LIBLZMA_FOUND OFF)
-add_subdirectory(bxzstr)
-
 add_subdirectory(CoreSymbolication)
 
 add_subdirectory(fmt)
