@@ -4,6 +4,8 @@
 
 #include <zstd.h>
 
+namespace jev::xnutrace::detail {
+
 CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
                                const void *hdr, int level)
     : m_is_read{read} {
@@ -94,3 +96,5 @@ void CompressedFile::write(const uint8_t *buf, size_t size) {
 void CompressedFile::write(const char *buf, size_t size) {
     write({(uint8_t *)buf, size});
 }
+
+} // namespace jev::xnutrace::detail

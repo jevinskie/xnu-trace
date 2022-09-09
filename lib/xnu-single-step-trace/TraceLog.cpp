@@ -33,9 +33,11 @@ TraceLog::TraceLog() {
 }
 
 TraceLog::TraceLog(const std::string &log_path) {
-    const auto trace_buf = CompressedFile{log_path, true}.read();
-    const auto trace_hdr = (log_hdr *)trace_buf.data();
-    assert(trace_hdr->magic == log_hdr_magic);
+    // const auto trace_buf = std::vector<uint8_t>{};
+    const auto trace_buf =
+        CompressedFile<log_meta_hdr>(fs::path{log_path} / "meta.bin", true, log_meta_hdr_magic)
+            .read();
+    const auto trace_hdr = (log_meta_hdr *)(trace_buf.data() + sizeof(log_comp_hdr));
 
     auto region_ptr = (log_region *)((uint8_t *)trace_hdr + sizeof(*trace_hdr));
     m_macho_regions = std::make_unique<MachORegions>(region_ptr, trace_hdr->num_regions);
@@ -122,12 +124,10 @@ void TraceLog::write_to_file(const std::string &path, const MachORegions &macho_
         syms                = get_symbols_in_intervals(all_syms, pc_intervals);
     }
 
-    CompressedFile fh{path, false, compression_level};
+    const log_meta_hdr meta_hdr_buf{.num_regions = macho_regions.regions().size(),
+                                    .num_syms    = syms.size()};
 
-    const log_hdr hdr_buf{.magic       = log_hdr_magic,
-                          .num_regions = macho_regions.regions().size(),
-                          .num_syms    = syms.size()};
-    fh.write(hdr_buf);
+    CompressedFile<log_meta_hdr> fh{fs::path{path}, false, log_meta_hdr_magic, &meta_hdr_buf, 0};
 
     for (const auto &region : macho_regions.regions()) {
         log_region region_buf{.base     = region.base,

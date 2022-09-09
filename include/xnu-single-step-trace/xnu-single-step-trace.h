@@ -305,14 +305,12 @@ private:
     std::unique_ptr<Symbols> m_symbols;
 };
 
-class __attribute__((visibility("default"))) CompressedFile {
+namespace jev::xnutrace::detail {
+
+class CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
                    const void *hdr = nullptr, int level = 10);
-    template <typename HeaderT>
-    CompressedFile(const std::filesystem::path &path, bool read, uint64_t hdr_magic,
-                   const HeaderT *hdr = nullptr, int level = 10)
-        : CompressedFile{path, read, sizeof(HeaderT), hdr_magic, hdr, level} {};
     ~CompressedFile();
 
     template <typename T> const T &header() {
@@ -345,4 +343,16 @@ private:
     bool m_is_read;
     std::vector<uint8_t> m_hdr_buf;
     size_t m_decomp_size;
+};
+
+} // namespace jev::xnutrace::detail
+
+template <typename HeaderT>
+class __attribute__((visibility("default"))) CompressedFile
+    : public jev::xnutrace::detail::CompressedFile {
+public:
+    CompressedFile(const std::filesystem::path &path, bool read, uint64_t hdr_magic,
+                   const HeaderT *hdr = nullptr, int level = 10)
+        : jev::xnutrace::detail::CompressedFile::CompressedFile{path,      read, sizeof(HeaderT),
+                                                                hdr_magic, hdr,  level} {};
 };
