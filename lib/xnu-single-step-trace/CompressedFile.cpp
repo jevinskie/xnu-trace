@@ -51,8 +51,6 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
             m_out_buf.resize(ZSTD_CStreamOutSize());
         }
     }
-    fmt::print("zstd buf sizes in/out: {:0.3f} / {:0.3f} KB\n", m_in_buf.size() / 1024.0,
-               m_out_buf.size() / 1024.0);
 }
 
 CompressedFile::~CompressedFile() {
@@ -78,9 +76,9 @@ CompressedFile::~CompressedFile() {
         const auto comp_sz = total_comp_sz - (sizeof(log_comp_hdr) + m_hdr_buf.size());
         fmt::print("{:s}\n",
                    fmt::format(std::locale("en_US.UTF-8"),
-                               "wrote '{:s}'. {:Ld} / {:Ld} bytes [un]/compressed ratio: {:0.2Lf}",
+                               "wrote '{:s}'. {:Ld} / {:Ld} bytes [un]/compressed ratio: {:0.3Lf}%",
                                m_path.filename().string(), m_decomp_size, comp_sz,
-                               (double)comp_sz / m_decomp_size * 100));
+                               ((double)comp_sz / m_decomp_size) * 100));
     }
     assert(!fclose(m_fh));
 }

@@ -19,7 +19,9 @@ FridaStalker::~FridaStalker() {
     g_object_unref(m_stalker);
     g_object_unref(m_transformer);
     gum_deinit_embedded();
-    fmt::print("num_inst: {:d}\n", logger().num_inst());
+    fmt::print("{:s}\n",
+               fmt::format(std::locale("en_US.UTF-8"), "Number of instructions traced: {:Ld}\n",
+                           logger().num_inst()));
 }
 
 void FridaStalker::follow() {
