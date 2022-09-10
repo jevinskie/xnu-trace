@@ -62,6 +62,7 @@ CompressedFile::~CompressedFile() {
         assert(remaining == 0);
         if (output.pos) {
             assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
+            ++m_num_ops;
         }
         zstd_check(ZSTD_freeCCtx(m_comp_ctx), "zstd free comp ctx");
     } else if (m_decomp_ctx) {
@@ -80,6 +81,10 @@ CompressedFile::~CompressedFile() {
                                m_path.filename().string(), m_decomp_size, comp_sz,
                                ((double)comp_sz / m_decomp_size) * 100));
     }
+    fmt::print("{:s}\n",
+               fmt::format(std::locale("en_us.UTF-8"), "Decompressed bytes / file op: {:0.6Lf}",
+                           (double)m_decomp_size / m_num_ops));
+
     assert(!fclose(m_fh));
 }
 
@@ -97,12 +102,15 @@ void CompressedFile::read(uint8_t *buf, size_t size) {
     assert(m_is_read);
     if (!m_decomp_ctx) {
         assert(fread(buf, size, 1, m_fh) == 1);
+        ++m_num_ops;
+        m_decomp_size += size;
     } else {
         auto to_read        = size;
         auto suggested_read = m_in_buf.size();
         auto *out_ptr       = buf;
         while (to_read) {
             const auto comp_read = fread(m_in_buf.data(), 1, suggested_read, m_fh);
+            ++m_num_ops;
             assert(comp_read > 0);
             ZSTD_inBuffer input{.src = m_in_buf.data(), .size = comp_read};
             while (input.pos < input.size) {
@@ -112,6 +120,7 @@ void CompressedFile::read(uint8_t *buf, size_t size) {
                 memcpy(out_ptr, m_out_buf.data(), output.pos);
                 out_ptr += output.pos;
                 to_read -= output.pos;
+                m_decomp_size += output.pos;
             }
         }
         assert(suggested_read == 0);
@@ -122,6 +131,7 @@ void CompressedFile::write(std::span<const uint8_t> buf) {
     assert(!m_is_read);
     if (!m_comp_ctx) {
         assert(fwrite(buf.data(), buf.size(), 1, m_fh) == 1);
+        ++m_num_ops;
     } else {
         ZSTD_inBuffer input{.src = buf.data(), .size = buf.size()};
         bool done = false;
@@ -132,6 +142,7 @@ void CompressedFile::write(std::span<const uint8_t> buf) {
             zstd_check(remaining, "write ZSTD_compressStream2");
             if (output.pos) {
                 assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
+                ++m_num_ops;
             }
             done = input.pos == input.size;
         } while (!done);
