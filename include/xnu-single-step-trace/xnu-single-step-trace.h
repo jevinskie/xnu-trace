@@ -31,7 +31,7 @@ concept POD = std::is_trivial_v<T> && std::is_standard_layout_v<T>;
 struct bb_t {
     uint64_t pc;
     uint32_t sz;
-};
+} __attribute__((packed));
 
 struct drcov_bb_t {
     uint32_t mod_off;

@@ -36,6 +36,7 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
         }
         log_comp_hdr comp_hdr{.magic = hdr_magic, .is_compressed = level != 0};
         assert(fwrite(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
+        assert(fwrite(hdr, hdr_sz, 1, m_fh) == 1);
         if (level) {
             m_comp_ctx = ZSTD_createCCtx();
             assert(m_comp_ctx);
@@ -90,11 +91,23 @@ void CompressedFile::read(uint8_t *buf, size_t size) {
     if (!m_decomp_ctx) {
         assert(fread(buf, size, 1, m_fh) == 1);
     } else {
-        const auto to_read = size;
-        // while (true) {
-        // ZSTD_inBuffer input{m_in_buf.buf(), buffIn, read, 0 };
-
-        // }
+        auto to_read        = size;
+        auto suggested_read = m_in_buf.size();
+        auto *out_ptr       = buf;
+        while (to_read) {
+            const auto comp_read = fread(m_in_buf.data(), 1, suggested_read, m_fh);
+            assert(comp_read > 0);
+            ZSTD_inBuffer input{.src = m_in_buf.data(), .size = comp_read};
+            while (input.pos < input.size) {
+                ZSTD_outBuffer output{.dst = m_out_buf.data(), .size = m_out_buf.size()};
+                suggested_read = ZSTD_decompressStream(m_decomp_ctx, &output, &input);
+                zstd_check(suggested_read, "read ZSTD_decompressStream");
+                memcpy(out_ptr, m_out_buf.data(), output.pos);
+                out_ptr += output.pos;
+                to_read -= output.pos;
+            }
+        }
+        assert(suggested_read == 0);
     }
 }
 

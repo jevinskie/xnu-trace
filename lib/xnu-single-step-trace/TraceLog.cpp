@@ -56,7 +56,7 @@ TraceLog::TraceLog(const std::string &log_path) {
         if (dirent.path().filename() == "meta.bin") {
             continue;
         }
-        assert(dirent.path().filename().string().starts_with("trace-"));
+        assert(dirent.path().filename().string().starts_with("thread-"));
 
         CompressedFile<log_thread_hdr> thread_fh{dirent.path(), true, log_thread_hdr_magic};
         const auto thread_buf = thread_fh.read();
@@ -164,6 +164,7 @@ void TraceLog::write_to_dir(const std::string &dir_path, const MachORegions &mac
         CompressedFile<log_thread_hdr> thread_fh{path / fmt::format("thread-{:d}.bin", tid), false,
                                                  log_thread_hdr_magic, &thread_hdr,
                                                  compression_level};
+        fmt::print("tid: {:d} sz: {:d}\n", tid, buf.size() / sizeof(log_msg_hdr));
         thread_fh.write(thread_hdr);
         thread_fh.write(buf);
     }
