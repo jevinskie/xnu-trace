@@ -115,7 +115,7 @@ void CompressedFile::read(uint8_t *buf, size_t size) {
         while (to_read) {
             const auto comp_read = fread(m_in_buf.data(), 1, suggested_read, m_fh);
             ++m_num_disk_ops;
-            assert(comp_read > 0);
+            assert(comp_read >= 0);
             ZSTD_inBuffer input{.src = m_in_buf.data(), .size = comp_read};
             while (input.pos < input.size) {
                 ZSTD_outBuffer output{.dst = m_out_buf.data(), .size = m_out_buf.size()};
@@ -154,7 +154,6 @@ void CompressedFile::write(std::span<const uint8_t> buf) {
         } while (!done);
     }
     m_decomp_size += buf.size();
-    return;
 }
 
 void CompressedFile::write(const void *buf, size_t size) {
@@ -167,6 +166,10 @@ void CompressedFile::write(const uint8_t *buf, size_t size) {
 
 void CompressedFile::write(const char *buf, size_t size) {
     write({(uint8_t *)buf, size});
+}
+
+size_t CompressedFile::decompressed_size() const {
+    return m_decomp_size;
 }
 
 } // namespace jev::xnutrace::detail

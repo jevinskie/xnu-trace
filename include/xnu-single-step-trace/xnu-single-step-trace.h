@@ -224,6 +224,8 @@ public:
         write({(uint8_t *)&buf, sizeof(buf)});
     }
 
+    size_t decompressed_size() const;
+
 private:
     const std::filesystem::path m_path;
     FILE *m_fh{};

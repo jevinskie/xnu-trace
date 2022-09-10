@@ -80,8 +80,14 @@ uint64_t TraceLog::num_inst() const {
 
 size_t TraceLog::num_bytes() const {
     size_t sz = 0;
-    for (const auto &thread_log : m_log_bufs) {
-        sz += thread_log.second.size();
+    if (!m_stream) {
+        for (const auto &thread_log : m_log_bufs) {
+            sz += thread_log.second.size();
+        }
+    } else {
+        for (const auto &thread_stream : m_log_streams) {
+            sz += thread_stream.second->decompressed_size();
+        }
     }
     return sz;
 }

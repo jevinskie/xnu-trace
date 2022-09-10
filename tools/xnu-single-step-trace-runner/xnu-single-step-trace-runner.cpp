@@ -43,7 +43,7 @@ int main(int argc, const char **argv) {
         .scan<'i', int>()
         .default_value(10)
         .help("zstd compression level");
-    parser.add_argument("-s", "--stream")
+    parser.add_argument("-S", "--stream")
         .default_value(false)
         .implicit_value(true)
         .help("stream to disk");
