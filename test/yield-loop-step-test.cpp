@@ -78,7 +78,7 @@ int main(int argc, const char **argv) {
 
     std::unique_ptr<FridaStalker> stalker;
     if (do_stalker) {
-        stalker = std::make_unique<FridaStalker>(true);
+        stalker = std::make_unique<FridaStalker>("yield-loop-step-test.bundle", true, 10, true);
         fmt::print("stalking start\n");
         stalker->follow();
     }
@@ -105,7 +105,6 @@ int main(int argc, const char **argv) {
 
     if (stalker) {
         stalker->unfollow();
-        stalker->write_trace("yield-loop-step-test-trace.bin", 0);
         fmt::print("stalking end\n");
         stalker.reset();
     }

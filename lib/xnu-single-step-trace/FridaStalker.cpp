@@ -1,7 +1,9 @@
 #include "common.h"
 
-FridaStalker::FridaStalker(bool symbolicate)
-    : m_macho_regions{mach_task_self()}, m_vm_regions{mach_task_self()} {
+FridaStalker::FridaStalker(const std::string &log_dir_path, bool symbolicate, int compression_level,
+                           bool stream)
+    : m_log{log_dir_path, compression_level, stream}, m_macho_regions{mach_task_self()},
+      m_vm_regions{mach_task_self()} {
     gum_init_embedded();
     assert(gum_stalker_is_supported());
     m_stalker = gum_stalker_new();
@@ -16,6 +18,7 @@ FridaStalker::FridaStalker(bool symbolicate)
 }
 
 FridaStalker::~FridaStalker() {
+    write_trace();
     g_object_unref(m_stalker);
     g_object_unref(m_transformer);
     gum_deinit_embedded();
@@ -40,8 +43,8 @@ void FridaStalker::unfollow(GumThreadId thread_id) {
     gum_stalker_unfollow(m_stalker, thread_id);
 }
 
-void FridaStalker::write_trace(const std::string &trace_path, int compression_level) {
-    logger().write_to_dir(trace_path, m_macho_regions, compression_level, m_symbols.get());
+void FridaStalker::write_trace() {
+    logger().write(m_macho_regions, m_symbols.get());
 }
 
 __attribute__((always_inline)) TraceLog &FridaStalker::logger() {
@@ -65,8 +68,9 @@ void FridaStalker::instruction_cb(GumCpuContext *context, gpointer user_data) {
 
 // C API
 
-stalker_t create_stalker(int symbolicate) {
-    return (stalker_t) new FridaStalker{!!symbolicate};
+stalker_t create_stalker(const char *log_dir_path, int symbolicate, int compression_level,
+                         int stream) {
+    return (stalker_t) new FridaStalker{log_dir_path, !!symbolicate, compression_level, !!stream};
 }
 
 void destroy_stalker(stalker_t stalker) {
@@ -87,8 +91,4 @@ void stalker_unfollow_me(stalker_t stalker) {
 
 void stalker_unfollow_thread(stalker_t stalker, GumThreadId thread_id) {
     ((FridaStalker *)stalker)->unfollow(thread_id);
-}
-
-void stalker_write_trace(stalker_t stalker, const char *path, int compression_level) {
-    ((FridaStalker *)stalker)->write_trace(path, compression_level);
 }

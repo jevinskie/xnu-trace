@@ -8,7 +8,8 @@ extern "C" {
 
 typedef void *stalker_t;
 
-__attribute__((visibility("default"))) stalker_t create_stalker(int symbolicate);
+__attribute__((visibility("default"))) stalker_t
+create_stalker(const char *log_dir_path, int symbolicate, int compression_level, int stream);
 
 __attribute__((visibility("default"))) void destroy_stalker(stalker_t stalker);
 
@@ -21,9 +22,6 @@ __attribute__((visibility("default"))) void stalker_unfollow_me(stalker_t stalke
 
 __attribute__((visibility("default"))) void stalker_unfollow_thread(stalker_t stalker,
                                                                     GumThreadId thread_id);
-
-__attribute__((visibility("default"))) void stalker_write_trace(stalker_t stalker, const char *path,
-                                                                int compression_level);
 
 #ifdef __cplusplus
 }

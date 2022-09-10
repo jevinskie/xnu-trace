@@ -190,124 +190,6 @@ private:
     std::vector<image_info> m_regions;
 };
 
-__attribute__((visibility("default"))) std::vector<bb_t>
-extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
-
-__attribute__((visibility("default"))) std::vector<uint64_t>
-extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs);
-
-class __attribute__((visibility("default"))) TraceLog {
-public:
-    TraceLog();
-    TraceLog(const std::string &log_path);
-    __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
-    void write_to_dir(const std::string &dir_path, const MachORegions &macho_regions,
-                      int compression_level, const Symbols *symbols = nullptr);
-    uint64_t num_inst() const;
-    size_t num_bytes() const;
-    const MachORegions &macho_regions() const;
-    const Symbols &symbols() const;
-    const std::map<uint32_t, std::vector<log_msg_hdr>> &parsed_logs() const;
-
-private:
-    uint64_t m_num_inst{};
-    std::unique_ptr<MachORegions> m_macho_regions;
-    std::unique_ptr<Symbols> m_symbols;
-    std::map<uint32_t, std::vector<uint8_t>> m_log_bufs;
-    std::map<uint32_t, std::vector<log_msg_hdr>> m_parsed_logs;
-};
-
-class __attribute__((visibility("default"))) XNUTracer {
-public:
-    XNUTracer(task_t target_task, std::optional<std::filesystem::path> trace_path,
-              bool symbolicate = false, int compression_level = 10);
-    XNUTracer(pid_t target_pid, std::optional<std::filesystem::path> trace_path,
-              bool symbolicate = false, int compression_level = 10);
-    XNUTracer(std::string target_name, std::optional<std::filesystem::path> trace_path,
-              bool symbolicate = false, int compression_level = 10);
-    XNUTracer(std::vector<std::string> spawn_args, std::optional<std::filesystem::path> trace_path,
-              bool pipe_ctrl = false, bool disable_aslr = true, bool symbolicate = false,
-              int compression_level = 10);
-    ~XNUTracer();
-
-    void suspend();
-    void resume();
-    pid_t pid();
-    dispatch_source_t proc_dispath_source();
-    dispatch_source_t breakpoint_exception_port_dispath_source();
-    dispatch_source_t pipe_dispatch_source();
-    void set_single_step(bool do_single_step);
-    __attribute__((always_inline)) TraceLog &logger();
-    double elapsed_time() const;
-    uint64_t context_switch_count_self() const;
-    uint64_t context_switch_count_target() const;
-    void handle_pipe();
-
-private:
-    void setup_breakpoint_exception_handler();
-    void install_breakpoint_exception_handler();
-    void uninstall_breakpoint_exception_handler();
-    void setup_breakpoint_exception_port_dispath_source();
-    void setup_proc_dispath_source();
-    void setup_pipe_dispatch_source();
-    void start_measuring_stats();
-    void stop_measuring_stats();
-    pid_t spawn_with_args(const std::vector<std::string> &spawn_args, bool pipe_ctrl,
-                          bool disable_aslr);
-    void common_ctor(bool pipe_ctrl, bool was_spawned, bool symbolicate);
-
-private:
-    task_t m_target_task{TASK_NULL};
-    mach_port_t m_breakpoint_exc_port{MACH_PORT_NULL};
-    mach_port_t m_orig_breakpoint_exc_port{MACH_PORT_NULL};
-    exception_behavior_t m_orig_breakpoint_exc_behavior{0};
-    thread_state_flavor_t m_orig_breakpoint_exc_flavor{0};
-    dispatch_queue_t m_queue{nullptr};
-    dispatch_source_t m_proc_source{nullptr};
-    dispatch_source_t m_breakpoint_exc_source{nullptr};
-    dispatch_source_t m_pipe_source{nullptr};
-    std::optional<int> m_target2tracer_fd;
-    std::optional<int> m_tracer2target_fd;
-    bool m_single_stepping{};
-    bool m_measuring_stats{};
-    TraceLog m_log{};
-    double m_elapsed_time{};
-    timespec m_start_time{};
-    uint64_t m_target_total_csw{};
-    int32_t m_target_start_num_csw{};
-    uint64_t m_self_total_csw{};
-    int32_t m_self_start_num_csw{};
-    std::unique_ptr<MachORegions> m_macho_regions;
-    std::unique_ptr<VMRegions> m_vm_regions;
-    std::unique_ptr<Symbols> m_symbols;
-    std::optional<std::filesystem::path> m_trace_path;
-    int m_compression_level{};
-};
-
-class __attribute__((visibility("default"))) FridaStalker {
-public:
-    FridaStalker(bool symbolicate = false);
-    ~FridaStalker();
-    void follow();
-    void follow(GumThreadId thread_id);
-    void unfollow();
-    void unfollow(GumThreadId thread_id);
-    void write_trace(const std::string &trace_path, int compression_level = 10);
-    __attribute__((always_inline)) TraceLog &logger();
-
-private:
-    static void transform_cb(GumStalkerIterator *iterator, GumStalkerOutput *output,
-                             gpointer user_data);
-    static void instruction_cb(GumCpuContext *context, gpointer user_data);
-
-    GumStalker *m_stalker;
-    GumStalkerTransformer *m_transformer;
-    TraceLog m_log;
-    MachORegions m_macho_regions;
-    VMRegions m_vm_regions;
-    std::unique_ptr<Symbols> m_symbols;
-};
-
 namespace jev::xnutrace::detail {
 
 class CompressedFile {
@@ -370,4 +252,127 @@ public:
     const HeaderT &header() const {
         return jev::xnutrace::detail::CompressedFile::header<HeaderT>();
     }
+};
+
+__attribute__((visibility("default"))) std::vector<bb_t>
+extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
+
+__attribute__((visibility("default"))) std::vector<uint64_t>
+extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs);
+
+class __attribute__((visibility("default"))) TraceLog {
+public:
+    TraceLog(const std::string &log_dir_path, int compression_level, bool stream);
+    TraceLog(const std::string &log_dir_path);
+    __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
+    void write(const MachORegions &macho_regions, const Symbols *symbols = nullptr);
+    uint64_t num_inst() const;
+    size_t num_bytes() const;
+    const MachORegions &macho_regions() const;
+    const Symbols &symbols() const;
+    const std::map<uint32_t, std::vector<log_msg_hdr>> &parsed_logs() const;
+
+private:
+    uint64_t m_num_inst{};
+    std::unique_ptr<MachORegions> m_macho_regions;
+    std::unique_ptr<Symbols> m_symbols;
+    std::map<uint32_t, std::vector<uint8_t>> m_log_bufs;
+    std::map<uint32_t, std::unique_ptr<CompressedFile<log_thread_hdr>>> m_log_streams;
+    std::map<uint32_t, std::vector<log_msg_hdr>> m_parsed_logs;
+    std::filesystem::path m_log_dir_path;
+    int m_compression_level{};
+    bool m_stream{};
+};
+
+class __attribute__((visibility("default"))) XNUTracer {
+public:
+    struct opts {
+        std::string trace_path;
+        bool symbolicate;
+        int compression_level;
+        bool stream;
+    };
+
+    XNUTracer(task_t target_task, const opts &options);
+    XNUTracer(pid_t target_pid, const opts &options);
+    XNUTracer(std::string target_name, const opts &options);
+    XNUTracer(std::vector<std::string> spawn_args, bool pipe_ctrl, bool disable_aslr,
+              const opts &options);
+    ~XNUTracer();
+
+    void suspend();
+    void resume();
+    pid_t pid();
+    dispatch_source_t proc_dispath_source();
+    dispatch_source_t breakpoint_exception_port_dispath_source();
+    dispatch_source_t pipe_dispatch_source();
+    void set_single_step(bool do_single_step);
+    __attribute__((always_inline)) TraceLog &logger();
+    double elapsed_time() const;
+    uint64_t context_switch_count_self() const;
+    uint64_t context_switch_count_target() const;
+    void handle_pipe();
+
+private:
+    void setup_breakpoint_exception_handler();
+    void install_breakpoint_exception_handler();
+    void uninstall_breakpoint_exception_handler();
+    void setup_breakpoint_exception_port_dispath_source();
+    void setup_proc_dispath_source();
+    void setup_pipe_dispatch_source();
+    void start_measuring_stats();
+    void stop_measuring_stats();
+    pid_t spawn_with_args(const std::vector<std::string> &spawn_args, bool pipe_ctrl,
+                          bool disable_aslr);
+    void common_ctor(bool pipe_ctrl, bool was_spawned, bool symbolicate);
+
+private:
+    task_t m_target_task{TASK_NULL};
+    mach_port_t m_breakpoint_exc_port{MACH_PORT_NULL};
+    mach_port_t m_orig_breakpoint_exc_port{MACH_PORT_NULL};
+    exception_behavior_t m_orig_breakpoint_exc_behavior{0};
+    thread_state_flavor_t m_orig_breakpoint_exc_flavor{0};
+    dispatch_queue_t m_queue{nullptr};
+    dispatch_source_t m_proc_source{nullptr};
+    dispatch_source_t m_breakpoint_exc_source{nullptr};
+    dispatch_source_t m_pipe_source{nullptr};
+    std::optional<int> m_target2tracer_fd;
+    std::optional<int> m_tracer2target_fd;
+    bool m_single_stepping{};
+    bool m_measuring_stats{};
+    TraceLog m_log;
+    double m_elapsed_time{};
+    timespec m_start_time{};
+    uint64_t m_target_total_csw{};
+    int32_t m_target_start_num_csw{};
+    uint64_t m_self_total_csw{};
+    int32_t m_self_start_num_csw{};
+    std::unique_ptr<MachORegions> m_macho_regions;
+    std::unique_ptr<VMRegions> m_vm_regions;
+    std::unique_ptr<Symbols> m_symbols;
+};
+
+class __attribute__((visibility("default"))) FridaStalker {
+public:
+    FridaStalker(const std::string &log_dir_path, bool symbolicate, int compression_level,
+                 bool stream);
+    ~FridaStalker();
+    void follow();
+    void follow(GumThreadId thread_id);
+    void unfollow();
+    void unfollow(GumThreadId thread_id);
+    __attribute__((always_inline)) TraceLog &logger();
+
+private:
+    void write_trace();
+    static void transform_cb(GumStalkerIterator *iterator, GumStalkerOutput *output,
+                             gpointer user_data);
+    static void instruction_cb(GumCpuContext *context, gpointer user_data);
+
+    GumStalker *m_stalker;
+    GumStalkerTransformer *m_transformer;
+    TraceLog m_log;
+    MachORegions m_macho_regions;
+    VMRegions m_vm_regions;
+    std::unique_ptr<Symbols> m_symbols;
 };

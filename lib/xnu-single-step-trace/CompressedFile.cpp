@@ -64,6 +64,7 @@ CompressedFile::~CompressedFile() {
         if (output.pos) {
             assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
             ++m_num_disk_ops;
+            m_decomp_size += output.pos;
         }
         zstd_check(ZSTD_freeCCtx(m_comp_ctx), "zstd free comp ctx");
     } else if (m_decomp_ctx) {
