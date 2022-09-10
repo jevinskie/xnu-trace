@@ -352,7 +352,8 @@ private:
     bool m_is_read;
     std::vector<uint8_t> m_hdr_buf;
     size_t m_decomp_size{};
-    uint64_t m_num_ops{};
+    uint64_t m_num_disk_ops{};
+    uint64_t m_num_zstd_ops{};
 };
 
 } // namespace jev::xnutrace::detail

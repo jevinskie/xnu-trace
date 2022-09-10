@@ -59,10 +59,11 @@ CompressedFile::~CompressedFile() {
         ZSTD_outBuffer output{.dst = m_out_buf.data(), .size = m_out_buf.size()};
         const auto remaining = ZSTD_compressStream2(m_comp_ctx, &output, &input, ZSTD_e_end);
         zstd_check(remaining, "final write ZSTD_compressStream2");
+        ++m_num_zstd_ops;
         assert(remaining == 0);
         if (output.pos) {
             assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
-            ++m_num_ops;
+            ++m_num_disk_ops;
         }
         zstd_check(ZSTD_freeCCtx(m_comp_ctx), "zstd free comp ctx");
     } else if (m_decomp_ctx) {
@@ -82,9 +83,11 @@ CompressedFile::~CompressedFile() {
                                ((double)comp_sz / m_decomp_size) * 100));
     }
     fmt::print("{:s}\n",
-               fmt::format(std::locale("en_us.UTF-8"), "Decompressed bytes / file op: {:0.6Lf}",
-                           (double)m_decomp_size / m_num_ops));
-
+               fmt::format(std::locale("en_us.UTF-8"), "Decompressed bytes / file op: {:0.3Lf}",
+                           m_num_disk_ops ? (double)m_decomp_size / m_num_disk_ops : 0.0));
+    fmt::print("{:s}\n",
+               fmt::format(std::locale("en_us.UTF-8"), "Decompressed bytes / zstd op: {:0.3Lf}",
+                           m_num_zstd_ops ? (double)m_decomp_size / m_num_zstd_ops : 0.0));
     assert(!fclose(m_fh));
 }
 
@@ -102,7 +105,7 @@ void CompressedFile::read(uint8_t *buf, size_t size) {
     assert(m_is_read);
     if (!m_decomp_ctx) {
         assert(fread(buf, size, 1, m_fh) == 1);
-        ++m_num_ops;
+        ++m_num_disk_ops;
         m_decomp_size += size;
     } else {
         auto to_read        = size;
@@ -110,13 +113,14 @@ void CompressedFile::read(uint8_t *buf, size_t size) {
         auto *out_ptr       = buf;
         while (to_read) {
             const auto comp_read = fread(m_in_buf.data(), 1, suggested_read, m_fh);
-            ++m_num_ops;
+            ++m_num_disk_ops;
             assert(comp_read > 0);
             ZSTD_inBuffer input{.src = m_in_buf.data(), .size = comp_read};
             while (input.pos < input.size) {
                 ZSTD_outBuffer output{.dst = m_out_buf.data(), .size = m_out_buf.size()};
                 suggested_read = ZSTD_decompressStream(m_decomp_ctx, &output, &input);
                 zstd_check(suggested_read, "read ZSTD_decompressStream");
+                ++m_num_zstd_ops;
                 memcpy(out_ptr, m_out_buf.data(), output.pos);
                 out_ptr += output.pos;
                 to_read -= output.pos;
@@ -131,7 +135,7 @@ void CompressedFile::write(std::span<const uint8_t> buf) {
     assert(!m_is_read);
     if (!m_comp_ctx) {
         assert(fwrite(buf.data(), buf.size(), 1, m_fh) == 1);
-        ++m_num_ops;
+        ++m_num_disk_ops;
     } else {
         ZSTD_inBuffer input{.src = buf.data(), .size = buf.size()};
         bool done = false;
@@ -140,9 +144,10 @@ void CompressedFile::write(std::span<const uint8_t> buf) {
             const auto remaining =
                 ZSTD_compressStream2(m_comp_ctx, &output, &input, ZSTD_e_continue);
             zstd_check(remaining, "write ZSTD_compressStream2");
+            ++m_num_zstd_ops;
             if (output.pos) {
                 assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
-                ++m_num_ops;
+                ++m_num_disk_ops;
             }
             done = input.pos == input.size;
         } while (!done);
