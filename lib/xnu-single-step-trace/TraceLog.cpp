@@ -164,8 +164,6 @@ void TraceLog::write_to_dir(const std::string &dir_path, const MachORegions &mac
         CompressedFile<log_thread_hdr> thread_fh{path / fmt::format("thread-{:d}.bin", tid), false,
                                                  log_thread_hdr_magic, &thread_hdr,
                                                  compression_level};
-        fmt::print("tid: {:d} sz: {:d}\n", tid, buf.size() / sizeof(log_msg_hdr));
-        thread_fh.write(thread_hdr);
         thread_fh.write(buf);
     }
 }
