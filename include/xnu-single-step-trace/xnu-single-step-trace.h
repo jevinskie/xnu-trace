@@ -343,6 +343,7 @@ public:
     }
 
 private:
+    const std::filesystem::path m_path;
     FILE *m_fh{};
     ZSTD_CCtx_s *m_comp_ctx{};
     std::vector<uint8_t> m_in_buf;

@@ -8,7 +8,7 @@ namespace jev::xnutrace::detail {
 
 CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
                                const void *hdr, int level)
-    : m_is_read{read} {
+    : m_path{path}, m_is_read{read} {
     if (read) {
         m_fh = fopen(path.c_str(), "rb");
         posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
@@ -72,6 +72,15 @@ CompressedFile::~CompressedFile() {
     if (!m_is_read) {
         assert(!fseek(m_fh, offsetof(log_comp_hdr, decompressed_size), SEEK_SET));
         assert(fwrite(&m_decomp_size, sizeof(m_decomp_size), 1, m_fh) == 1);
+        assert(!fseek(m_fh, 0, SEEK_END));
+        const auto total_comp_sz = ftell(m_fh);
+        assert(total_comp_sz > 0);
+        const auto comp_sz = total_comp_sz - (sizeof(log_comp_hdr) + m_hdr_buf.size());
+        fmt::print("{:s}\n",
+                   fmt::format(std::locale("en_US.UTF-8"),
+                               "wrote '{:s}'. {:Ld} / {:Ld} bytes [un]/compressed ratio: {:0.2Lf}",
+                               m_path.filename().string(), m_decomp_size, comp_sz,
+                               (double)comp_sz / m_decomp_size * 100));
     }
     assert(!fclose(m_fh));
 }
