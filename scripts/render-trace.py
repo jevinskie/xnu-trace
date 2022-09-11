@@ -7,7 +7,6 @@ from tracelog import TraceLog
 
 def real_main(args):
     tl = TraceLog(args.trace_dir)
-    tl.dump()
     pcs = tl.pcs_for_image(args.image_name)
     print("done")
     # print(pcs)

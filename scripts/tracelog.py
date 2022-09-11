@@ -1,7 +1,10 @@
-import array
 import struct
+import timeit
 from pathlib import Path
 
+import numba
+import numpy as np
+import numpy.typing as npt
 from attrs import define
 from compressedfile import CompressedFile
 
@@ -99,6 +102,7 @@ class TraceLog:
 
         traces = {}
 
+        num_pcs = 0
         for trace_path in trace_dir.iterdir():
             if trace_path.name == "meta.bin":
                 continue
@@ -106,7 +110,9 @@ class TraceLog:
             trace_fh = CompressedFile(trace_path, log_thread_hdr_magic, log_thread_hdr_t.size)
             trace_buf = bytes(trace_fh)
             (thread_id,) = log_thread_hdr_t.unpack(trace_fh.header())
-            traces[thread_id] = array.array("Q", trace_buf)
+            ndarray = np.ndarray(len(trace_buf) // 8, dtype=np.uint64, buffer=trace_buf)
+            traces[thread_id] = ndarray
+            num_pcs += ndarray
 
         return macho_regions, syms, traces
 
@@ -118,7 +124,27 @@ class TraceLog:
         for thread_id, pc_log in self.traces.items():
             print(f"thread {thread_id:d}")
 
-    def pcs_for_image(self, img_name: str) -> list[int]:
+    @staticmethod
+    @numba.njit(parallel=True)
+    def pcs_in_range1(
+        all_pcs: npt.NDArray[np.uint64], min: int, max: int
+    ) -> npt.NDArray[np.uint64]:
+        return all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)]
+
+    @staticmethod
+    @numba.njit
+    def pcs_in_range2(
+        all_pcs: npt.NDArray[np.uint64], min: int, max: int
+    ) -> npt.NDArray[np.uint64]:
+        pcs = np.zeros_like(all_pcs)
+        i = 0
+        for pc in all_pcs:
+            if min <= pc < max:
+                pcs[i] = pc
+                i += 1
+        return pcs[:i]
+
+    def pcs_for_image(self, img_name: str) -> npt.NDArray[np.uint64]:
         for r in self.macho_regions:
             if Path(r.path).name == img_name:
                 start = r.base
@@ -126,7 +152,15 @@ class TraceLog:
                 break
         else:
             raise ValueError(f"can't find {img_name} in macho_regions")
-        pcs = []
+        pcs = np.array([], dtype=np.uint64)
         for tpcs in self.traces.values():
-            pcs += [pc for pc in tpcs if start <= pc < end]
+            # pcs += self.pcs_in_range1(tpcs)
+            self.pcs_in_range1(tpcs, start, end)
+            print(timeit.timeit(lambda: self.pcs_in_range1(tpcs, start, end), number=10))
+            self.pcs_in_range2(tpcs, start, end)
+            print(timeit.timeit(lambda: self.pcs_in_range2(tpcs, start, end), number=10))
+            # tpcs_trimmed = self.pcs_in_range1(tpcs, start, end)
+            # print(tpcs_trimmed.shape)
+            # np.append(pcs, tpcs_trimmed)
+        print(pcs.shape)
         return pcs
