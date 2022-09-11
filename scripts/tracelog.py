@@ -50,7 +50,7 @@ class MachORegion:
     size: int
     slide: int
     uuid: bytes
-    path: str
+    path: Path
 
 
 @define
@@ -63,9 +63,10 @@ class Symbol:
 
 class TraceLog:
     def __init__(self, trace_dir: str) -> None:
-        self.macho_regions, self.syms, self.traces = self._parse(trace_dir)
+        self.macho_regions, self.syms, self.all_pcs = self._parse(trace_dir)
 
-    def _parse(self, trace_dir: str) -> tuple[list[MachORegion], list[Symbol], dict[int, bytes]]:
+    @staticmethod
+    def _parse(trace_dir: str) -> tuple[list[MachORegion], list[Symbol], npt.NDArray[np.uint64]]:
         trace_dir = Path(trace_dir)
         meta_fh = CompressedFile(trace_dir / "meta.bin", log_meta_hdr_magic, log_meta_hdr_t.size)
         meta_buf = bytes(meta_fh)
@@ -84,7 +85,7 @@ class TraceLog:
             path_start = region_buf_off + log_region_t.size
             path_end = path_start + path_len
             path = meta_buf[path_start:path_end].decode("utf-8")
-            macho_regions.append(MachORegion(base, sz, slide, uuid, path))
+            macho_regions.append(MachORegion(base, sz, slide, uuid, Path(path)))
             region_buf_off += log_region_t.size + path_len
 
         syms = []
@@ -102,7 +103,7 @@ class TraceLog:
 
         traces = {}
 
-        num_pcs = 0
+        num_all_pcs = 0
         for trace_path in trace_dir.iterdir():
             if trace_path.name == "meta.bin":
                 continue
@@ -110,11 +111,18 @@ class TraceLog:
             trace_fh = CompressedFile(trace_path, log_thread_hdr_magic, log_thread_hdr_t.size)
             trace_buf = bytes(trace_fh)
             (thread_id,) = log_thread_hdr_t.unpack(trace_fh.header())
-            ndarray = np.ndarray(len(trace_buf) // 8, dtype=np.uint64, buffer=trace_buf)
+            num_pcs = len(trace_buf) // 8
+            ndarray = np.ndarray(num_pcs, dtype=np.uint64, buffer=trace_buf)
             traces[thread_id] = ndarray
-            num_pcs += ndarray
+            num_all_pcs += num_pcs
 
-        return macho_regions, syms, traces
+        all_pcs = np.ndarray(num_all_pcs, dtype=np.uint64)
+        num_pcs = 0
+        for tpcs in traces.values():
+            all_pcs[num_pcs : num_pcs + len(tpcs)] = tpcs
+            num_pcs += len(tpcs)
+
+        return macho_regions, syms, all_pcs
 
     def dump(self) -> None:
         for i, r in enumerate(self.macho_regions):
@@ -146,21 +154,10 @@ class TraceLog:
 
     def pcs_for_image(self, img_name: str) -> npt.NDArray[np.uint64]:
         for r in self.macho_regions:
-            if Path(r.path).name == img_name:
+            if r.path.name == img_name:
                 start = r.base
                 end = r.base + r.size
                 break
         else:
             raise ValueError(f"can't find {img_name} in macho_regions")
-        pcs = np.array([], dtype=np.uint64)
-        for tpcs in self.traces.values():
-            # pcs += self.pcs_in_range1(tpcs)
-            self.pcs_in_range1(tpcs, start, end)
-            print(timeit.timeit(lambda: self.pcs_in_range1(tpcs, start, end), number=10))
-            self.pcs_in_range2(tpcs, start, end)
-            print(timeit.timeit(lambda: self.pcs_in_range2(tpcs, start, end), number=10))
-            # tpcs_trimmed = self.pcs_in_range1(tpcs, start, end)
-            # print(tpcs_trimmed.shape)
-            # np.append(pcs, tpcs_trimmed)
-        print(pcs.shape)
-        return pcs
+        return self.pcs_in_range1(self.all_pcs, start, end)
