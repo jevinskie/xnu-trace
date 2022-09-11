@@ -192,7 +192,7 @@ private:
 
 namespace jev::xnutrace::detail {
 
-class CompressedFile {
+class __attribute__((visibility("default"))) CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
                    const void *hdr = nullptr, int level = 10);
