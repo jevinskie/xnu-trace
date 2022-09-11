@@ -1,2 +1,2 @@
-# xnu-single-step-trace
-Tracing of macOS binaries using HW single step
+# xnu-trace
+Tracing of iOS/macOS binaries using HW single step and Frida DBI.
