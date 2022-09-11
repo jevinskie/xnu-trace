@@ -3,7 +3,7 @@ repos:
   rev: v14.0.6
   hooks:
   - id: clang-format
-    types_or: [c++, c]
+    types_or: [c++, c, objective-c, objective-c++]
 - repo: https://github.com/psf/black
   rev: 22.6.0
   hooks:
