@@ -61,11 +61,12 @@ struct log_sym {
 struct log_comp_hdr {
     uint64_t magic;
     uint64_t is_compressed;
+    uint64_t header_size;
     uint64_t decompressed_size;
 } __attribute__((packed));
 
 struct log_thread_hdr {
-    uint32_t thread_id;
+    uint64_t thread_id;
 } __attribute__((packed));
 
 struct log_meta_hdr {

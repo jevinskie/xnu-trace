@@ -15,6 +15,7 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
         log_comp_hdr comp_hdr;
         assert(fread(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         assert(comp_hdr.magic == hdr_magic);
+        assert(comp_hdr.header_size == hdr_sz);
         m_decomp_size = comp_hdr.decompressed_size;
         m_hdr_buf.resize(hdr_sz);
         assert(fread(m_hdr_buf.data(), hdr_sz, 1, m_fh) == 1);
@@ -28,7 +29,8 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
         assert(hdr);
         m_fh = fopen(path.c_str(), "wb");
         posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
-        log_comp_hdr comp_hdr{.magic = hdr_magic, .is_compressed = level != 0};
+        log_comp_hdr comp_hdr{
+            .magic = hdr_magic, .is_compressed = level != 0, .header_size = hdr_sz};
         assert(fwrite(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         assert(fwrite(hdr, hdr_sz, 1, m_fh) == 1);
         if (level) {
