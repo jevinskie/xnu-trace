@@ -3,10 +3,37 @@ from pathlib import Path
 
 from attrs import define
 
-log_hdr_t = struct.Struct("=QQQ")
+# struct log_meta_hdr {
+#     uint64_t num_regions;
+#     uint64_t num_syms;
+# }
+log_meta_hdr_t = struct.Struct("=QQQ")
+
+# struct log_region {
+#     uint64_t base;
+#     uint64_t size;
+#     uint64_t slide;
+#     uuid_t uuid;
+#     uint64_t path_len;
+# }
 log_region_t = struct.Struct("=QQQ16BQ")
+
+# struct log_sym {
+#     uint64_t base;
+#     uint64_t size;
+#     uint64_t name_len;
+#     uint64_t path_len;
+# }
 log_sym_t = struct.Struct("=QQQQ")
-log_thread_hdr_t = struct.Struct("=IQ")
+
+# struct log_thread_hdr {
+#     uint64_t thread_id;
+# }
+log_thread_hdr_t = struct.Struct("=Q")
+
+# struct log_msg_hdr {
+#     uint64_t pc;
+# }
 log_msg_hdr_t = struct.Struct("=Q")
 
 
