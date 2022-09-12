@@ -2,14 +2,20 @@
 
 import argparse
 
+import colorcet
+import datashader as ds
+import xarray as xr
 from tracelog import TraceLog
 
 
 def real_main(args):
     tl = TraceLog(args.trace_dir)
-    pcs = tl.pcs_for_image(args.image_name)
+    pcs = tl.based_pcs_for_image(args.image_name)
     print("done")
     # print(pcs)
+    xpcs = xr.DataArray(pcs)
+    img = ds.tf.shade(xpcs, cmap=colorcet.fire, how="log")
+    img.to_pil().save(args.output)
 
 
 def get_arg_parser() -> argparse.ArgumentParser:

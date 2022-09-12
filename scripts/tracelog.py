@@ -129,8 +129,13 @@ class TraceLog:
             print(f"region[{i:3d}]: {r}")
         for i, s in enumerate(self.syms):
             print(f"sym[{i:3d}]: {s}")
-        for thread_id, pc_log in self.traces.items():
-            print(f"thread {thread_id:d}")
+
+    def lookup_image(self, img_name: str) -> tuple[int, int]:
+        for r in self.macho_regions:
+            if r.path.name == img_name:
+                return r.base, r.size
+        else:
+            raise ValueError(f"can't find {img_name} in macho_regions")
 
     @staticmethod
     @numba.njit(parallel=True)
@@ -152,12 +157,17 @@ class TraceLog:
                 i += 1
         return pcs[:i]
 
+    @staticmethod
+    @numba.njit(parallel=True)
+    def based_pcs_in_range(
+        all_pcs: npt.NDArray[np.uint64], min: int, max: int
+    ) -> npt.NDArray[np.uint32]:
+        return all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)] - min
+
     def pcs_for_image(self, img_name: str) -> npt.NDArray[np.uint64]:
-        for r in self.macho_regions:
-            if r.path.name == img_name:
-                start = r.base
-                end = r.base + r.size
-                break
-        else:
-            raise ValueError(f"can't find {img_name} in macho_regions")
-        return self.pcs_in_range1(self.all_pcs, start, end)
+        base, size = self.lookup_image(img_name)
+        return self.pcs_in_range1(self.all_pcs, base, base + size)
+
+    def based_pcs_for_image(self, img_name: str) -> npt.NDArray[np.uint32]:
+        base, size = self.lookup_image(img_name)
+        return self.based_pcs_in_range(self.all_pcs, base, base + size)
