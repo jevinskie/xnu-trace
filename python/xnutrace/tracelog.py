@@ -71,31 +71,6 @@ def pow2_round_up(n: int, pow2: int) -> int:
     return pow2_round_down(n, pow2) + pow2
 
 
-@numba.njit()
-def subregions_for_sorted_pcs(
-    sorted_pcs: npt.NDArray[np.uint64], subregion_sz: np.uint64
-) -> list[tuple[np.uint64, np.uint32]]:
-    subregions = [(np.uint64(x), np.uint32(x)) for x in range(0)]
-    last_pc = sorted_pcs[0]
-    this_subregion_base = pow2_round_down(last_pc, subregion_sz)
-    for pc in sorted_pcs:
-        # if pow2_round_down(pc, subregion_sz) - pow2_round_up(last_pc, subregion_sz) > subregion_sz:
-        if pc - last_pc > subregion_sz:
-            # print(f"pc: {pc:#x} last_pc: {last_pc:#x} diff: {pc - last_pc:#x}")
-            this_subregion_size = pow2_round_up(last_pc, subregion_sz) - this_subregion_base
-            # print(f"subreg base: {this_subregion_base:#x} sz: {this_subregion_size:#x}")
-            subregions.append((this_subregion_base, this_subregion_size))
-            this_subregion_base = pow2_round_down(pc, subregion_sz)
-        last_pc = pc
-    # if len(subregions) == 1:
-    #     return subregions
-    # last_base = np.uint64(2**64-1)
-    # num_merged = 0
-    # for i in range(len(subregions) - 1):
-    #     if subregions[i][0] + subregions[i][1] == subregions[i+1][0]
-    return subregions
-
-
 @numba.njit(parallel=True)
 def pcs_in_range1(all_pcs: npt.NDArray[np.uint64], min: int, max: int) -> npt.NDArray[np.uint64]:
     return all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)]
@@ -120,11 +95,51 @@ def based_pcs_in_range(
     return pcs
 
 
+# @numba.njit()
+def subregions_for_sorted_pcs(
+    sorted_pcs: npt.NDArray[np.uint64], subregion_sz: np.uint64
+) -> list[tuple[np.uint64, np.uint32]]:
+    subregions = [(np.uint64(x), np.uint32(x)) for x in range(0)]
+    last_pc = sorted_pcs[0]
+    this_subregion_base = pow2_round_down(last_pc, subregion_sz)
+    for pc in sorted_pcs:
+        # if pow2_round_down(pc, subregion_sz) - pow2_round_up(last_pc, subregion_sz) > subregion_sz:
+        last_pc_subregion_end = pow2_round_up(last_pc, subregion_sz)
+        pc_subregion_begin = pow2_round_down(pc, subregion_sz)
+        if pc_subregion_begin - last_pc_subregion_end >= subregion_sz:
+            # if pc - last_pc > subregion_sz:
+            print(
+                f"pc: {pc:#x} last_pc: {last_pc:#x} diff: {pc - last_pc:#x} pc_subregion_begin: {pc_subregion_begin:#x} last_pc_subregion_end: {last_pc_subregion_end:#x} diff: {pc_subregion_begin - last_pc_subregion_end:#x}"
+            )
+            this_subregion_size = pow2_round_up(last_pc, subregion_sz) - this_subregion_base
+            print(f"subreg base: {this_subregion_base:#x} sz: {this_subregion_size:#x}")
+            subregions.append((this_subregion_base, this_subregion_size))
+            this_subregion_base = pow2_round_down(pc, subregion_sz)
+        last_pc = pc
+    # if len(subregions) == 1:
+    #     return subregions
+    # last_base = np.uint64(2**64-1)
+    # num_merged = 0
+    # for i in range(len(subregions) - 1):
+    #     if subregions[i][0] + subregions[i][1] == subregions[i+1][0]
+    return subregions
+
+
+def verify_subregions_for_sorted_pcs(subregions, sorted_pcs):
+    left = np.copy(sorted_pcs)
+    for base, sz in subregions:
+        left = left[(left[:] < base) | (left[:] >= (base + sz))]
+    print(len(left))
+    print(len(sorted_pcs))
+    assert len(left) == 0
+
+
 class TraceLog:
     def __init__(self, trace_dir: str) -> None:
         self.macho_regions, self.syms, self.all_pcs = self._parse(trace_dir)
         self.sorted_pcs = np.unique(self.all_pcs)
         self.subregions = subregions_for_sorted_pcs(self.sorted_pcs, np.uint64(16 * 1024))
+        verify_subregions_for_sorted_pcs(self.subregions, self.sorted_pcs)
 
     @staticmethod
     def _parse(trace_dir: str) -> tuple[list[MachORegion], list[Symbol], npt.NDArray[np.uint64]]:
