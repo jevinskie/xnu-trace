@@ -126,8 +126,6 @@ def verify_subregions_for_sorted_pcs(subregions, sorted_pcs):
     left = np.copy(sorted_pcs)
     for base, sz in subregions:
         left = left[(left[:] < base) | (left[:] >= (base + sz))]
-    print(len(left))
-    print(len(sorted_pcs))
     assert len(left) == 0
 
 
@@ -135,8 +133,10 @@ class TraceLog:
     def __init__(self, trace_dir: str) -> None:
         self.macho_regions, self.syms, self.all_pcs = self._parse(trace_dir)
         self.sorted_pcs = np.unique(self.all_pcs)
+        print(f"num unique PCs: {len(self.sorted_pcs)}")
         self.subregions = subregions_for_sorted_pcs(self.sorted_pcs, np.uint64(4 * 1024))
         verify_subregions_for_sorted_pcs(self.subregions, self.sorted_pcs)
+        print(f"num subregions: {len(self.subregions)}")
 
     @staticmethod
     def _parse(trace_dir: str) -> tuple[list[MachORegion], list[Symbol], npt.NDArray[np.uint64]]:
