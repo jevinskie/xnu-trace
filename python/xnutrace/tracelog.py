@@ -6,7 +6,7 @@ import numba
 import numpy as np
 import numpy.typing as npt
 from attrs import define
-from compressedfile import CompressedFile
+from xnutrace.compressedfile import CompressedFile
 
 # struct log_meta_hdr {
 #     uint64_t num_regions;
