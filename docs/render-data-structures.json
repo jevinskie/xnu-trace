@@ -1,0 +1,6 @@
+{reg:[
+  {name: 'addr', bits: 22},
+  {name: 'region', bits: 8},
+  {name: 'r', bits: 1},
+  {name: 'w', bits: 1}
+]}
