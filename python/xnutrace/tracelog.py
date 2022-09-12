@@ -61,11 +61,61 @@ class Symbol:
     path: str
 
 
+@numba.njit(nogil=True, inline="always")
+def pow2_round_down(n: int, pow2: int) -> int:
+    return n & ~(pow2 - np.uint8(1))
+
+
+@numba.njit(nogil=True, inline="always")
+def pow2_round_up(n: int, pow2: int) -> int:
+    return pow2_round_down(n, pow2) + pow2
+
+
+@numba.njit(nogil=True)
+def subregions_for_sorted_pcs(
+    sorted_pcs: npt.NDArray[np.uint64], subregion_sz: np.uint64
+) -> list[tuple[np.uint64, np.uint32]]:
+    subregions = [(np.uint64(x), np.uint32(x)) for x in range(0)]
+    last_pc = sorted_pcs[0]
+    this_subregion_base = pow2_round_down(last_pc, subregion_sz)
+    for pc in sorted_pcs:
+        if pc - last_pc > subregion_sz:
+            this_subregion_size = pow2_round_up(last_pc, subregion_sz) - this_subregion_base
+            subregions.append((this_subregion_base, this_subregion_size))
+            this_subregion_base = pow2_round_down(pc, subregion_sz)
+        last_pc = pc
+    return subregions
+
+
+@numba.njit(parallel=True)
+def pcs_in_range1(all_pcs: npt.NDArray[np.uint64], min: int, max: int) -> npt.NDArray[np.uint64]:
+    return all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)]
+
+
+@numba.njit
+def pcs_in_range2(all_pcs: npt.NDArray[np.uint64], min: int, max: int) -> npt.NDArray[np.uint64]:
+    pcs = np.zeros_like(all_pcs)
+    i = 0
+    for pc in all_pcs:
+        if min <= pc < max:
+            pcs[i] = pc
+            i += 1
+    return pcs[:i]
+
+
+@numba.njit(parallel=True)
+def based_pcs_in_range(
+    all_pcs: npt.NDArray[np.uint64], min: int, max: int
+) -> npt.NDArray[np.uint64]:
+    pcs = all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)] - min
+    return pcs
+
+
 class TraceLog:
     def __init__(self, trace_dir: str) -> None:
         self.macho_regions, self.syms, self.all_pcs = self._parse(trace_dir)
-        self.sorted_pcs = np.sort(self.all_pcs)
-        self.subregions = self.subregions_for_sorted_pcs(self.all_pcs, np.uint64(4 * 1024))
+        self.sorted_pcs = np.unique(self.all_pcs)
+        self.subregions = subregions_for_sorted_pcs(self.all_pcs, np.uint64(16 * 1024))
 
     @staticmethod
     def _parse(trace_dir: str) -> tuple[list[MachORegion], list[Symbol], npt.NDArray[np.uint64]]:
@@ -139,52 +189,10 @@ class TraceLog:
         else:
             raise ValueError(f"can't find {img_name} in macho_regions")
 
-    @staticmethod
-    @numba.njit(nogil=True)
-    def subregions_for_sorted_pcs(
-        sorted_pcs: npt.NDArray[np.uint64], subregion_sz: np.uint64
-    ) -> list[tuple[np.uint64, np.uint32]]:
-        subregions = [(np.uint64(x), np.uint32(x)) for x in range(0)]
-        subregion_sz_mask = ~(subregion_sz - np.uint64(1))
-        last_subregion_base, last_subregion_size = 0, 0
-        for pc in sorted_pcs:
-            if last_subregion_base + last_subregion_size < pc:
-                last_subregion_base = pc & subregion_sz_mask
-        return subregions
-
-    @staticmethod
-    @numba.njit(parallel=True)
-    def pcs_in_range1(
-        all_pcs: npt.NDArray[np.uint64], min: int, max: int
-    ) -> npt.NDArray[np.uint64]:
-        return all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)]
-
-    @staticmethod
-    @numba.njit
-    def pcs_in_range2(
-        all_pcs: npt.NDArray[np.uint64], min: int, max: int
-    ) -> npt.NDArray[np.uint64]:
-        pcs = np.zeros_like(all_pcs)
-        i = 0
-        for pc in all_pcs:
-            if min <= pc < max:
-                pcs[i] = pc
-                i += 1
-        return pcs[:i]
-
-    @staticmethod
-    @numba.njit(parallel=True)
-    def based_pcs_in_range(
-        all_pcs: npt.NDArray[np.uint64], min: int, max: int
-    ) -> npt.NDArray[np.uint64]:
-        pcs = all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)] - min
-        return pcs
-
     def pcs_for_image(self, img_name: str) -> npt.NDArray[np.uint64]:
         base, size = self.lookup_image(img_name)
-        return self.pcs_in_range1(self.all_pcs, base, base + size)
+        return pcs_in_range1(self.all_pcs, base, base + size)
 
     def based_pcs_for_image(self, img_name: str) -> npt.NDArray[np.uint32]:
         base, size = self.lookup_image(img_name)
-        print(self.based_pcs_in_range.parallel_diagnostics(level=4))
-        return self.based_pcs_in_range(self.all_pcs, base, base + size)
+        return based_pcs_in_range(self.all_pcs, base, base + size)

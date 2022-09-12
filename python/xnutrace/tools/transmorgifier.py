@@ -10,7 +10,8 @@ from xnutrace.tracelog import TraceLog
 def real_main(args):
     tl = TraceLog(args.trace_dir)
     pcs = tl.based_pcs_for_image(args.image_name)
-    print(tl.subregions)
+    for base, sz in tl.subregions:
+        print(f"base: {base:#018x} sz: {sz:#x}")
 
 
 def get_arg_parser() -> argparse.ArgumentParser:
