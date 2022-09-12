@@ -1,5 +1,5 @@
+import math
 import struct
-import timeit
 from pathlib import Path
 
 import numba
@@ -44,7 +44,7 @@ log_thread_hdr_magic = 0x8D3A_DFB8_4452_4854
 log_msg_hdr_t = struct.Struct("=Q")
 
 
-@define
+@define(slots=False)
 class MachORegion:
     base: int
     size: int
@@ -53,7 +53,7 @@ class MachORegion:
     path: Path
 
 
-@define
+@define(slots=False)
 class Symbol:
     base: int
     size: int
@@ -64,6 +64,8 @@ class Symbol:
 class TraceLog:
     def __init__(self, trace_dir: str) -> None:
         self.macho_regions, self.syms, self.all_pcs = self._parse(trace_dir)
+        self.sorted_pcs = np.sort(self.all_pcs)
+        self.subregions = self.subregions_for_sorted_pcs(self.all_pcs, np.uint64(4 * 1024))
 
     @staticmethod
     def _parse(trace_dir: str) -> tuple[list[MachORegion], list[Symbol], npt.NDArray[np.uint64]]:
@@ -138,6 +140,19 @@ class TraceLog:
             raise ValueError(f"can't find {img_name} in macho_regions")
 
     @staticmethod
+    @numba.njit(nogil=True)
+    def subregions_for_sorted_pcs(
+        sorted_pcs: npt.NDArray[np.uint64], subregion_sz: np.uint64
+    ) -> list[tuple[np.uint64, np.uint32]]:
+        subregions = [(np.uint64(x), np.uint32(x)) for x in range(0)]
+        subregion_sz_mask = ~(subregion_sz - np.uint64(1))
+        last_subregion_base, last_subregion_size = 0, 0
+        for pc in sorted_pcs:
+            if last_subregion_base + last_subregion_size < pc:
+                last_subregion_base = pc & subregion_sz_mask
+        return subregions
+
+    @staticmethod
     @numba.njit(parallel=True)
     def pcs_in_range1(
         all_pcs: npt.NDArray[np.uint64], min: int, max: int
@@ -161,8 +176,9 @@ class TraceLog:
     @numba.njit(parallel=True)
     def based_pcs_in_range(
         all_pcs: npt.NDArray[np.uint64], min: int, max: int
-    ) -> npt.NDArray[np.uint32]:
-        return all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)] - min
+    ) -> npt.NDArray[np.uint64]:
+        pcs = all_pcs[(all_pcs[:] >= min) & (all_pcs[:] < max)] - min
+        return pcs
 
     def pcs_for_image(self, img_name: str) -> npt.NDArray[np.uint64]:
         base, size = self.lookup_image(img_name)
@@ -170,4 +186,5 @@ class TraceLog:
 
     def based_pcs_for_image(self, img_name: str) -> npt.NDArray[np.uint32]:
         base, size = self.lookup_image(img_name)
+        print(self.based_pcs_in_range.parallel_diagnostics(level=4))
         return self.based_pcs_in_range(self.all_pcs, base, base + size)
