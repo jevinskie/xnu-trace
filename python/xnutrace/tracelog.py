@@ -61,17 +61,17 @@ class Symbol:
     path: str
 
 
-@numba.njit(nogil=True, inline="always")
+@numba.njit(inline="always")
 def pow2_round_down(n: int, pow2: int) -> int:
     return n & ~(pow2 - np.uint8(1))
 
 
-@numba.njit(nogil=True, inline="always")
+@numba.njit(inline="always")
 def pow2_round_up(n: int, pow2: int) -> int:
     return pow2_round_down(n, pow2) + pow2
 
 
-@numba.njit(nogil=True)
+@numba.njit()
 def subregions_for_sorted_pcs(
     sorted_pcs: npt.NDArray[np.uint64], subregion_sz: np.uint64
 ) -> list[tuple[np.uint64, np.uint32]]:
@@ -79,11 +79,20 @@ def subregions_for_sorted_pcs(
     last_pc = sorted_pcs[0]
     this_subregion_base = pow2_round_down(last_pc, subregion_sz)
     for pc in sorted_pcs:
+        # if pow2_round_down(pc, subregion_sz) - pow2_round_up(last_pc, subregion_sz) > subregion_sz:
         if pc - last_pc > subregion_sz:
+            # print(f"pc: {pc:#x} last_pc: {last_pc:#x} diff: {pc - last_pc:#x}")
             this_subregion_size = pow2_round_up(last_pc, subregion_sz) - this_subregion_base
+            # print(f"subreg base: {this_subregion_base:#x} sz: {this_subregion_size:#x}")
             subregions.append((this_subregion_base, this_subregion_size))
             this_subregion_base = pow2_round_down(pc, subregion_sz)
         last_pc = pc
+    # if len(subregions) == 1:
+    #     return subregions
+    # last_base = np.uint64(2**64-1)
+    # num_merged = 0
+    # for i in range(len(subregions) - 1):
+    #     if subregions[i][0] + subregions[i][1] == subregions[i+1][0]
     return subregions
 
 
@@ -115,7 +124,7 @@ class TraceLog:
     def __init__(self, trace_dir: str) -> None:
         self.macho_regions, self.syms, self.all_pcs = self._parse(trace_dir)
         self.sorted_pcs = np.unique(self.all_pcs)
-        self.subregions = subregions_for_sorted_pcs(self.all_pcs, np.uint64(16 * 1024))
+        self.subregions = subregions_for_sorted_pcs(self.sorted_pcs, np.uint64(16 * 1024))
 
     @staticmethod
     def _parse(trace_dir: str) -> tuple[list[MachORegion], list[Symbol], npt.NDArray[np.uint64]]:
@@ -181,6 +190,11 @@ class TraceLog:
             print(f"region[{i:3d}]: {r}")
         for i, s in enumerate(self.syms):
             print(f"sym[{i:3d}]: {s}")
+
+    def jit_info(self) -> None:
+        pcs_in_range2(self.all_pcs, self.all_pcs[0], self.all_pcs[0] + 32 * 1024 * 1024)
+        for k, v in pcs_in_range2.inspect_llvm().items():
+            print(v, k)
 
     def lookup_image(self, img_name: str) -> tuple[int, int]:
         for r in self.macho_regions:

@@ -9,6 +9,9 @@ from xnutrace.tracelog import TraceLog
 
 def real_main(args):
     tl = TraceLog(args.trace_dir)
+    if args.jit_info:
+        tl.jit_info()
+        return
     pcs = tl.based_pcs_for_image(args.image_name)
     for base, sz in tl.subregions:
         print(f"base: {base:#018x} sz: {sz:#x}")
@@ -18,6 +21,7 @@ def get_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="find-loops")
     parser.add_argument("-t", "--trace-dir", required=True, help="input trace directory")
     parser.add_argument("-n", "--image-name", required=True, help="image name to find loops in")
+    parser.add_argument("-j", "--jit-info", action="store_true", help="dump Numba JIT info")
     return parser
 
 
