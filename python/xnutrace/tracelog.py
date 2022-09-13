@@ -129,6 +129,16 @@ def verify_subregions_for_sorted_pcs(subregions, sorted_pcs):
     assert len(left) == 0
 
 
+def subregions_in_range(
+    subregions: list[tuple[np.uint64, np.uint32]], min: int, max: int
+) -> list[tuple[np.uint64, np.uint32]]:
+    res = []
+    for base, sz in subregions:
+        if min <= base and base + sz <= max:
+            res.append((base, sz))
+    return res
+
+
 class TraceLog:
     def __init__(self, trace_dir: str) -> None:
         self.macho_regions, self.syms, self.all_pcs = self._parse(trace_dir)
