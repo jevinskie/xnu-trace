@@ -122,6 +122,7 @@ def subregions_for_sorted_pcs(
     return subregions
 
 
+@numba.njit()
 def verify_subregions_for_sorted_pcs(subregions, sorted_pcs):
     left = np.copy(sorted_pcs)
     for base, sz in subregions:
