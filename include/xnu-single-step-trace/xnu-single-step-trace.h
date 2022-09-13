@@ -74,8 +74,13 @@ struct log_meta_hdr {
     uint64_t num_syms;
 } __attribute__((packed));
 
-constexpr uint64_t log_meta_hdr_magic   = 0x8d3a'dfb8'4154'454dull;
-constexpr uint64_t log_thread_hdr_magic = 0x8d3a'dfb8'4452'4854ull;
+struct log_macho_regions_hdr {
+    uint64_t dummy;
+} __attribute__((packed));
+
+constexpr uint64_t log_meta_hdr_magic          = 0x8d3a'dfb8'4154'454dull; // 'META'
+constexpr uint64_t log_thread_hdr_magic        = 0x8d3a'dfb8'4452'4854ull; // 'THRD'
+constexpr uint64_t log_macho_regions_hdr_magic = 0x8d3a'dfb8'4843'414dull; // 'MACH'
 
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
@@ -123,6 +128,7 @@ struct image_info {
     uint64_t slide;
     std::filesystem::path path;
     uuid_t uuid;
+    std::vector<uint8_t> bytes;
     auto operator<=>(const image_info &rhs) const {
         return base <=> rhs.base;
     }
@@ -179,7 +185,8 @@ private:
 class __attribute__((visibility("default"))) MachORegions {
 public:
     MachORegions(task_t target_task);
-    MachORegions(const log_region *region_buf, uint64_t num_regions);
+    MachORegions(const log_region *region_buf, uint64_t num_regions,
+                 const std::vector<uint8_t> &regions_bytes);
     void reset();
     const std::vector<image_info> &regions() const;
     const image_info &lookup(uint64_t addr) const;

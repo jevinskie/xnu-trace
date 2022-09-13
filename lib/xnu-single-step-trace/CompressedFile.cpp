@@ -57,7 +57,9 @@ CompressedFile::~CompressedFile() {
             const auto remaining = ZSTD_compressStream2(m_comp_ctx, &output, &input, ZSTD_e_end);
             zstd_check(remaining, "final write ZSTD_compressStream2");
             ++m_num_zstd_ops;
-            assert(remaining == 0);
+            if (i != 0) {
+                assert(remaining == 0);
+            }
             if (output.pos) {
                 assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
                 ++m_num_disk_ops;

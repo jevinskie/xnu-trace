@@ -39,8 +39,13 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
     const auto meta_buf = meta_fh.read();
     const auto meta_hdr = meta_fh.header();
 
+    CompressedFile<log_macho_regions_hdr> macho_regions_fh{m_log_dir_path / "macho-regions.bin",
+                                                           true, log_macho_regions_hdr_magic};
+    const auto regions_bytes = macho_regions_fh.read();
+
     auto region_ptr = (log_region *)meta_buf.data();
-    m_macho_regions = std::make_unique<MachORegions>(region_ptr, meta_hdr.num_regions);
+    m_macho_regions =
+        std::make_unique<MachORegions>(region_ptr, meta_hdr.num_regions, regions_bytes);
     for (uint64_t i = 0; i < meta_hdr.num_regions; ++i) {
         region_ptr =
             (log_region *)((uint8_t *)region_ptr + sizeof(*region_ptr) + region_ptr->path_len);
@@ -54,10 +59,11 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
     }
 
     for (const auto &dirent : std::filesystem::directory_iterator{m_log_dir_path}) {
-        if (dirent.path().filename() == "meta.bin") {
+        const auto fn = dirent.path().filename();
+        if (fn == "meta.bin" || fn == "macho-regions.bin") {
             continue;
         }
-        assert(dirent.path().filename().string().starts_with("thread-"));
+        assert(fn.string().starts_with("thread-"));
 
         CompressedFile<log_thread_hdr> thread_fh{dirent.path(), true, log_thread_hdr_magic};
         const auto thread_buf = thread_fh.read();
@@ -146,7 +152,6 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
 
     const log_meta_hdr meta_hdr_buf{.num_regions = macho_regions.regions().size(),
                                     .num_syms    = syms.size()};
-
     CompressedFile<log_meta_hdr> meta_fh{m_log_dir_path / "meta.bin", false, log_meta_hdr_magic,
                                          &meta_hdr_buf, 0};
 
@@ -168,6 +173,15 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
         meta_fh.write(sym_buf);
         meta_fh.write(sym.name.c_str(), sym.name.size());
         meta_fh.write(sym.path.c_str(), sym.path.string().size());
+    }
+
+    const log_macho_regions_hdr macho_regions_hdr_buf{};
+    CompressedFile<log_macho_regions_hdr> macho_regions_fh{m_log_dir_path / "macho-regions.bin",
+                                                           false, log_macho_regions_hdr_magic,
+                                                           &macho_regions_hdr_buf, 3};
+
+    for (const auto &region : macho_regions.regions()) {
+        macho_regions_fh.write(region.bytes);
     }
 
     if (!m_stream) {

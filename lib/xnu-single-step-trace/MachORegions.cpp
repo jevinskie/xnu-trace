@@ -1,19 +1,27 @@
 #include "common.h"
 
+#include <CoreSymbolication/CoreSymbolication.h>
+
 MachORegions::MachORegions(task_t target_task) : m_target_task{target_task} {
     reset();
 }
 
-MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions) {
+MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions,
+                           const std::vector<uint8_t> &regions_bytes) {
+    size_t regions_bytes_off = 0;
     for (uint64_t i = 0; i < num_regions; ++i) {
         const char *path_ptr = (const char *)(region_buf + 1);
         std::string path{path_ptr, region_buf->path_len};
         image_info img_info{.base  = region_buf->base,
                             .size  = region_buf->size,
                             .slide = region_buf->slide,
-                            .path  = path};
+                            .path  = path,
+                            .bytes = std::vector<uint8_t>(region_buf->size)};
         memcpy(img_info.uuid, region_buf->uuid, sizeof(img_info.uuid));
+        assert(regions_bytes_off + img_info.size <= regions_bytes.size());
+        memcpy(img_info.bytes.data(), regions_bytes.data() + regions_bytes_off, img_info.size);
         m_regions.emplace_back(img_info);
+        regions_bytes_off += img_info.size;
         region_buf =
             (log_region *)((uint8_t *)region_buf + sizeof(*region_buf) + region_buf->path_len);
     }
@@ -26,6 +34,21 @@ void MachORegions::reset() {
         mach_check(task_suspend(m_target_task), "region reset suspend");
     }
     m_regions = get_dyld_image_infos(m_target_task);
+
+    const auto cs = CSSymbolicatorCreateWithTask(m_target_task);
+    assert(!CSIsNull(cs));
+    for (auto &region : m_regions) {
+        const auto sym_owner =
+            CSSymbolicatorGetSymbolOwnerWithAddressAtTime(cs, region.base, kCSNow);
+        assert(!CSIsNull(sym_owner));
+        const auto uuid = CSSymbolOwnerGetCFUUIDBytes(sym_owner);
+        memcpy(region.uuid, uuid, sizeof(region.uuid));
+    }
+    CSRelease(cs);
+
+    for (auto &region : m_regions) {
+        region.bytes = read_target(m_target_task, region.base, region.size);
+    }
 
     std::vector<uint64_t> region_bases;
     for (const auto &region : m_regions) {
@@ -48,11 +71,12 @@ void MachORegions::reset() {
             continue;
         }
         m_regions.emplace_back(image_info{
-            .base = vm_region.base,
-            .size = vm_region.size,
-            .path = fmt::format("/tmp/pid-{:d}-jit-region-{:d}-tag-{:02x}",
-                                pid_for_task(m_target_task), num_jit_regions, vm_region.tag),
-            .uuid = {}});
+            .base  = vm_region.base,
+            .size  = vm_region.size,
+            .path  = fmt::format("/tmp/pid-{:d}-jit-region-{:d}-tag-{:02x}",
+                                 pid_for_task(m_target_task), num_jit_regions, vm_region.tag),
+            .uuid  = {},
+            .bytes = read_target(m_target_task, vm_region.base, vm_region.size)});
         ++num_jit_regions;
     }
 
