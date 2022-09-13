@@ -1,8 +1,22 @@
-.vscode/
+# vscode
+**/.vscode/
+
+# build folder
 build/
-**/__pycache__
+
+# mac
 **/.DS_Store
+
+# xcode
 **/DerivedData
 **/xcuserdata
+
+# python
+**/__pycache__
 **/*.egg-info
+
+# jupyter-notebook
 **/*.ipynb_checkpoints
+
+# nbdev
+.last_checked
