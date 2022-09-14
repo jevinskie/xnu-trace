@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
@@ -24,9 +25,12 @@
 
 struct ZSTD_CCtx_s;
 struct ZSTD_DCtx_s;
+struct mbedtls_sha256_context;
 
 template <typename T>
 concept POD = std::is_trivial_v<T> && std::is_standard_layout_v<T>;
+
+using sha256_t = std::array<uint8_t, 32>;
 
 struct bb_t {
     uint64_t pc;
@@ -75,7 +79,7 @@ struct log_meta_hdr {
 } __attribute__((packed));
 
 struct log_macho_regions_hdr {
-    uint64_t dummy;
+    uint8_t digest_sha256[32];
 } __attribute__((packed));
 
 constexpr uint64_t log_meta_hdr_magic          = 0x8d3a'dfb8'4154'454dull; // 'META'
@@ -111,6 +115,21 @@ __attribute__((visibility("default"))) void hexdump(const void *data, size_t siz
 
 __attribute__((visibility("default"))) std::vector<uint8_t>
 read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
+
+__attribute__((visibility("default"))) sha256_t get_sha256(std::span<const uint8_t> buf);
+
+class __attribute__((visibility("default"))) SHA256 {
+public:
+    SHA256();
+    ~SHA256();
+    void update(std::span<const uint8_t> buf);
+    sha256_t digest();
+
+private:
+    mbedtls_sha256_context *m_ctx;
+    sha256_t m_digest;
+    bool m_finished{};
+};
 
 struct sym_info {
     uint64_t base;
@@ -189,6 +208,7 @@ public:
                  const std::vector<uint8_t> &regions_bytes);
     void reset();
     const std::vector<image_info> &regions() const;
+    sha256_t digest() const;
     const image_info &lookup(uint64_t addr) const;
     std::pair<const image_info &, size_t> lookup_idx(uint64_t addr) const;
     const image_info &lookup(const std::string &image_name) const;
@@ -196,6 +216,7 @@ public:
 private:
     const task_t m_target_task{};
     std::vector<image_info> m_regions;
+    sha256_t m_digest;
 };
 
 namespace jev::xnutrace::detail {

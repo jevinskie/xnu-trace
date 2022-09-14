@@ -46,10 +46,6 @@ void MachORegions::reset() {
     }
     CSRelease(cs);
 
-    for (auto &region : m_regions) {
-        region.bytes = read_target(m_target_task, region.base, region.size);
-    }
-
     std::vector<uint64_t> region_bases;
     for (const auto &region : m_regions) {
         region_bases.emplace_back(region.base);
@@ -81,6 +77,12 @@ void MachORegions::reset() {
     }
 
     std::sort(m_regions.begin(), m_regions.end());
+
+    SHA256 digester;
+    for (auto &region : m_regions) {
+        digester.update(region.bytes);
+    }
+    m_digest = digester.digest();
 
     if (m_target_task != mach_task_self()) {
         mach_check(task_resume(m_target_task), "region reset resume");
@@ -120,4 +122,8 @@ const image_info &MachORegions::lookup(const std::string &image_name) const {
 
 const std::vector<image_info> &MachORegions::regions() const {
     return m_regions;
+}
+
+sha256_t MachORegions::digest() const {
+    return m_digest;
 }

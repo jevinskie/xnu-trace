@@ -2,6 +2,7 @@
 
 #include <sys/sysctl.h>
 
+#include <mbedtls/sha256.h>
 #include <zstd.h>
 
 void posix_check(int retval, const std::string &msg) {
@@ -123,4 +124,35 @@ void pipe_set_single_step(bool do_ss) {
     uint8_t rbuf = 0;
     assert(read(pipe_tracer2target_fd, &rbuf, 1) == 1);
     assert(rbuf == 'c');
+}
+
+sha256_t get_sha256(std::span<const uint8_t> buf) {
+    sha256_t hash;
+    assert(!mbedtls_sha256(buf.data(), buf.size(), hash.data(), false));
+    return hash;
+}
+
+SHA256::SHA256() {
+    m_ctx = new mbedtls_sha256_context{};
+    mbedtls_sha256_init(m_ctx);
+    assert(!mbedtls_sha256_starts(m_ctx, 0));
+}
+
+SHA256::~SHA256() {
+    mbedtls_sha256_free(m_ctx);
+    delete m_ctx;
+}
+
+void SHA256::update(std::span<const uint8_t> buf) {
+    assert(!m_finished);
+    assert(!mbedtls_sha256_update(m_ctx, buf.data(), buf.size()));
+}
+
+sha256_t SHA256::digest() {
+    if (m_finished) {
+        return m_digest;
+    }
+    assert(!mbedtls_sha256_finish(m_ctx, m_digest.data()));
+    m_finished = true;
+    return m_digest;
 }

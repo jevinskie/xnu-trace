@@ -19,3 +19,6 @@
 	path = 3rdparty/metal-cpp
 	url = https://github.com/jevinskie/metal-cpp-mirror
 	branch = cmake
+[submodule "3rdparty/mbedtls"]
+	path = 3rdparty/mbedtls
+	url = https://github.com/Mbed-TLS/mbedtls

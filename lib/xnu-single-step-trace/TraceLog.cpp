@@ -175,7 +175,9 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
         meta_fh.write(sym.path.c_str(), sym.path.string().size());
     }
 
-    const log_macho_regions_hdr macho_regions_hdr_buf{};
+    log_macho_regions_hdr macho_regions_hdr_buf{};
+    memcpy(&macho_regions_hdr_buf.digest_sha256, macho_regions.digest().data(),
+           sizeof(macho_regions_hdr_buf.digest_sha256));
     CompressedFile<log_macho_regions_hdr> macho_regions_fh{m_log_dir_path / "macho-regions.bin",
                                                            false, log_macho_regions_hdr_magic,
                                                            &macho_regions_hdr_buf, 3};

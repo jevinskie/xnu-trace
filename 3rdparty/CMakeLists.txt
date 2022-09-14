@@ -18,6 +18,10 @@ add_subdirectory(fmt)
 option(INT_TREE_ENABLE_TESTS "" OFF)
 add_subdirectory(interval-tree)
 
+option(ENABLE_PROGRAMS "" OFF)
+option(ENABLE_TESTING "" OFF)
+add_subdirectory(mbedtls)
+
 cmake_policy(SET CMP0135 NEW)
 include(FetchContent)
 FetchContent_Declare(
