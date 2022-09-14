@@ -211,6 +211,7 @@ public:
         assert(sizeof(T) == m_hdr_buf.size());
         return *(T *)m_hdr_buf.data();
     }
+    const std::vector<uint8_t> &header_buf() const;
 
     std::vector<uint8_t> read();
     std::vector<uint8_t> read(size_t size);
@@ -262,6 +263,14 @@ public:
     const HeaderT &header() const {
         return jev::xnutrace::detail::CompressedFile::header<HeaderT>();
     }
+};
+
+class __attribute__((visibility("default"))) CompressedFileRawRead
+    : public jev::xnutrace::detail::CompressedFile {
+public:
+    CompressedFileRawRead(const std::filesystem::path &path)
+        : jev::xnutrace::detail::CompressedFile::CompressedFile{path, true, UINT64_MAX,
+                                                                UINT64_MAX} {};
 };
 
 __attribute__((visibility("default"))) std::vector<bb_t>

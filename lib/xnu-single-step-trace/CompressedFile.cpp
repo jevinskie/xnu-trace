@@ -14,11 +14,11 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
         posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
         log_comp_hdr comp_hdr;
         assert(fread(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
-        assert(comp_hdr.magic == hdr_magic);
-        assert(comp_hdr.header_size == hdr_sz);
+        assert(comp_hdr.magic == hdr_magic || hdr_magic == UINT64_MAX);
+        assert(comp_hdr.header_size == hdr_sz || hdr_sz == UINT64_MAX);
         m_decomp_size = comp_hdr.decompressed_size;
-        m_hdr_buf.resize(hdr_sz);
-        assert(fread(m_hdr_buf.data(), hdr_sz, 1, m_fh) == 1);
+        m_hdr_buf.resize(comp_hdr.header_size);
+        assert(fread(m_hdr_buf.data(), comp_hdr.header_size, 1, m_fh) == 1);
         if (comp_hdr.is_compressed) {
             m_decomp_ctx = ZSTD_createDCtx();
             assert(m_decomp_ctx);
@@ -51,20 +51,19 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
 
 CompressedFile::~CompressedFile() {
     if (m_comp_ctx) {
-        for (int i = 0; i < 2; ++i) {
+        bool done = false;
+        do {
             ZSTD_inBuffer input{.src = nullptr, .size = 0};
             ZSTD_outBuffer output{.dst = m_out_buf.data(), .size = m_out_buf.size()};
             const auto remaining = ZSTD_compressStream2(m_comp_ctx, &output, &input, ZSTD_e_end);
             zstd_check(remaining, "final write ZSTD_compressStream2");
             ++m_num_zstd_ops;
-            if (i != 0) {
-                assert(remaining == 0);
-            }
             if (output.pos) {
                 assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
                 ++m_num_disk_ops;
             }
-        }
+            done = remaining == 0;
+        } while (!done);
         zstd_check(ZSTD_freeCCtx(m_comp_ctx), "zstd free comp ctx");
     } else if (m_decomp_ctx) {
         zstd_check(ZSTD_freeDCtx(m_decomp_ctx), "zstd free decomp ctx");
@@ -175,6 +174,10 @@ void CompressedFile::write(const char *buf, size_t size) {
 
 size_t CompressedFile::decompressed_size() const {
     return m_decomp_size;
+}
+
+const std::vector<uint8_t> &CompressedFile::header_buf() const {
+    return m_hdr_buf;
 }
 
 } // namespace jev::xnutrace::detail
