@@ -46,6 +46,10 @@ void MachORegions::reset() {
     }
     CSRelease(cs);
 
+    for (auto &region : m_regions) {
+        region.bytes = read_target(m_target_task, region.base, region.size);
+    }
+
     std::vector<uint64_t> region_bases;
     for (const auto &region : m_regions) {
         region_bases.emplace_back(region.base);
