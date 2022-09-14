@@ -223,7 +223,7 @@ namespace jev::xnutrace::detail {
 class __attribute__((visibility("default"))) CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
-                   const void *hdr = nullptr, int level = 10);
+                   const void *hdr = nullptr, int level = 3, bool verbose = false);
     ~CompressedFile();
 
     template <typename T> const T &header() const {
@@ -262,7 +262,8 @@ private:
     std::vector<uint8_t> m_in_buf;
     std::vector<uint8_t> m_out_buf;
     ZSTD_DCtx_s *m_decomp_ctx{};
-    bool m_is_read;
+    bool m_is_read{};
+    bool m_verbose{};
     std::vector<uint8_t> m_hdr_buf;
     size_t m_decomp_size{};
     uint64_t m_num_disk_ops{};
@@ -276,9 +277,9 @@ class __attribute__((visibility("default"))) CompressedFile
     : public jev::xnutrace::detail::CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, uint64_t hdr_magic,
-                   const HeaderT *hdr = nullptr, int level = 10)
-        : jev::xnutrace::detail::CompressedFile::CompressedFile{path,      read, sizeof(HeaderT),
-                                                                hdr_magic, hdr,  level} {};
+                   const HeaderT *hdr = nullptr, int level = 3, bool verbose = false)
+        : jev::xnutrace::detail::CompressedFile::CompressedFile{
+              path, read, sizeof(HeaderT), hdr_magic, hdr, level, verbose} {};
 
     const HeaderT &header() const {
         return jev::xnutrace::detail::CompressedFile::header<HeaderT>();

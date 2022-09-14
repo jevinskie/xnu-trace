@@ -7,8 +7,8 @@
 namespace jev::xnutrace::detail {
 
 CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
-                               const void *hdr, int level)
-    : m_path{path}, m_is_read{read} {
+                               const void *hdr, int level, bool verbose)
+    : m_path{path}, m_is_read{read}, m_verbose{verbose} {
     if (read) {
         m_fh = fopen(path.c_str(), "rb");
         posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
@@ -75,23 +75,30 @@ CompressedFile::~CompressedFile() {
         const auto total_comp_sz = ftell(m_fh);
         assert(total_comp_sz > 0);
         const auto comp_sz = total_comp_sz - (sizeof(log_comp_hdr) + m_hdr_buf.size());
-        fmt::print("{:s}\n",
-                   fmt::format(std::locale("en_US.UTF-8"),
-                               "wrote '{:s}'. {:Ld} / {:Ld} bytes [un]/compressed ratio: {:0.3Lf}%",
-                               m_path.filename().string(), m_decomp_size, comp_sz,
-                               ((double)comp_sz / m_decomp_size) * 100));
-        fmt::print("{:s}\n",
-                   fmt::format(std::locale("en_us.UTF-8"), "Decompressed bytes / file op: {:0.3Lf}",
-                               m_num_disk_ops ? (double)m_decomp_size / m_num_disk_ops : 0.0));
-        fmt::print("{:s}\n",
-                   fmt::format(std::locale("en_us.UTF-8"), "Decompressed bytes / zstd op: {:0.3Lf}",
-                               m_num_zstd_ops ? (double)m_decomp_size / m_num_zstd_ops : 0.0));
-        fmt::print("{:s}\n",
-                   fmt::format(std::locale("en_us.UTF-8"), "Ccompressed bytes / file op: {:0.3Lf}",
-                               m_num_disk_ops ? (double)comp_sz / m_num_disk_ops : 0.0));
-        fmt::print("{:s}\n",
-                   fmt::format(std::locale("en_us.UTF-8"), "Compressed bytes / zstd op: {:0.3Lf}",
-                               m_num_zstd_ops ? (double)comp_sz / m_num_zstd_ops : 0.0));
+        if (m_verbose) {
+            fmt::print(
+                "{:s}\n",
+                fmt::format(std::locale("en_US.UTF-8"),
+                            "wrote '{:s}'. {:Ld} / {:Ld} bytes [un]/compressed ratio: {:0.3Lf}%",
+                            m_path.filename().string(), m_decomp_size, comp_sz,
+                            ((double)comp_sz / m_decomp_size) * 100));
+            fmt::print("{:s}\n",
+                       fmt::format(std::locale("en_us.UTF-8"),
+                                   "Decompressed bytes / file op: {:0.3Lf}",
+                                   m_num_disk_ops ? (double)m_decomp_size / m_num_disk_ops : 0.0));
+            fmt::print("{:s}\n",
+                       fmt::format(std::locale("en_us.UTF-8"),
+                                   "Decompressed bytes / zstd op: {:0.3Lf}",
+                                   m_num_zstd_ops ? (double)m_decomp_size / m_num_zstd_ops : 0.0));
+            fmt::print("{:s}\n",
+                       fmt::format(std::locale("en_us.UTF-8"),
+                                   "Ccompressed bytes / file op: {:0.3Lf}",
+                                   m_num_disk_ops ? (double)comp_sz / m_num_disk_ops : 0.0));
+            fmt::print("{:s}\n",
+                       fmt::format(std::locale("en_us.UTF-8"),
+                                   "Compressed bytes / zstd op: {:0.3Lf}",
+                                   m_num_zstd_ops ? (double)comp_sz / m_num_zstd_ops : 0.0));
+        }
     }
     assert(!fclose(m_fh));
 }

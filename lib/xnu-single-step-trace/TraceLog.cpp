@@ -193,9 +193,13 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
             const auto tid = thread_buf_pair.first;
             const auto buf = thread_buf_pair.second;
             const log_thread_hdr thread_hdr{.thread_id = tid};
-            CompressedFile<log_thread_hdr> thread_fh{
-                m_log_dir_path / fmt::format("thread-{:d}.bin", tid), false, log_thread_hdr_magic,
-                &thread_hdr, m_compression_level};
+            CompressedFile<log_thread_hdr> thread_fh{m_log_dir_path /
+                                                         fmt::format("thread-{:d}.bin", tid),
+                                                     false, /* read */
+                                                     log_thread_hdr_magic,
+                                                     &thread_hdr,
+                                                     m_compression_level,
+                                                     true /* verbose */};
             thread_fh.write(buf);
         }
     }
