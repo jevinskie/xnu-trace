@@ -47,7 +47,8 @@ void MachORegions::reset() {
     CSRelease(cs);
 
     for (auto &region : m_regions) {
-        region.bytes = read_target(m_target_task, region.base, region.size);
+        region.bytes  = read_target(m_target_task, region.base, region.size);
+        region.digest = get_sha256(region.bytes);
     }
 
     std::vector<uint64_t> region_bases;
@@ -70,23 +71,19 @@ void MachORegions::reset() {
         if (vm_region.tag != 0xFF) {
             continue;
         }
+        const auto bytes = read_target(m_target_task, vm_region.base, vm_region.size);
         m_regions.emplace_back(image_info{
-            .base  = vm_region.base,
-            .size  = vm_region.size,
-            .path  = fmt::format("/tmp/pid-{:d}-jit-region-{:d}-tag-{:02x}",
-                                 pid_for_task(m_target_task), num_jit_regions, vm_region.tag),
-            .uuid  = {},
-            .bytes = read_target(m_target_task, vm_region.base, vm_region.size)});
+            .base   = vm_region.base,
+            .size   = vm_region.size,
+            .path   = fmt::format("/tmp/pid-{:d}-jit-region-{:d}-tag-{:02x}",
+                                  pid_for_task(m_target_task), num_jit_regions, vm_region.tag),
+            .uuid   = {},
+            .bytes  = bytes,
+            .digest = get_sha256(bytes)});
         ++num_jit_regions;
     }
 
     std::sort(m_regions.begin(), m_regions.end());
-
-    SHA256 digester;
-    for (auto &region : m_regions) {
-        digester.update(region.bytes);
-    }
-    m_digest = digester.digest();
 
     if (m_target_task != mach_task_self()) {
         mach_check(task_resume(m_target_task), "region reset resume");
@@ -126,8 +123,4 @@ const image_info &MachORegions::lookup(const std::string &image_name) const {
 
 const std::vector<image_info> &MachORegions::regions() const {
     return m_regions;
-}
-
-sha256_t MachORegions::digest() const {
-    return m_digest;
 }

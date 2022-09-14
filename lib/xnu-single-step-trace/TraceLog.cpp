@@ -39,8 +39,8 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
     const auto meta_buf = meta_fh.read();
     const auto meta_hdr = meta_fh.header();
 
-    CompressedFile<log_macho_regions_hdr> macho_regions_fh{m_log_dir_path / "macho-regions.bin",
-                                                           true, log_macho_regions_hdr_magic};
+    CompressedFile<log_macho_region_hdr> macho_regions_fh{m_log_dir_path / "macho-regions.bin",
+                                                          true, log_macho_region_hdr_magic};
     const auto regions_bytes = macho_regions_fh.read();
 
     auto region_ptr = (log_region *)meta_buf.data();
@@ -175,15 +175,17 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
         meta_fh.write(sym.path.c_str(), sym.path.string().size());
     }
 
-    log_macho_regions_hdr macho_regions_hdr_buf{};
-    memcpy(&macho_regions_hdr_buf.digest_sha256, macho_regions.digest().data(),
-           sizeof(macho_regions_hdr_buf.digest_sha256));
-    CompressedFile<log_macho_regions_hdr> macho_regions_fh{m_log_dir_path / "macho-regions.bin",
-                                                           false, log_macho_regions_hdr_magic,
-                                                           &macho_regions_hdr_buf, 3};
-
     for (const auto &region : macho_regions.regions()) {
-        macho_regions_fh.write(region.bytes);
+        log_macho_region_hdr macho_regions_hdr_buf{};
+        memcpy(&macho_regions_hdr_buf.digest_sha256, region.digest.data(),
+               sizeof(macho_regions_hdr_buf.digest_sha256));
+        const std::span<const uint8_t> trunc_digest{region.digest.data(), 4};
+        fs::path region_path{m_log_dir_path / fmt::format("macho-region-{:s}-{:02x}.bin",
+                                                          region.path.filename().string(),
+                                                          fmt::join(trunc_digest, ""))};
+        CompressedFile<log_macho_region_hdr> macho_region_fh{
+            region_path, false, log_macho_region_hdr_magic, &macho_regions_hdr_buf, 1};
+        macho_region_fh.write(region.bytes);
     }
 
     if (!m_stream) {

@@ -78,13 +78,13 @@ struct log_meta_hdr {
     uint64_t num_syms;
 } __attribute__((packed));
 
-struct log_macho_regions_hdr {
+struct log_macho_region_hdr {
     uint8_t digest_sha256[32];
 } __attribute__((packed));
 
-constexpr uint64_t log_meta_hdr_magic          = 0x8d3a'dfb8'4154'454dull; // 'META'
-constexpr uint64_t log_thread_hdr_magic        = 0x8d3a'dfb8'4452'4854ull; // 'THRD'
-constexpr uint64_t log_macho_regions_hdr_magic = 0x8d3a'dfb8'4843'414dull; // 'MACH'
+constexpr uint64_t log_meta_hdr_magic         = 0x8d3a'dfb8'4154'454dull; // 'META'
+constexpr uint64_t log_thread_hdr_magic       = 0x8d3a'dfb8'4452'4854ull; // 'THRD'
+constexpr uint64_t log_macho_region_hdr_magic = 0x8d3a'dfb8'4843'414dull; // 'MACH'
 
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
@@ -148,6 +148,7 @@ struct image_info {
     std::filesystem::path path;
     uuid_t uuid;
     std::vector<uint8_t> bytes;
+    sha256_t digest;
     auto operator<=>(const image_info &rhs) const {
         return base <=> rhs.base;
     }
@@ -208,7 +209,6 @@ public:
                  const std::vector<uint8_t> &regions_bytes);
     void reset();
     const std::vector<image_info> &regions() const;
-    sha256_t digest() const;
     const image_info &lookup(uint64_t addr) const;
     std::pair<const image_info &, size_t> lookup_idx(uint64_t addr) const;
     const image_info &lookup(const std::string &image_name) const;
@@ -216,7 +216,6 @@ public:
 private:
     const task_t m_target_task{};
     std::vector<image_info> m_regions;
-    sha256_t m_digest;
 };
 
 namespace jev::xnutrace::detail {
