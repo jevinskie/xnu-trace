@@ -88,7 +88,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
             thread_log.emplace_back(*inst_hdr);
             inst_hdr = inst_hdr + 1;
         }
-        m_parsed_logs.emplace(std::make_pair(thread_hdr.thread_id, thread_log));
+        m_parsed_logs.emplace(std::make_pair(thread_hdr.thread_id, std::move(thread_log)));
     }
 }
 
