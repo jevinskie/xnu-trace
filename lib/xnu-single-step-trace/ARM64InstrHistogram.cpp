@@ -23,13 +23,14 @@ void ARM64InstrHistogram::print(int max_num, unsigned int width) const {
     }
     std::sort(
         sorted.begin(), sorted.end(),
-        [](const auto &a, const auto &b) -> auto{ return a.second >= b.second; });
+        [](const auto &a, const auto &b) -> auto{ return a.second > b.second; });
     sorted.resize(max_num);
-    unsigned int idx = 0;
+    unsigned int idx = 1;
     for (const auto &[op, num] : sorted) {
         Instruction inst{.operation = (Operation)op};
-        fmt::print("{:4d}: {:s} {:d} {:s}\n", idx, get_operation(&inst), num,
-                   block_str((double)num / m_num_inst, width));
+        fmt::print("{:s}\n", fmt::format(std::locale("en_US.UTF-8"), "{:5Ld}: {:8s} {:12Ld} {:s}",
+                                         idx, get_operation(&inst), num,
+                                         block_str((double)num / m_num_inst, width)));
         ++idx;
     }
 }

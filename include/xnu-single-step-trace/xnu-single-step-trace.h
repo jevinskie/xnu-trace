@@ -213,6 +213,7 @@ public:
     const std::vector<image_info> &regions() const;
     const image_info &lookup(uint64_t addr) const;
     std::pair<const image_info &, size_t> lookup_idx(uint64_t addr) const;
+    uint32_t lookup_inst(uint64_t addr) const;
     const image_info &lookup(const std::string &image_name) const;
 
 private:

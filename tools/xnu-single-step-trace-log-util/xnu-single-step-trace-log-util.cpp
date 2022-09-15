@@ -25,15 +25,24 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
         }
     }
 
-    for (const auto &thread_trace_pair : trace.parsed_logs()) {
-        const auto tid = thread_trace_pair.first;
-        const auto log = thread_trace_pair.second;
+    for (const auto &[tid, log] : trace.parsed_logs()) {
         fmt::print("tid: {:d} sz: {:d}\n", tid, log.size());
         const auto bbs = extract_bbs_from_pc_trace(extract_pcs_from_trace(log));
         for (const auto &bb : bbs) {
             fmt::print("BB: {:#018x} [{:d}]\n", bb.pc, bb.sz);
         }
     }
+}
+
+void dump_histogram(const TraceLog &trace, int max_num) {
+    ARM64InstrHistogram hist;
+    const auto regions = trace.macho_regions();
+    for (const auto &[tid, log] : trace.parsed_logs()) {
+        for (const auto pc : extract_pcs_from_trace(log)) {
+            hist.add(regions.lookup_inst(pc));
+        }
+    }
+    hist.print(max_num);
 }
 
 void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
@@ -168,6 +177,14 @@ int main(int argc, const char **argv) {
         .default_value(false)
         .implicit_value(true)
         .help("dump trace log to console");
+    parser.add_argument("-H", "--histogram")
+        .default_value(false)
+        .implicit_value(true)
+        .help("dump instruction histogram to console");
+    parser.add_argument("-n", "--max-histogram-insts")
+        .scan<'i', int>()
+        .default_value(-1)
+        .help("print top N most frequent instructions");
 
     try {
         parser.parse_args(argc, argv);
@@ -190,6 +207,10 @@ int main(int argc, const char **argv) {
 
     if (parser.get<bool>("--dump")) {
         dump_log(trace, symbolicate);
+    }
+
+    if (parser.get<bool>("--histogram")) {
+        dump_histogram(trace, parser.get<int>("--max-histogram-insts"));
     }
 
     if (const auto calling_image = parser.present("--calls-from")) {

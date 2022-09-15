@@ -125,6 +125,15 @@ const image_info &MachORegions::lookup(const std::string &image_name) const {
     return *matches[0];
 }
 
+uint32_t MachORegions::lookup_inst(uint64_t addr) const {
+    for (const auto &img_info : m_regions) {
+        if (img_info.base <= addr && addr < img_info.base + img_info.size) {
+            return *(uint32_t *)(img_info.bytes.data() + addr - img_info.base);
+        }
+    }
+    assert(!"no region found");
+}
+
 const std::vector<image_info> &MachORegions::regions() const {
     return m_regions;
 }
