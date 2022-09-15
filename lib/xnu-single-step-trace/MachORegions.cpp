@@ -2,6 +2,12 @@
 
 #include <CoreSymbolication/CoreSymbolication.h>
 
+fs::path image_info::log_path() const {
+    const std::span<const uint8_t> trunc_digest{digest.data(), 4};
+    return {fmt::format("macho-region-{:s}-{:02x}.bin", path.filename().string(),
+                        fmt::join(trunc_digest, ""))};
+}
+
 MachORegions::MachORegions(task_t target_task) : m_target_task{target_task} {
     reset();
 }
@@ -73,12 +79,11 @@ void MachORegions::reset() {
         }
         const auto bytes = read_target(m_target_task, vm_region.base, vm_region.size);
         m_regions.emplace_back(image_info{
-            .base   = vm_region.base,
-            .size   = vm_region.size,
-            .path   = fmt::format("/tmp/pid-{:d}-jit-region-{:d}-tag-{:02x}",
-                                  pid_for_task(m_target_task), num_jit_regions, vm_region.tag),
-            .uuid   = {},
-            .bytes  = bytes,
+            .base  = vm_region.base,
+            .size  = vm_region.size,
+            .path  = fmt::format("/tmp/jit-region-{:d}-tag-{:02x}", num_jit_regions, vm_region.tag),
+            .uuid  = {},
+            .bytes = bytes,
             .digest = get_sha256(bytes)});
         ++num_jit_regions;
     }

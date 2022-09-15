@@ -30,8 +30,12 @@ std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg_hdr> 
 
 TraceLog::TraceLog(const std::string &log_dir_path, int compression_level, bool stream)
     : m_log_dir_path{log_dir_path}, m_compression_level{compression_level}, m_stream{stream} {
-    fs::remove_all(m_log_dir_path);
     fs::create_directory(m_log_dir_path);
+    for (const auto &dirent : std::filesystem::directory_iterator{m_log_dir_path}) {
+        if (!dirent.path().filename().string().starts_with("macho-region-")) {
+            fs::remove(dirent.path());
+        }
+    }
 }
 
 TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_path} {
@@ -161,6 +165,7 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
                               .slide    = region.slide,
                               .path_len = region.path.string().size()};
         memcpy(region_buf.uuid, region.uuid, sizeof(region_buf.uuid));
+        memcpy(region_buf.digest_sha256, region.digest.data(), sizeof(region_buf.digest_sha256));
         meta_fh.write(region_buf);
         meta_fh.write(region.path.c_str(), region.path.string().size());
     }
@@ -175,16 +180,38 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
         meta_fh.write(sym.path.c_str(), sym.path.string().size());
     }
 
+    // find macho-region-*.bin that are unchanged
+    std::set<fs::path> reused_macho_regions;
     for (const auto &region : macho_regions.regions()) {
-        log_macho_region_hdr macho_regions_hdr_buf{};
-        memcpy(&macho_regions_hdr_buf.digest_sha256, region.digest.data(),
-               sizeof(macho_regions_hdr_buf.digest_sha256));
-        const std::span<const uint8_t> trunc_digest{region.digest.data(), 4};
-        fs::path region_path{m_log_dir_path / fmt::format("macho-region-{:s}-{:02x}.bin",
-                                                          region.path.filename().string(),
-                                                          fmt::join(trunc_digest, ""))};
+        const auto old_region = m_log_dir_path / region.log_path();
+        if (!fs::exists(old_region)) {
+            continue;
+        }
+        CompressedFile<log_macho_region_hdr> old_region_fh{old_region, true,
+                                                           log_macho_region_hdr_magic};
+        if (!memcmp(old_region_fh.header().digest_sha256, region.digest.data(),
+                    region.digest.size())) {
+            reused_macho_regions.emplace(old_region);
+        }
+    }
+
+    // remove all macho-regions-*.bin that aren't reused
+    for (const auto &dirent : std::filesystem::directory_iterator{m_log_dir_path}) {
+        if (dirent.path().filename().string().starts_with("macho-region-") &&
+            !reused_macho_regions.contains(dirent.path())) {
+            fs::remove(dirent.path());
+        }
+    }
+
+    for (const auto &region : macho_regions.regions()) {
+        const auto region_path = m_log_dir_path / region.log_path();
+        if (reused_macho_regions.contains(region_path)) {
+            continue;
+        }
+        log_macho_region_hdr macho_region_hdr_buf{};
+        memcpy(macho_region_hdr_buf.digest_sha256, region.digest.data(), region.digest.size());
         CompressedFile<log_macho_region_hdr> macho_region_fh{
-            region_path, false, log_macho_region_hdr_magic, &macho_regions_hdr_buf, 1};
+            region_path, false, log_macho_region_hdr_magic, &macho_region_hdr_buf, 1};
         macho_region_fh.write(region.bytes);
     }
 

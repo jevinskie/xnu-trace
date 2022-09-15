@@ -52,6 +52,7 @@ struct log_region {
     uint64_t size;
     uint64_t slide;
     uuid_t uuid;
+    uint8_t digest_sha256[32];
     uint64_t path_len;
 } __attribute__((packed));
 
@@ -152,6 +153,7 @@ struct image_info {
     auto operator<=>(const image_info &rhs) const {
         return base <=> rhs.base;
     }
+    std::filesystem::path log_path() const;
 };
 
 __attribute__((visibility("default"))) std::vector<image_info>
