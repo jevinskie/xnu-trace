@@ -22,3 +22,6 @@
 [submodule "3rdparty/mbedtls"]
 	path = 3rdparty/mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls
+[submodule "3rdparty/arch-arm64"]
+	path = 3rdparty/arch-arm64
+	url = https://github.com/jevinskie/arch-arm64

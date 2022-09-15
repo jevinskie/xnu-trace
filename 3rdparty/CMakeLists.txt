@@ -1,3 +1,5 @@
+add_subdirectory(arch-arm64/disassembler)
+
 add_subdirectory(argparse)
 
 option(ZSTD_LEGACY_SUPPORT "" OFF)

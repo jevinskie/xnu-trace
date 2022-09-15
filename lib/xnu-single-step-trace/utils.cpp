@@ -156,3 +156,16 @@ sha256_t SHA256::digest() {
     m_finished = true;
     return m_digest;
 }
+
+std::string block_str(double percentage, unsigned int width) {
+    const auto full_width                    = width * 8;
+    const unsigned int num_blk               = percentage * full_width;
+    const auto full_blks                     = num_blk / 8;
+    const auto partial_blks                  = num_blk % 8;
+    static const std::string partial_chars[] = {"", "▏", "▎", "▍", "▌", "▋", "▊", "▉"};
+    std::string res;
+    for (unsigned int i = 0; i < full_blks; ++i) {
+        res += "█";
+    }
+    return res + partial_chars[partial_blks];
+}

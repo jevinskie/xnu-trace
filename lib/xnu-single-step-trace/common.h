@@ -40,6 +40,7 @@ void write_file(std::string path, const uint8_t *buf, size_t sz);
 std::vector<uint8_t> read_file(std::string path);
 std::string prot_to_str(vm_prot_t prot);
 void hexdump(const void *data, size_t size);
+std::string block_str(double percentage, unsigned int width = 80);
 
 // mach.cpp
 

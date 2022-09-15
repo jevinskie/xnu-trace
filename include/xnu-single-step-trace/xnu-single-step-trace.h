@@ -418,3 +418,14 @@ private:
     VMRegions m_vm_regions;
     std::unique_ptr<Symbols> m_symbols;
 };
+
+class __attribute__((visibility("default"))) ARM64InstrHistogram {
+public:
+    void add(uint32_t instr);
+    void print(int max_num = 64, unsigned int width = 80) const;
+
+private:
+    std::map<uint32_t, uint16_t> m_instr_to_op;
+    std::map<uint16_t, uint64_t> m_op_count;
+    uint64_t m_num_inst{};
+};
