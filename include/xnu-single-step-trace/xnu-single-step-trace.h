@@ -208,7 +208,7 @@ class __attribute__((visibility("default"))) MachORegions {
 public:
     MachORegions(task_t target_task);
     MachORegions(const log_region *region_buf, uint64_t num_regions,
-                 const std::vector<uint8_t> &regions_bytes);
+                 std::map<sha256_t, std::vector<uint8_t>> &regions_bytes);
     void reset();
     const std::vector<image_info> &regions() const;
     const image_info &lookup(uint64_t addr) const;

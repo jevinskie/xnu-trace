@@ -43,9 +43,17 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
     const auto meta_buf = meta_fh.read();
     const auto meta_hdr = meta_fh.header();
 
-    CompressedFile<log_macho_region_hdr> macho_regions_fh{m_log_dir_path / "macho-regions.bin",
-                                                          true, log_macho_region_hdr_magic};
-    const auto regions_bytes = macho_regions_fh.read();
+    std::map<sha256_t, std::vector<uint8_t>> regions_bytes;
+    for (const auto &dirent : std::filesystem::directory_iterator{log_dir_path}) {
+        if (!dirent.path().filename().string().starts_with("macho-region-")) {
+            continue;
+        }
+        CompressedFile<log_macho_region_hdr> region_fh{dirent.path(), true,
+                                                       log_macho_region_hdr_magic};
+        sha256_t digest;
+        memcpy(digest.data(), region_fh.header().digest_sha256, digest.size());
+        regions_bytes.emplace(std::make_pair(digest, region_fh.read()));
+    }
 
     auto region_ptr = (log_region *)meta_buf.data();
     m_macho_regions =
@@ -64,7 +72,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
 
     for (const auto &dirent : std::filesystem::directory_iterator{m_log_dir_path}) {
         const auto fn = dirent.path().filename();
-        if (fn == "meta.bin" || fn == "macho-regions.bin") {
+        if (fn == "meta.bin" || fn.string().starts_with("macho-region-")) {
             continue;
         }
         assert(fn.string().starts_with("thread-"));

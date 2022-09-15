@@ -13,8 +13,7 @@ MachORegions::MachORegions(task_t target_task) : m_target_task{target_task} {
 }
 
 MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions,
-                           const std::vector<uint8_t> &regions_bytes) {
-    size_t regions_bytes_off = 0;
+                           std::map<sha256_t, std::vector<uint8_t>> &regions_bytes) {
     for (uint64_t i = 0; i < num_regions; ++i) {
         const char *path_ptr = (const char *)(region_buf + 1);
         std::string path{path_ptr, region_buf->path_len};
@@ -24,10 +23,10 @@ MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions,
                             .path  = path,
                             .bytes = std::vector<uint8_t>(region_buf->size)};
         memcpy(img_info.uuid, region_buf->uuid, sizeof(img_info.uuid));
-        assert(regions_bytes_off + img_info.size <= regions_bytes.size());
-        memcpy(img_info.bytes.data(), regions_bytes.data() + regions_bytes_off, img_info.size);
+        memcpy(img_info.digest.data(), region_buf->digest_sha256, img_info.digest.size());
+        img_info.bytes = std::move(regions_bytes[img_info.digest]);
+        assert(img_info.bytes.size() == img_info.size);
         m_regions.emplace_back(img_info);
-        regions_bytes_off += img_info.size;
         region_buf =
             (log_region *)((uint8_t *)region_buf + sizeof(*region_buf) + region_buf->path_len);
     }
