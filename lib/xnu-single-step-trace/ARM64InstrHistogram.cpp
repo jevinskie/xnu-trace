@@ -2,6 +2,11 @@
 
 #include <arch-arm64/arm64dis.h>
 
+ARM64InstrHistogram::ARM64InstrHistogram() {
+    m_instr_to_op_lut.resize(1 << 22, UINT16_MAX);
+    m_op_count_lut.resize(UINT16_MAX);
+}
+
 void ARM64InstrHistogram::add(uint32_t instr) {
     if (!m_instr_to_op.contains(instr)) {
         Instruction inst_repr;
@@ -25,24 +30,24 @@ void ARM64InstrHistogram::add_mask(uint32_t instr) {
 }
 
 void ARM64InstrHistogram::add_hash(uint32_t instr) {
-    if (!m_instr_to_op.contains(instr)) {
+    if (!m_instr_to_op_hash.contains(instr >> 10)) {
         Instruction inst_repr;
         assert(aarch64_decompose(instr, &inst_repr, 0) == DECODE_STATUS_OK);
-        m_instr_to_op.emplace(instr, (uint16_t)inst_repr.operation);
+        m_instr_to_op_hash.emplace(instr >> 10, (uint16_t)inst_repr.operation);
     }
-    const auto op = m_instr_to_op[instr];
-    m_op_count.insert_or_assign(op, m_op_count[op] + 1);
+    const auto op = m_instr_to_op_hash[instr >> 10];
+    m_op_count_hash.insert_or_assign(op, m_op_count_hash[op] + 1);
     ++m_num_inst;
 }
 
 void ARM64InstrHistogram::add_lut(uint32_t instr) {
-    if (!m_instr_to_op.contains(instr)) {
+    if (m_instr_to_op_lut[instr >> 10] == UINT16_MAX) {
         Instruction inst_repr;
         assert(aarch64_decompose(instr, &inst_repr, 0) == DECODE_STATUS_OK);
-        m_instr_to_op.emplace(instr, (uint16_t)inst_repr.operation);
+        m_instr_to_op_lut[instr >> 10] = (uint16_t)inst_repr.operation;
     }
-    const auto op = m_instr_to_op[instr];
-    m_op_count.insert_or_assign(op, m_op_count[op] + 1);
+    const auto op = m_instr_to_op_lut[instr >> 10];
+    ++m_op_count_lut[op];
     ++m_num_inst;
 }
 
