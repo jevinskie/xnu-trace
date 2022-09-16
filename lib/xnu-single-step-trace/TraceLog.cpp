@@ -84,7 +84,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
         std::vector<log_msg_hdr> thread_log;
         auto inst_hdr           = (log_msg_hdr *)thread_buf.data();
         const auto inst_hdr_end = (log_msg_hdr *)(thread_buf.data() + thread_buf.size());
-        thread_log.reserve(thread_hdr.num_inst);
+        thread_log.resize(thread_hdr.num_inst);
         size_t i = 0;
         while (inst_hdr < inst_hdr_end) {
             thread_log[i++] = *inst_hdr;
