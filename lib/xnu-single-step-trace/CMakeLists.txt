@@ -53,6 +53,7 @@ target_link_libraries(xnu-single-step-trace
 PUBLIC
     interval-tree
     frida-gum
+    absl::flat_hash_map
 PRIVATE
     bn-arm64-disasm
     CoreSymbolication

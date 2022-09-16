@@ -31,4 +31,29 @@ static void BM_lookup_inst(benchmark::State &state) {
 
 BENCHMARK(BM_lookup_inst);
 
+static void BM_histogram_add(benchmark::State &state) {
+    const auto trace   = TraceLog("harness.bundle");
+    const auto regions = trace.macho_regions();
+    std::vector<uint32_t> instrs;
+    instrs.reserve(trace.num_inst());
+    size_t i = 0;
+    for (const auto &[tid, log] : trace.parsed_logs()) {
+        for (const auto msg : log) {
+            instrs[i] = regions.lookup_inst(msg.pc);
+            ++i;
+        }
+    }
+    const auto num_instrs  = instrs.size();
+    const auto *instrs_buf = instrs.data();
+
+    ARM64InstrHistogram hist;
+    i = 0;
+    for (auto _ : state) {
+        hist.add(instrs_buf[i % num_instrs]);
+        ++i;
+    }
+}
+
+BENCHMARK(BM_histogram_add);
+
 BENCHMARK_MAIN();

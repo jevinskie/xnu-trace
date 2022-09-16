@@ -13,6 +13,39 @@ void ARM64InstrHistogram::add(uint32_t instr) {
     ++m_num_inst;
 }
 
+void ARM64InstrHistogram::add_mask(uint32_t instr) {
+    if (!m_instr_to_op.contains(instr >> 10)) {
+        Instruction inst_repr;
+        assert(aarch64_decompose(instr, &inst_repr, 0) == DECODE_STATUS_OK);
+        m_instr_to_op.emplace(instr >> 10, (uint16_t)inst_repr.operation);
+    }
+    const auto op = m_instr_to_op[instr >> 10];
+    m_op_count.insert_or_assign(op, m_op_count[op] + 1);
+    ++m_num_inst;
+}
+
+void ARM64InstrHistogram::add_hash(uint32_t instr) {
+    if (!m_instr_to_op.contains(instr)) {
+        Instruction inst_repr;
+        assert(aarch64_decompose(instr, &inst_repr, 0) == DECODE_STATUS_OK);
+        m_instr_to_op.emplace(instr, (uint16_t)inst_repr.operation);
+    }
+    const auto op = m_instr_to_op[instr];
+    m_op_count.insert_or_assign(op, m_op_count[op] + 1);
+    ++m_num_inst;
+}
+
+void ARM64InstrHistogram::add_lut(uint32_t instr) {
+    if (!m_instr_to_op.contains(instr)) {
+        Instruction inst_repr;
+        assert(aarch64_decompose(instr, &inst_repr, 0) == DECODE_STATUS_OK);
+        m_instr_to_op.emplace(instr, (uint16_t)inst_repr.operation);
+    }
+    const auto op = m_instr_to_op[instr];
+    m_op_count.insert_or_assign(op, m_op_count[op] + 1);
+    ++m_num_inst;
+}
+
 void ARM64InstrHistogram::print(int max_num, unsigned int width) const {
     if (max_num < 0) {
         max_num = (int)m_op_count.size();

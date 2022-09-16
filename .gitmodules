@@ -31,3 +31,6 @@
 [submodule "3rdparty/benchmark"]
 	path = 3rdparty/benchmark
 	url = https://github.com/jevinskie/benchmark
+[submodule "3rdparty/abseil-cpp"]
+	path = 3rdparty/abseil
+	url = https://github.com/abseil/abseil-cpp

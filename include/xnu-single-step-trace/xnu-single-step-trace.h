@@ -17,6 +17,7 @@
 #include <mach/mach.h>
 #include <uuid/uuid.h>
 
+#include <absl/container/flat_hash_map.h>
 #undef G_DISABLE_ASSERT
 #include <frida-gum.h>
 #include <interval-tree/interval_tree.hpp>
@@ -72,6 +73,7 @@ struct log_comp_hdr {
 
 struct log_thread_hdr {
     uint64_t thread_id;
+    uint64_t num_inst;
 } __attribute__((packed));
 
 struct log_meta_hdr {
@@ -325,6 +327,7 @@ private:
     std::filesystem::path m_log_dir_path;
     int m_compression_level{};
     bool m_stream{};
+    absl::flat_hash_map<uint32_t, uint64_t> m_thread_num_inst;
 };
 
 class __attribute__((visibility("default"))) XNUTracer {
@@ -423,6 +426,10 @@ private:
 class __attribute__((visibility("default"))) ARM64InstrHistogram {
 public:
     void add(uint32_t instr);
+    void add_mask(uint32_t instr);
+    void add_hash(uint32_t instr);
+    void add_lut(uint32_t instr);
+
     void print(int max_num = 64, unsigned int width = 80) const;
 
 private:

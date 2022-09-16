@@ -84,10 +84,13 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
         std::vector<log_msg_hdr> thread_log;
         auto inst_hdr           = (log_msg_hdr *)thread_buf.data();
         const auto inst_hdr_end = (log_msg_hdr *)(thread_buf.data() + thread_buf.size());
+        thread_log.reserve(thread_hdr.num_inst);
+        size_t i = 0;
         while (inst_hdr < inst_hdr_end) {
-            thread_log.emplace_back(*inst_hdr);
-            inst_hdr = inst_hdr + 1;
+            thread_log[i++] = *inst_hdr;
+            ++inst_hdr;
         }
+        m_num_inst += thread_hdr.num_inst;
         m_parsed_logs.emplace(thread_hdr.thread_id, std::move(thread_log));
     }
 }
@@ -139,6 +142,7 @@ __attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) 
         }
         m_log_streams[thread]->write(msg_hdr);
     }
+    m_thread_num_inst[thread] += 1;
     ++m_num_inst;
 }
 
@@ -227,7 +231,7 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
         for (const auto &thread_buf_pair : m_log_bufs) {
             const auto tid = thread_buf_pair.first;
             const auto buf = thread_buf_pair.second;
-            const log_thread_hdr thread_hdr{.thread_id = tid};
+            const log_thread_hdr thread_hdr{.thread_id = tid, .num_inst = m_thread_num_inst[tid]};
             CompressedFile<log_thread_hdr> thread_fh{m_log_dir_path /
                                                          fmt::format("thread-{:d}.bin", tid),
                                                      false, /* read */
