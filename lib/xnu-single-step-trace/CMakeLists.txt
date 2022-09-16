@@ -59,7 +59,6 @@ PRIVATE
     fmt
     libzstd_static
     mbedcrypto
-    perf-macos
 )
 target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
 

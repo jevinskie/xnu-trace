@@ -28,3 +28,6 @@
 [submodule "3rdparty/perf-macos"]
 	path = 3rdparty/perf-macos
 	url = https://github.com/jevinskie/perf-macos
+[submodule "3rdparty/benchmark"]
+	path = 3rdparty/benchmark
+	url = https://github.com/jevinskie/benchmark

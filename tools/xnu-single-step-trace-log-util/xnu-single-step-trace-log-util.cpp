@@ -8,7 +8,6 @@
 
 #include <argparse/argparse.hpp>
 #include <fmt/format.h>
-#include <perf-macos.hpp>
 
 namespace fs = std::filesystem;
 
@@ -36,8 +35,6 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
 }
 
 void dump_histogram(const TraceLog &trace, int max_num) {
-    Perf::Counter counter;
-    counter.start();
     ARM64InstrHistogram hist;
     const auto regions = trace.macho_regions();
     for (const auto &[tid, log] : trace.parsed_logs()) {
@@ -46,8 +43,6 @@ void dump_histogram(const TraceLog &trace, int max_num) {
         }
     }
     hist.print(max_num);
-    const auto measurement = counter.stop();
-    measurement.pretty_print();
 }
 
 void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
