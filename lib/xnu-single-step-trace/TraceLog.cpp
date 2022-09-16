@@ -52,7 +52,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
                                                        log_macho_region_hdr_magic};
         sha256_t digest;
         memcpy(digest.data(), region_fh.header().digest_sha256, digest.size());
-        regions_bytes.emplace(std::make_pair(digest, region_fh.read()));
+        regions_bytes.emplace(digest, region_fh.read());
     }
 
     auto region_ptr = (log_region *)meta_buf.data();
@@ -88,7 +88,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
             thread_log.emplace_back(*inst_hdr);
             inst_hdr = inst_hdr + 1;
         }
-        m_parsed_logs.emplace(std::make_pair(thread_hdr.thread_id, std::move(thread_log)));
+        m_parsed_logs.emplace(thread_hdr.thread_id, std::move(thread_log));
     }
 }
 
@@ -132,10 +132,10 @@ __attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) 
     } else {
         if (!m_log_streams.contains(thread)) {
             const log_thread_hdr thread_hdr{.thread_id = thread};
-            m_log_streams.emplace(std::make_pair(
+            m_log_streams.emplace(
                 thread, std::make_unique<CompressedFile<log_thread_hdr>>(
                             m_log_dir_path / fmt::format("thread-{:d}.bin", thread), false,
-                            log_thread_hdr_magic, &thread_hdr, m_compression_level)));
+                            log_thread_hdr_magic, &thread_hdr, m_compression_level));
         }
         m_log_streams[thread]->write(msg_hdr);
     }

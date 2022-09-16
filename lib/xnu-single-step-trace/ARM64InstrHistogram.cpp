@@ -6,7 +6,7 @@ void ARM64InstrHistogram::add(uint32_t instr) {
     if (!m_instr_to_op.contains(instr)) {
         Instruction inst_repr;
         assert(aarch64_decompose(instr, &inst_repr, 0) == DECODE_STATUS_OK);
-        m_instr_to_op.emplace(std::make_pair(instr, (uint16_t)inst_repr.operation));
+        m_instr_to_op.emplace(instr, (uint16_t)inst_repr.operation);
     }
     const auto op = m_instr_to_op[instr];
     m_op_count.insert_or_assign(op, m_op_count[op] + 1);

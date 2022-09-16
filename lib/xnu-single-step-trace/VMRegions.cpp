@@ -7,7 +7,7 @@ std::vector<region> get_vm_regions(task_t target_task) {
     vm_address_t addr = 0;
     kern_return_t kr;
     natural_t depth = 0;
-    while (1) {
+    while (true) {
         vm_size_t sz{};
         vm_region_submap_info_64 info{};
         mach_msg_type_number_t cnt = VM_REGION_SUBMAP_INFO_COUNT_64;
@@ -30,8 +30,8 @@ std::vector<region> get_vm_regions(task_t target_task) {
                                 .size   = sz,
                                 .depth  = depth,
                                 .prot   = info.protection,
-                                .submap = !!info.is_submap,
-                                .tag    = info.user_tag});
+                                .tag    = info.user_tag,
+                                .submap = !!info.is_submap});
         if (info.is_submap) {
             depth += 1;
             continue;

@@ -28,11 +28,14 @@ add_link_options(-Os -Wl,-dead_strip)
 # add_compile_options(-fsanitize=memory)
 # add_link_options(-fsanitize=memory)
 
-add_compile_options(-Ofast)
-add_link_options(-Ofast)
+add_compile_options(-O3)
+add_link_options(-O3)
 
-add_compile_options(-flto=full -fwhole-program-vtables -fvirtual-function-elimination)
-add_link_options(-flto=full)
+# add_compile_options(-Ofast)
+# add_link_options(-Ofast)
+
+# add_compile_options(-flto=full -fwhole-program-vtables -fvirtual-function-elimination)
+# add_link_options(-flto=full)
 
 # lol just don't its so bad
 # add_compile_options(-fno-inline)

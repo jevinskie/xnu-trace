@@ -28,7 +28,7 @@ pid_t pid_for_name(std::string process_name) {
         if (proc_pidpath(pid, path_buf, sizeof(path_buf)) > 0) {
             std::filesystem::path path{path_buf};
             if (path.filename().string() == process_name) {
-                matches.emplace_back(std::make_pair(path, pid));
+                matches.emplace_back(path, pid);
             }
         }
     }
