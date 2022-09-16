@@ -16,6 +16,7 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
         assert(fread(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
         assert(comp_hdr.magic == hdr_magic || hdr_magic == UINT64_MAX);
         assert(comp_hdr.header_size == hdr_sz || hdr_sz == UINT64_MAX);
+        m_hdr_sz      = comp_hdr.header_size;
         m_decomp_size = comp_hdr.decompressed_size;
         m_hdr_buf.resize(comp_hdr.header_size);
         assert(fread(m_hdr_buf.data(), comp_hdr.header_size, 1, m_fh) == 1);
@@ -27,11 +28,14 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
         }
     } else {
         assert(hdr);
+        m_hdr_sz = hdr_sz;
+        m_hdr_buf.resize(hdr_sz);
         m_fh = fopen(path.c_str(), "wb");
         posix_check(!m_fh, fmt::format("can't open '{:s}", path.string()));
         log_comp_hdr comp_hdr{
             .magic = hdr_magic, .is_compressed = level != 0, .header_size = hdr_sz};
         assert(fwrite(&comp_hdr, sizeof(comp_hdr), 1, m_fh) == 1);
+        memcpy(m_hdr_buf.data(), hdr, m_hdr_buf.size());
         assert(fwrite(hdr, hdr_sz, 1, m_fh) == 1);
         if (level) {
             m_comp_ctx = ZSTD_createCCtx();
@@ -71,6 +75,9 @@ CompressedFile::~CompressedFile() {
     if (!m_is_read) {
         assert(!fseek(m_fh, offsetof(log_comp_hdr, decompressed_size), SEEK_SET));
         assert(fwrite(&m_decomp_size, sizeof(m_decomp_size), 1, m_fh) == 1);
+        assert(!fseek(m_fh, sizeof(log_comp_hdr), SEEK_SET));
+        assert(m_hdr_sz == m_hdr_buf.size());
+        assert(fwrite(m_hdr_buf.data(), m_hdr_buf.size(), 1, m_fh) == 1);
         assert(!fseek(m_fh, 0, SEEK_END));
         const auto total_comp_sz = ftell(m_fh);
         assert(total_comp_sz > 0);

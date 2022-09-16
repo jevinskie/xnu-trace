@@ -228,9 +228,7 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
     }
 
     if (!m_stream) {
-        for (const auto &thread_buf_pair : m_log_bufs) {
-            const auto tid = thread_buf_pair.first;
-            const auto buf = thread_buf_pair.second;
+        for (const auto &[tid, buf] : m_log_bufs) {
             const log_thread_hdr thread_hdr{.thread_id = tid, .num_inst = m_thread_num_inst[tid]};
             CompressedFile<log_thread_hdr> thread_fh{m_log_dir_path /
                                                          fmt::format("thread-{:d}.bin", tid),
@@ -240,6 +238,10 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
                                                      m_compression_level,
                                                      true /* verbose */};
             thread_fh.write(buf);
+        }
+    } else {
+        for (const auto &[tid, cf] : m_log_streams) {
+            cf->header().num_inst = m_thread_num_inst[tid];
         }
     }
 }

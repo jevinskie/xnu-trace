@@ -232,11 +232,16 @@ public:
     ~CompressedFile();
 
     template <typename T> const T &header() const {
-        assert(m_is_read);
         assert(sizeof(T) == m_hdr_buf.size());
         return *(T *)m_hdr_buf.data();
-    }
+    };
+    template <typename T> T &header() {
+        return const_cast<T &>(std::as_const(*this).header<T>());
+    };
     const std::vector<uint8_t> &header_buf() const;
+    std::vector<uint8_t> &header_buf() {
+        return const_cast<std::vector<uint8_t> &>(std::as_const(*this).header_buf());
+    }
 
     std::vector<uint8_t> read();
     std::vector<uint8_t> read(size_t size);
@@ -273,6 +278,7 @@ private:
     size_t m_decomp_size{};
     uint64_t m_num_disk_ops{};
     uint64_t m_num_zstd_ops{};
+    size_t m_hdr_sz{};
 };
 
 } // namespace jev::xnutrace::detail
@@ -288,6 +294,9 @@ public:
 
     const HeaderT &header() const {
         return jev::xnutrace::detail::CompressedFile::header<HeaderT>();
+    }
+    HeaderT &header() {
+        return const_cast<HeaderT &>(std::as_const(*this).header());
     }
 };
 
