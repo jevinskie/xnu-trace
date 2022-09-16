@@ -63,7 +63,7 @@ void FridaStalker::transform_cb(GumStalkerIterator *iterator, GumStalkerOutput *
 void FridaStalker::instruction_cb(GumCpuContext *context, gpointer user_data) {
     (void)context;
     auto thiz = (FridaStalker *)user_data;
-    thiz->logger().log(gum_process_get_current_thread_id(), context->pc);
+    thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), context->pc);
 }
 
 // C API

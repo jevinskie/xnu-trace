@@ -15,7 +15,7 @@ void ARM64InstrHistogram::add(uint32_t instr) {
 
 void ARM64InstrHistogram::print(int max_num, unsigned int width) const {
     if (max_num < 0) {
-        max_num = m_op_count.size();
+        max_num = (int)m_op_count.size();
     }
     std::vector<std::pair<uint16_t, uint64_t>> sorted;
     for (const auto &it : m_op_count) {
