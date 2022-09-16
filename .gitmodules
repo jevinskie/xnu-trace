@@ -25,3 +25,6 @@
 [submodule "3rdparty/arch-arm64"]
 	path = 3rdparty/arch-arm64
 	url = https://github.com/jevinskie/arch-arm64
+[submodule "3rdparty/perf-macos"]
+	path = 3rdparty/perf-macos
+	url = https://github.com/jevinskie/perf-macos

@@ -24,6 +24,8 @@ option(ENABLE_PROGRAMS "" OFF)
 option(ENABLE_TESTING "" OFF)
 add_subdirectory(mbedtls)
 
+add_subdirectory(perf-macos)
+
 cmake_policy(SET CMP0135 NEW)
 include(FetchContent)
 FetchContent_Declare(

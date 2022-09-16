@@ -49,7 +49,18 @@ add_custom_command(OUTPUT
 add_library(xnu-single-step-trace SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
 set_target_properties(xnu-single-step-trace PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
 
-target_link_libraries(xnu-single-step-trace PUBLIC interval-tree PUBLIC frida-gum PRIVATE bn-arm64-disasm CoreSymbolication fmt libzstd_static mbedcrypto)
+target_link_libraries(xnu-single-step-trace
+PUBLIC
+    interval-tree
+    frida-gum
+PRIVATE
+    bn-arm64-disasm
+    CoreSymbolication
+    fmt
+    libzstd_static
+    mbedcrypto
+    perf-macos
+)
 target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
 
 target_include_directories(xnu-single-step-trace
