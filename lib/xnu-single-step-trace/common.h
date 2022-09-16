@@ -8,6 +8,7 @@
 #include <mach-o/dyld_images.h>
 #include <mach-o/loader.h>
 
+#include <BS_thread_pool.hpp>
 #include <fmt/format.h>
 
 namespace fs = std::filesystem;

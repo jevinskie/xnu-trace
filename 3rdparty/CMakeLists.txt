@@ -28,6 +28,9 @@ add_subdirectory(mbedtls)
 
 add_subdirectory(abseil)
 
+add_library(thread-pool INTERFACE)
+target_include_directories(thread-pool INTERFACE thread-pool)
+
 set(BENCHMARK_ENABLE_TESTING OFF)
 add_subdirectory(benchmark)
 

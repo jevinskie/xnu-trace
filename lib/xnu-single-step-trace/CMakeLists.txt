@@ -60,6 +60,7 @@ PRIVATE
     fmt
     libzstd_static
     mbedcrypto
+    thread-pool
 )
 target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
 

@@ -22,8 +22,10 @@ std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs
 
 std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs) {
     std::vector<uint64_t> pcs;
+    pcs.resize(msgs.size());
+    size_t i = 0;
     for (const auto &msg : msgs) {
-        pcs.emplace_back(msg.pc);
+        pcs[i++] = msg.pc;
     }
     return pcs;
 }

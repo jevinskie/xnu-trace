@@ -34,3 +34,6 @@
 [submodule "3rdparty/abseil-cpp"]
 	path = 3rdparty/abseil
 	url = https://github.com/abseil/abseil-cpp
+[submodule "3rdparty/thread-pool"]
+	path = 3rdparty/thread-pool
+	url = https://github.com/bshoshany/thread-pool
