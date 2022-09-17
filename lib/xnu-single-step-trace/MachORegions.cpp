@@ -31,6 +31,7 @@ MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions,
             (log_region *)((uint8_t *)region_buf + sizeof(*region_buf) + region_buf->path_len);
     }
     std::sort(m_regions.begin(), m_regions.end());
+    create_regions_lut();
 }
 
 void MachORegions::reset() {
@@ -88,6 +89,7 @@ void MachORegions::reset() {
     }
 
     std::sort(m_regions.begin(), m_regions.end());
+    create_regions_lut();
 
     if (m_target_task != mach_task_self()) {
         mach_check(task_resume(m_target_task), "region reset resume");
@@ -132,8 +134,24 @@ uint32_t MachORegions::lookup_inst(uint64_t addr) const {
         }
     }
     assert(!"no region found");
+    // const auto it = std::prev(std::upper_bound(m_regions_lut.begin(), m_regions_lut.end(),
+    // region_lookup{.base = addr})); return *(uint32_t *)(it->buf + addr - it->base); region_lookup
+    // last; for (const auto &rl : m_regions_lut) {
+    //     if (rl.base > addr) {
+    //         return *(uint32_t *)(last.buf + addr - last.base);
+    //     }
+    //     last = rl;
+    // }
+    // return *(uint32_t *)(last.buf + addr - last.base);
 }
 
 const std::vector<image_info> &MachORegions::regions() const {
     return m_regions;
+}
+
+void MachORegions::create_regions_lut() {
+    m_regions_lut.clear();
+    for (const auto &region : m_regions) {
+        m_regions_lut.emplace_back(region_lookup{.base = region.base, .buf = region.bytes.data()});
+    }
 }

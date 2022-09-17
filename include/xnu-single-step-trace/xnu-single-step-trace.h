@@ -24,6 +24,9 @@
 
 #include "xnu-single-step-trace-c.h"
 
+#define XNUTRACE_EXPORT __attribute__((visibility("default")))
+#define XNUTRACE_INLINE __attribute__((always_inline))
+
 struct ZSTD_CCtx_s;
 struct ZSTD_DCtx_s;
 struct mbedtls_sha256_context;
@@ -92,36 +95,35 @@ constexpr uint64_t log_macho_region_hdr_magic = 0x8d3a'dfb8'4843'414dull; // 'MA
 constexpr int pipe_tracer2target_fd = STDERR_FILENO + 1;
 constexpr int pipe_target2tracer_fd = STDERR_FILENO + 2;
 
-__attribute__((visibility("default"))) void pipe_set_single_step(bool do_ss);
+XNUTRACE_EXPORT void pipe_set_single_step(bool do_ss);
 
 void set_single_step_thread(thread_t thread, bool do_ss);
 void set_single_step_task(task_t thread, bool do_ss);
 
-__attribute__((visibility("default"))) pid_t pid_for_name(std::string process_name);
+XNUTRACE_EXPORT pid_t pid_for_name(std::string process_name);
 
-__attribute__((visibility("default"))) pid_t pid_for_task(task_t task);
+XNUTRACE_EXPORT pid_t pid_for_task(task_t task);
 
-__attribute__((visibility("default"))) bool task_is_valid(task_t task);
+XNUTRACE_EXPORT bool task_is_valid(task_t task);
 
-__attribute__((visibility("default"))) int64_t get_task_for_pid_count(task_t task);
+XNUTRACE_EXPORT int64_t get_task_for_pid_count(task_t task);
 
-__attribute__((visibility("default"))) int32_t get_context_switch_count(pid_t pid);
+XNUTRACE_EXPORT int32_t get_context_switch_count(pid_t pid);
 
-__attribute__((visibility("default"))) integer_t get_suspend_count(task_t task);
+XNUTRACE_EXPORT integer_t get_suspend_count(task_t task);
 
-__attribute__((visibility("default"))) void write_file(std::string path, const uint8_t *buf,
-                                                       size_t sz);
+XNUTRACE_EXPORT void write_file(std::string path, const uint8_t *buf, size_t sz);
 
-__attribute__((visibility("default"))) std::vector<uint8_t> read_file(std::string path);
+XNUTRACE_EXPORT std::vector<uint8_t> read_file(std::string path);
 
-__attribute__((visibility("default"))) void hexdump(const void *data, size_t size);
+XNUTRACE_EXPORT void hexdump(const void *data, size_t size);
 
-__attribute__((visibility("default"))) std::vector<uint8_t>
-read_target(task_t target_task, uint64_t target_addr, uint64_t sz);
+XNUTRACE_EXPORT std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr,
+                                                 uint64_t sz);
 
-__attribute__((visibility("default"))) sha256_t get_sha256(std::span<const uint8_t> buf);
+XNUTRACE_EXPORT sha256_t get_sha256(std::span<const uint8_t> buf);
 
-class __attribute__((visibility("default"))) SHA256 {
+class XNUTRACE_EXPORT SHA256 {
 public:
     SHA256();
     ~SHA256();
@@ -158,8 +160,7 @@ struct image_info {
     std::filesystem::path log_path() const;
 };
 
-__attribute__((visibility("default"))) std::vector<image_info>
-get_dyld_image_infos(task_t target_task);
+XNUTRACE_EXPORT std::vector<image_info> get_dyld_image_infos(task_t target_task);
 
 struct region {
     uint64_t base;
@@ -174,13 +175,13 @@ struct region {
     }
 };
 
-__attribute__((visibility("default"))) std::vector<sym_info> get_symbols(task_t target_task);
+XNUTRACE_EXPORT std::vector<sym_info> get_symbols(task_t target_task);
 
-__attribute__((visibility("default"))) std::vector<sym_info>
+XNUTRACE_EXPORT std::vector<sym_info>
 get_symbols_in_intervals(const std::vector<sym_info> &syms,
                          const lib_interval_tree::interval_tree_t<uint64_t> &intervals);
 
-class __attribute__((visibility("default"))) Symbols {
+class XNUTRACE_EXPORT Symbols {
 public:
     Symbols(task_t target_task);
     Symbols(const log_sym *sym_buf, uint64_t num_syms);
@@ -193,9 +194,9 @@ private:
     std::vector<sym_info> m_syms;
 };
 
-__attribute__((visibility("default"))) std::vector<region> get_vm_regions(task_t target_task);
+XNUTRACE_EXPORT std::vector<region> get_vm_regions(task_t target_task);
 
-class __attribute__((visibility("default"))) VMRegions {
+class XNUTRACE_EXPORT VMRegions {
 public:
     VMRegions(task_t target_task);
 
@@ -206,26 +207,35 @@ private:
     std::vector<region> m_all_regions;
 };
 
-class __attribute__((visibility("default"))) MachORegions {
+class XNUTRACE_EXPORT MachORegions {
 public:
     MachORegions(task_t target_task);
     MachORegions(const log_region *region_buf, uint64_t num_regions,
                  std::map<sha256_t, std::vector<uint8_t>> &regions_bytes);
     void reset();
     const std::vector<image_info> &regions() const;
-    const image_info &lookup(uint64_t addr) const;
-    std::pair<const image_info &, size_t> lookup_idx(uint64_t addr) const;
-    uint32_t lookup_inst(uint64_t addr) const;
+    XNUTRACE_INLINE const image_info &lookup(uint64_t addr) const;
+    XNUTRACE_INLINE std::pair<const image_info &, size_t> lookup_idx(uint64_t addr) const;
+    XNUTRACE_INLINE uint32_t lookup_inst(uint64_t addr) const;
     const image_info &lookup(const std::string &image_name) const;
 
 private:
+    struct region_lookup {
+        uint64_t base;
+        const uint8_t *buf;
+        auto operator<=>(const region_lookup &rhs) const {
+            return base <=> rhs.base;
+        }
+    };
+    void create_regions_lut();
     const task_t m_target_task{};
     std::vector<image_info> m_regions;
+    std::vector<region_lookup> m_regions_lut;
 };
 
 namespace jev::xnutrace::detail {
 
-class __attribute__((visibility("default"))) CompressedFile {
+class XNUTRACE_EXPORT CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
                    const void *hdr = nullptr, int level = 3, bool verbose = false);
@@ -284,8 +294,7 @@ private:
 } // namespace jev::xnutrace::detail
 
 template <typename HeaderT>
-class __attribute__((visibility("default"))) CompressedFile
-    : public jev::xnutrace::detail::CompressedFile {
+class XNUTRACE_EXPORT CompressedFile : public jev::xnutrace::detail::CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, uint64_t hdr_magic,
                    const HeaderT *hdr = nullptr, int level = 3, bool verbose = false)
@@ -300,25 +309,23 @@ public:
     }
 };
 
-class __attribute__((visibility("default"))) CompressedFileRawRead
-    : public jev::xnutrace::detail::CompressedFile {
+class XNUTRACE_EXPORT CompressedFileRawRead : public jev::xnutrace::detail::CompressedFile {
 public:
     CompressedFileRawRead(const std::filesystem::path &path)
         : jev::xnutrace::detail::CompressedFile::CompressedFile{path, true, UINT64_MAX,
                                                                 UINT64_MAX} {};
 };
 
-__attribute__((visibility("default"))) std::vector<bb_t>
-extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
+XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
 
-__attribute__((visibility("default"))) std::vector<uint64_t>
+XNUTRACE_EXPORT std::vector<uint64_t>
 extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs);
 
-class __attribute__((visibility("default"))) TraceLog {
+class XNUTRACE_EXPORT TraceLog {
 public:
     TraceLog(const std::string &log_dir_path, int compression_level, bool stream);
     TraceLog(const std::string &log_dir_path);
-    __attribute__((always_inline)) void log(thread_t thread, uint64_t pc);
+    XNUTRACE_INLINE void log(thread_t thread, uint64_t pc);
     void write(const MachORegions &macho_regions, const Symbols *symbols = nullptr);
     uint64_t num_inst() const;
     size_t num_bytes() const;
@@ -339,7 +346,7 @@ private:
     absl::flat_hash_map<uint32_t, uint64_t> m_thread_num_inst;
 };
 
-class __attribute__((visibility("default"))) XNUTracer {
+class XNUTRACE_EXPORT XNUTracer {
 public:
     struct opts {
         std::string trace_path;
@@ -362,7 +369,7 @@ public:
     dispatch_source_t breakpoint_exception_port_dispath_source();
     dispatch_source_t pipe_dispatch_source();
     void set_single_step(bool do_single_step);
-    __attribute__((always_inline)) TraceLog &logger();
+    XNUTRACE_INLINE TraceLog &logger();
     double elapsed_time() const;
     uint64_t context_switch_count_self() const;
     uint64_t context_switch_count_target() const;
@@ -407,7 +414,7 @@ private:
     std::unique_ptr<Symbols> m_symbols;
 };
 
-class __attribute__((visibility("default"))) FridaStalker {
+class XNUTRACE_EXPORT FridaStalker {
 public:
     FridaStalker(const std::string &log_dir_path, bool symbolicate, int compression_level,
                  bool stream);
@@ -416,7 +423,7 @@ public:
     void follow(GumThreadId thread_id);
     void unfollow();
     void unfollow(GumThreadId thread_id);
-    __attribute__((always_inline)) TraceLog &logger();
+    XNUTRACE_INLINE TraceLog &logger();
 
 private:
     void write_trace();
@@ -432,10 +439,10 @@ private:
     std::unique_ptr<Symbols> m_symbols;
 };
 
-class __attribute__((visibility("default"))) ARM64InstrHistogram {
+class XNUTRACE_EXPORT ARM64InstrHistogram {
 public:
     ARM64InstrHistogram();
-    __attribute__((always_inline)) void add(uint32_t instr);
+    XNUTRACE_INLINE void add(uint32_t instr);
 
     void print(int max_num = 64, unsigned int width = 80) const;
 
