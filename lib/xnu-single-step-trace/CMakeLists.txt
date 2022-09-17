@@ -55,6 +55,7 @@ PUBLIC
     interval-tree
     frida-gum
     absl::flat_hash_map
+    pthash
 PRIVATE
     bn-arm64-disasm
     CoreSymbolication
@@ -75,6 +76,7 @@ PUBLIC
     interval-tree
     frida-gum
     absl::flat_hash_map
+    pthash
 PRIVATE
     bn-arm64-disasm
     CoreSymbolication

@@ -21,6 +21,7 @@
 #undef G_DISABLE_ASSERT
 #include <frida-gum.h>
 #include <interval-tree/interval_tree.hpp>
+#include <pthash/pthash.hpp>
 
 #include "xnu-single-step-trace-c.h"
 
@@ -35,6 +36,10 @@ template <typename T>
 concept POD = std::is_trivial_v<T> && std::is_standard_layout_v<T>;
 
 using sha256_t = std::array<uint8_t, 32>;
+
+constexpr uint64_t PAGE_SZ      = 4 * 1024;
+constexpr uint64_t PAGE_SZ_LOG2 = 12;
+constexpr uint64_t PAGE_SZ_MASK = 0xfff;
 
 struct bb_t {
     uint64_t pc;
@@ -228,6 +233,7 @@ private:
         }
     };
     void create_regions_lut();
+    void create_hash();
     const task_t m_target_task{};
     std::vector<image_info> m_regions;
     std::vector<region_lookup> m_regions_lut;

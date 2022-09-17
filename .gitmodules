@@ -37,3 +37,6 @@
 [submodule "3rdparty/thread-pool"]
 	path = 3rdparty/thread-pool
 	url = https://github.com/bshoshany/thread-pool
+[submodule "3rdparty/pthash"]
+	path = 3rdparty/pthash
+	url = https://github.com/jevinskie/pthash

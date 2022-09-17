@@ -28,6 +28,8 @@ add_subdirectory(mbedtls)
 
 add_subdirectory(abseil)
 
+add_subdirectory(pthash)
+
 add_library(thread-pool INTERFACE)
 target_include_directories(thread-pool INTERFACE thread-pool)
 

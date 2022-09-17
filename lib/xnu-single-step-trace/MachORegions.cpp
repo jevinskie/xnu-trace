@@ -32,6 +32,7 @@ MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions,
     }
     std::sort(m_regions.begin(), m_regions.end());
     create_regions_lut();
+    create_hash();
 }
 
 void MachORegions::reset() {
@@ -53,6 +54,7 @@ void MachORegions::reset() {
     CSRelease(cs);
 
     for (auto &region : m_regions) {
+        region.size   = roundup_pow2_mul(region.size, PAGE_SZ);
         region.bytes  = read_target(m_target_task, region.base, region.size);
         region.digest = get_sha256(region.bytes);
     }
@@ -90,6 +92,7 @@ void MachORegions::reset() {
 
     std::sort(m_regions.begin(), m_regions.end());
     create_regions_lut();
+    create_hash();
 
     if (m_target_task != mach_task_self()) {
         mach_check(task_resume(m_target_task), "region reset resume");
@@ -154,4 +157,40 @@ void MachORegions::create_regions_lut() {
     for (const auto &region : m_regions) {
         m_regions_lut.emplace_back(region_lookup{.base = region.base, .buf = region.bytes.data()});
     }
+}
+
+void MachORegions::create_hash() {
+    std::vector<uint64_t> page_addrs;
+    for (const auto &region : m_regions) {
+        if (region.base & PAGE_SZ_MASK) {
+            fmt::print("base: {:#018x} up: {:#018x} sz: {:#x} name: {:s}\n", region.base,
+                       roundup_pow2_mul(region.base, PAGE_SZ), region.size,
+                       region.path.filename().string());
+        }
+        for (size_t off = 0; off < region.size; off += PAGE_SZ) {
+            page_addrs.emplace_back((region.base + off));
+        }
+    }
+    fmt::print("page_addrs.size(): {:d}\n", page_addrs.size());
+    const auto last = std::unique(page_addrs.begin(), page_addrs.end());
+    page_addrs.erase(last, page_addrs.end());
+    fmt::print("page_addrs.size() uniqued: {:d}\n", page_addrs.size());
+    pthash::build_configuration config;
+    config.c              = 6.0;
+    config.alpha          = 0.94;
+    config.minimal_output = true; // mphf
+    config.verbose_output = true;
+
+    /* Declare the PTHash function. */
+    typedef pthash::single_phf<pthash::murmurhash2_64,        // base hasher
+                               pthash::dictionary_dictionary, // encoder type
+                               true                           // minimal
+                               >
+        pthash_type;
+    pthash_type f;
+
+    /* Build the function in internal memory. */
+    fmt::print("building mph\n");
+    f.build_in_internal_memory(page_addrs.begin(), page_addrs.size(), config);
+    fmt::print("mph building done\n");
 }
