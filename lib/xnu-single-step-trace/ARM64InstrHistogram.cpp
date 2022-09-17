@@ -8,14 +8,14 @@ ARM64InstrHistogram::ARM64InstrHistogram() {
 }
 
 void ARM64InstrHistogram::add(uint32_t instr) {
-    if (m_instr_to_op_lut[instr >> 10] == UINT16_MAX) {
+    auto op = m_instr_to_op_lut[instr >> 10];
+    if (op == UINT16_MAX) {
         Instruction inst_repr;
         assert(aarch64_decompose(instr, &inst_repr, 0) == DECODE_STATUS_OK);
-        m_instr_to_op_lut[instr >> 10] = (uint16_t)inst_repr.operation;
+        op                             = (uint16_t)inst_repr.operation;
+        m_instr_to_op_lut[instr >> 10] = op;
     }
-    const auto op = m_instr_to_op_lut[instr >> 10];
     ++m_op_count_lut[op];
-    ++m_num_inst;
 }
 
 void ARM64InstrHistogram::print(int max_num, unsigned int width) const {

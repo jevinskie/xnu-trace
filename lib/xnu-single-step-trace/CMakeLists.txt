@@ -47,7 +47,8 @@ add_custom_command(OUTPUT
 
 # INSTTRACE_HDR added for Xcode project generation
 add_library(xnu-single-step-trace SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
-set_target_properties(xnu-single-step-trace PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
+add_library(xnu-single-step-trace-shared SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
+set_target_properties(xnu-single-step-trace xnu-single-step-trace-shared PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
 
 target_link_libraries(xnu-single-step-trace
 PUBLIC
@@ -69,7 +70,28 @@ target_include_directories(xnu-single-step-trace
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-install(TARGETS xnu-single-step-trace
+target_link_libraries(xnu-single-step-trace-shared
+PUBLIC
+    interval-tree
+    frida-gum
+    absl::flat_hash_map
+PRIVATE
+    bn-arm64-disasm
+    CoreSymbolication
+    fmt
+    libzstd_static
+    mbedcrypto
+    thread-pool
+)
+target_compile_options(xnu-single-step-trace-shared PRIVATE -Wall -Wextra -Wpedantic)
+
+target_include_directories(xnu-single-step-trace-shared
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+
+install(TARGETS xnu-single-step-trace xnu-single-step-trace-shared
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     PUBLIC_HEADER DESTINATION include/xnu-single-step-trace

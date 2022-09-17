@@ -435,12 +435,11 @@ private:
 class __attribute__((visibility("default"))) ARM64InstrHistogram {
 public:
     ARM64InstrHistogram();
-    void add(uint32_t instr);
+    __attribute__((always_inline)) void add(uint32_t instr);
 
     void print(int max_num = 64, unsigned int width = 80) const;
 
 private:
     std::vector<uint16_t> m_instr_to_op_lut;
     std::vector<uint64_t> m_op_count_lut;
-    uint64_t m_num_inst{};
 };

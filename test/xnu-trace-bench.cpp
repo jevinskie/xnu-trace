@@ -29,7 +29,31 @@ static void BM_lookup_inst(benchmark::State &state) {
     }
 }
 
-// BENCHMARK(BM_lookup_inst);
+BENCHMARK(BM_lookup_inst);
+
+static void BM_lookup_inst_from_trace(benchmark::State &state) {
+    const auto trace   = TraceLog("harness.bundle");
+    const auto regions = trace.macho_regions();
+    std::vector<uint64_t> addrs;
+    addrs.resize(trace.num_inst());
+    size_t i = 0;
+    for (const auto &[tid, log] : trace.parsed_logs()) {
+        for (const auto msg : log) {
+            addrs[i] = msg.pc;
+            ++i;
+        }
+    }
+    const auto num_addrs  = addrs.size();
+    const auto *addrs_buf = addrs.data();
+
+    i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(regions.lookup_inst(addrs_buf[i % num_addrs]));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_lookup_inst_from_trace);
 
 static void BM_histogram_add(benchmark::State &state) {
     const auto trace   = TraceLog("harness.bundle");
@@ -54,6 +78,6 @@ static void BM_histogram_add(benchmark::State &state) {
     }
 }
 
-// BENCHMARK(BM_histogram_add);
+BENCHMARK(BM_histogram_add);
 
 BENCHMARK_MAIN();
