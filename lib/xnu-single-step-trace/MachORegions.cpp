@@ -17,10 +17,11 @@ MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions,
     for (uint64_t i = 0; i < num_regions; ++i) {
         const char *path_ptr = (const char *)(region_buf + 1);
         std::string path{path_ptr, region_buf->path_len};
-        image_info img_info{.base  = region_buf->base,
-                            .size  = region_buf->size,
-                            .slide = region_buf->slide,
-                            .path  = path};
+        image_info img_info{.base   = region_buf->base,
+                            .size   = region_buf->size,
+                            .slide  = region_buf->slide,
+                            .path   = path,
+                            .is_jit = (bool)region_buf->is_jit};
         memcpy(img_info.uuid, region_buf->uuid, sizeof(img_info.uuid));
         memcpy(img_info.digest.data(), region_buf->digest_sha256, img_info.digest.size());
         img_info.bytes = std::move(regions_bytes[img_info.digest]);
@@ -30,8 +31,7 @@ MachORegions::MachORegions(const log_region *region_buf, uint64_t num_regions,
             (log_region *)((uint8_t *)region_buf + sizeof(*region_buf) + region_buf->path_len);
     }
     std::sort(m_regions.begin(), m_regions.end());
-    create_regions_lut();
-    // create_hash();
+    create_hash();
 }
 
 void MachORegions::reset() {
@@ -78,13 +78,6 @@ void MachORegions::reset() {
         if (vm_region.tag != 0xFF) {
             continue;
         }
-        if (vm_region.base == 0x000000018a7a4000ull) {
-            fmt::print("found num_jit_regions {:d}\n", num_jit_regions);
-        }
-        if (vm_region.base <= 0x000000018a7a4000ull &&
-            0x000000018a7a4000ull <= vm_region.base + vm_region.size) {
-            fmt::print("num_jit 2 {:d}\n", num_jit_regions);
-        }
         const auto bytes = read_target(m_target_task, vm_region.base, vm_region.size);
         m_regions.emplace_back(image_info{
             .base  = vm_region.base,
@@ -92,15 +85,13 @@ void MachORegions::reset() {
             .path  = fmt::format("/tmp/jit-region-{:d}-tag-{:02x}", num_jit_regions, vm_region.tag),
             .uuid  = {},
             .bytes = std::move(bytes),
-            .digest = get_sha256(bytes)});
+            .digest = get_sha256(bytes),
+            .is_jit = true});
         ++num_jit_regions;
     }
 
     std::sort(m_regions.begin(), m_regions.end());
 
-    dump();
-
-    create_regions_lut();
     create_hash();
 
     if (m_target_task != mach_task_self()) {
@@ -140,72 +131,55 @@ const image_info &MachORegions::lookup(const std::string &image_name) const {
 }
 
 uint32_t MachORegions::lookup_inst(uint64_t addr) const {
-    for (const auto &img_info : m_regions) {
-        if (img_info.base <= addr && addr < img_info.base + img_info.size) {
-            return *(uint32_t *)(img_info.bytes.data() + addr - img_info.base);
-        }
-    }
-    assert(!"no region found");
-    // const auto it = std::prev(std::upper_bound(m_regions_lut.begin(), m_regions_lut.end(),
-    // region_lookup{.base = addr})); return *(uint32_t *)(it->buf + addr - it->base); region_lookup
-    // last; for (const auto &rl : m_regions_lut) {
-    //     if (rl.base > addr) {
-    //         return *(uint32_t *)(last.buf + addr - last.base);
-    //     }
-    //     last = rl;
-    // }
-    // return *(uint32_t *)(last.buf + addr - last.base);
+    const auto idx       = m_page_addr_hasher(addr >> PAGE_SZ_LOG2);
+    const auto page_addr = rounddown_pow2_mul(addr, PAGE_SZ);
+    const auto page_off  = addr - page_addr;
+    return *(uint32_t *)(m_regions_bufs[idx] + page_off);
 }
 
 const std::vector<image_info> &MachORegions::regions() const {
     return m_regions;
 }
 
-void MachORegions::create_regions_lut() {
-    m_regions_lut.clear();
-    for (const auto &region : m_regions) {
-        m_regions_lut.emplace_back(region_lookup{.base = region.base, .buf = region.bytes.data()});
-    }
-}
-
 void MachORegions::create_hash() {
     std::vector<uint64_t> page_addrs;
     for (const auto &region : m_regions) {
-        if (region.base & PAGE_SZ_MASK) {
-            fmt::print("base: {:#018x} up: {:#018x} sz: {:#x} name: {:s}\n", region.base,
-                       roundup_pow2_mul(region.base, PAGE_SZ), region.size,
-                       region.path.filename().string());
-            assert(!"bad");
-        }
+        assert(!(region.base & PAGE_SZ_MASK));
+        assert(!(region.size & PAGE_SZ_MASK));
         for (size_t off = 0; off < region.size; off += PAGE_SZ) {
-            page_addrs.emplace_back((region.base + off));
-            fmt::print("page_addr: {:#018x} {:#018x}\n", region.base + off, region.base);
+            page_addrs.emplace_back((region.base + off) >> PAGE_SZ_LOG2);
         }
     }
-    fmt::print("page_addrs.size(): {:d}\n", page_addrs.size());
     std::sort(page_addrs.begin(), page_addrs.end());
-    const auto last = std::unique(page_addrs.begin(), page_addrs.end());
-    page_addrs.erase(last, page_addrs.end());
-    fmt::print("page_addrs.size() uniqued: {:d}\n", page_addrs.size());
+    page_addrs.erase(std::unique(page_addrs.begin(), page_addrs.end()), page_addrs.end());
     pthash::build_configuration config;
-    config.c              = 6.0;
-    config.alpha          = 0.94;
-    config.minimal_output = true; // mphf
-    config.verbose_output = true;
-    // config.seed = 243;
+    config.minimal_output = true;
+    config.verbose_output = false;
 
-    /* Declare the PTHash function. */
-    typedef pthash::single_phf<pthash::xxhash_64,             // base hasher
-                               pthash::dictionary_dictionary, // encoder type
-                               true                           // minimal
-                               >
-        pthash_type;
-    pthash_type f;
-
-    /* Build the function in internal memory. */
-    fmt::print("building mph\n");
-    f.build_in_internal_memory(page_addrs.begin(), page_addrs.size(), config);
-    fmt::print("mph building done\n");
+    // fmt::print("building mph with {:d} keys\n", page_addrs.size());
+    m_page_addr_hasher.build_in_internal_memory(page_addrs.begin(), page_addrs.size(), config);
+    // fmt::print("mph building done\n");
+    // const auto bits_per_key = (double)m_page_addr_hasher.num_bits() /
+    // m_page_addr_hasher.num_keys(); fmt::print("function uses {:0.4f} bits/key\n", bits_per_key);
+    m_regions_bufs.clear();
+    m_regions_bufs.resize(page_addrs.size());
+    // base regions
+    for (const auto &region : m_regions) {
+        for (size_t off = 0; off < region.size; off += PAGE_SZ) {
+            const auto idx      = m_page_addr_hasher((region.base + off) >> PAGE_SZ_LOG2);
+            m_regions_bufs[idx] = region.bytes.data() + off;
+        }
+    }
+    // override jit regions
+    for (const auto &region : m_regions) {
+        if (!region.is_jit) {
+            continue;
+        }
+        for (size_t off = 0; off < region.size; off += PAGE_SZ) {
+            const auto idx      = m_page_addr_hasher((region.base + off) >> PAGE_SZ_LOG2);
+            m_regions_bufs[idx] = region.bytes.data() + off;
+        }
+    }
 }
 
 void MachORegions::dump() const {

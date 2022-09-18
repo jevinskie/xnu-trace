@@ -8,6 +8,9 @@
 
 #include <benchmark/benchmark.h>
 #include <fmt/format.h>
+#define XXH_INLINE_ALL
+// #define XXH_NAMESPACE xnu_trace_bench_
+#include <xxhash-xnu-trace/xxhash.h>
 
 namespace fs = std::filesystem;
 
@@ -79,5 +82,17 @@ static void BM_histogram_add(benchmark::State &state) {
 }
 
 BENCHMARK(BM_histogram_add);
+
+static void BM_xxhash(benchmark::State &state) {
+    uint64_t i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(XXH64((char *)&i, sizeof(i), i));
+        uint64_t i2 = 2 * i;
+        benchmark::DoNotOptimize(XXH64((char *)&i2, sizeof(i2), i2));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_xxhash);
 
 BENCHMARK_MAIN();

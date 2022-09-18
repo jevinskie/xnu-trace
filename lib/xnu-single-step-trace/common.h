@@ -30,6 +30,15 @@ constexpr U roundup_pow2_mul(U num, std::size_t pow2_mul) {
     return (num + mask) & ~mask;
 }
 
+template <typename U>
+requires requires() {
+    requires std::unsigned_integral<U>;
+}
+constexpr U rounddown_pow2_mul(U num, std::size_t pow2_mul) {
+    const U mask = static_cast<U>(pow2_mul) - 1;
+    return num & ~mask;
+}
+
 // utils.cpp
 
 void posix_check(int retval, const std::string &msg);

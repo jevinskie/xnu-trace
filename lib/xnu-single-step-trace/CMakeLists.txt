@@ -63,6 +63,7 @@ PRIVATE
     libzstd_static
     mbedcrypto
     thread-pool
+    xxhash-xnu-trace
 )
 target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
 
@@ -84,6 +85,7 @@ PRIVATE
     libzstd_static
     mbedcrypto
     thread-pool
+    xxhash-xnu-trace
 )
 target_compile_options(xnu-single-step-trace-shared PRIVATE -Wall -Wextra -Wpedantic)
 

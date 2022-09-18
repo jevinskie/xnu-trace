@@ -18,11 +18,12 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
     const auto dyld_base       = (uint64_t)all_img_infos->dyldImageLoadAddress;
     const auto dyld_macho_segs = read_macho_segs_target(target_task, dyld_base);
 
-    res.emplace_back(image_info{.base  = dyld_base,
-                                .size  = get_text_size(dyld_macho_segs),
-                                .slide = dyld_base - get_text_base(dyld_macho_segs),
-                                .path  = read_cstr_target(target_task, all_img_infos->dyldPath),
-                                .uuid  = {}});
+    res.emplace_back(image_info{.base   = dyld_base,
+                                .size   = get_text_size(dyld_macho_segs),
+                                .slide  = dyld_base - get_text_base(dyld_macho_segs),
+                                .path   = read_cstr_target(target_task, all_img_infos->dyldPath),
+                                .uuid   = {},
+                                .is_jit = false});
 
     const auto infos_buf = read_target(target_task, all_img_infos->infoArray,
                                        all_img_infos->infoArrayCount * sizeof(dyld_image_info));
@@ -31,11 +32,12 @@ std::vector<image_info> get_dyld_image_infos(task_t target_task) {
     for (const auto &img_info : img_infos) {
         const auto img_base   = (uint64_t)img_info.imageLoadAddress;
         const auto macho_segs = read_macho_segs_target(target_task, img_base);
-        res.emplace_back(image_info{.base  = img_base,
-                                    .size  = get_text_size(macho_segs),
-                                    .slide = img_base - get_text_base(macho_segs),
-                                    .path  = read_cstr_target(target_task, img_info.imageFilePath),
-                                    .uuid  = {}});
+        res.emplace_back(image_info{.base   = img_base,
+                                    .size   = get_text_size(macho_segs),
+                                    .slide  = img_base - get_text_base(macho_segs),
+                                    .path   = read_cstr_target(target_task, img_info.imageFilePath),
+                                    .uuid   = {},
+                                    .is_jit = false});
     }
 
     std::sort(res.begin(), res.end());

@@ -7,7 +7,7 @@
 namespace jev::xnutrace::detail {
 
 CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
-                               const void *hdr, int level, bool verbose)
+                               const void *hdr, int level, bool verbose, int num_threads)
     : m_path{path}, m_is_read{read}, m_verbose{verbose} {
     if (read) {
         m_fh = fopen(path.c_str(), "rb");
@@ -44,8 +44,10 @@ CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, u
                        "zstd set compression level");
             zstd_check(ZSTD_CCtx_setParameter(m_comp_ctx, ZSTD_c_checksumFlag, true),
                        "zstd enable checksums");
-            zstd_check(ZSTD_CCtx_setParameter(m_comp_ctx, ZSTD_c_nbWorkers,
-                                              std::min(1u, get_num_cores() / 2)),
+            if (num_threads < 1) {
+                num_threads = get_num_cores();
+            }
+            zstd_check(ZSTD_CCtx_setParameter(m_comp_ctx, ZSTD_c_nbWorkers, num_threads),
                        "zstd set num threads");
             m_in_buf.resize(ZSTD_CStreamInSize());
             m_out_buf.resize(ZSTD_CStreamOutSize());

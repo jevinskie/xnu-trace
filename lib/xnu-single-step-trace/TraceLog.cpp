@@ -177,7 +177,8 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
         log_region region_buf{.base     = region.base,
                               .size     = region.size,
                               .slide    = region.slide,
-                              .path_len = region.path.string().size()};
+                              .path_len = region.path.string().size(),
+                              .is_jit   = region.is_jit};
         memcpy(region_buf.uuid, region.uuid, sizeof(region_buf.uuid));
         memcpy(region_buf.digest_sha256, region.digest.data(), sizeof(region_buf.digest_sha256));
         meta_fh.write(region_buf);

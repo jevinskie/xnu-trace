@@ -62,6 +62,7 @@ struct log_region {
     uint64_t slide;
     uuid_t uuid;
     uint8_t digest_sha256[32];
+    uint64_t is_jit;
     uint64_t path_len;
 } __attribute__((packed));
 
@@ -159,6 +160,7 @@ struct image_info {
     uuid_t uuid;
     std::vector<uint8_t> bytes;
     sha256_t digest;
+    bool is_jit;
     auto operator<=>(const image_info &rhs) const {
         return base <=> rhs.base;
     }
@@ -233,11 +235,16 @@ private:
             return base <=> rhs.base;
         }
     };
-    void create_regions_lut();
+    typedef pthash::single_phf<pthash::xxhash_64,             // base hasher
+                               pthash::dictionary_dictionary, // encoder type
+                               true                           // minimal
+                               >
+        pthash_type;
     void create_hash();
     const task_t m_target_task{};
     std::vector<image_info> m_regions;
-    std::vector<region_lookup> m_regions_lut;
+    std::vector<const uint8_t *> m_regions_bufs;
+    pthash_type m_page_addr_hasher;
 };
 
 namespace jev::xnutrace::detail {
@@ -245,7 +252,8 @@ namespace jev::xnutrace::detail {
 class XNUTRACE_EXPORT CompressedFile {
 public:
     CompressedFile(const std::filesystem::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,
-                   const void *hdr = nullptr, int level = 3, bool verbose = false);
+                   const void *hdr = nullptr, int level = 3, bool verbose = false,
+                   int num_threads = 0);
     ~CompressedFile();
 
     template <typename T> const T &header() const {
