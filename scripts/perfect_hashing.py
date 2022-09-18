@@ -7,6 +7,53 @@ from os import dup
 import xxhash
 from iteration_utilities import duplicates, unique_everseen
 
+
+class MPH:
+    def __init__(self, keys: list[int]) -> None:
+        hashes = {k: self.hash(k) for k in keys}
+        buckets = {}
+        nkeys = len(hashes)
+        for k, h in hashes.items():
+            hmod = h % nkeys
+            if hmod not in buckets:
+                buckets[hmod] = [k]
+            else:
+                buckets[hmod].append(k)
+        sorted_buckets = {
+            h: ks for h, ks in sorted(buckets.items(), key=lambda i: len(i[1]), reverse=True)
+        }
+        print(list(sorted_buckets.items())[0])
+        lsb = list(sorted_buckets.values())
+        values = [None] * nkeys
+        for i in range(nkeys):
+            bucket = lsb[i]
+            if len(bucket) < 2:
+                break
+            d = 1
+            item = 0
+            slots = []
+            while item < len(bucket):
+                slot = self.hash(bucket[item], d) % nkeys
+                if values[slot] != None or slot in slots:
+                    d += 1
+                    item = 0
+                    slots = []
+                else:
+                    slots.append(slot)
+                    item += 1
+
+    @staticmethod
+    def hash(v: int, d: int = 0) -> int:
+        return xxhash.xxh64_intdigest(v.to_bytes(8, "little"), d)
+
+    @staticmethod
+    def f(disp: int, k: int) -> int:
+        return 0
+
+    def lookup(self, k: int) -> int:
+        return 0
+
+
 page_addrs = []
 
 for line in open(sys.argv[1]).readlines():
@@ -15,6 +62,8 @@ for line in open(sys.argv[1]).readlines():
 page_addrs = list(set(page_addrs))
 print(f"len(page_addrs): {len(page_addrs)}")
 
+mph = MPH(page_addrs)
+
 # dup_pas = [pa for pa in page_addrs if page_addrs.count(pa) > 1]
 # for pa in dup_pas:
 #     print(f"{pa:#018x}")
@@ -22,42 +71,42 @@ print(f"len(page_addrs): {len(page_addrs)}")
 # print(len(page_addrs))
 # print(len(set(page_addrs)))
 
-hashes = []
-for pa in page_addrs:
-    h = xxhash.xxh64_intdigest(pa.to_bytes(8, "little"))
-    hashes.append(h)
+# hashes = []
+# for pa in page_addrs:
+#     h = xxhash.xxh64_intdigest(pa.to_bytes(8, "little"))
+#     hashes.append(h)
 
-hashes2 = []
-for pa in page_addrs:
-    h = xxhash.xxh64_intdigest(pa.to_bytes(8, "little"), 0x23E8FCE423929859)
-    hashes2.append(h)
+# hashes2 = []
+# for pa in page_addrs:
+#     h = xxhash.xxh64_intdigest(pa.to_bytes(8, "little"), 0x23E8FCE423929859)
+#     hashes2.append(h)
 
-hashes3 = []
-for pa in page_addrs:
-    h = xxhash.xxh64_intdigest(pa.to_bytes(8, "little"), 0x4CA43C7C57D6E1AC)
-    hashes3.append(h)
+# hashes3 = []
+# for pa in page_addrs:
+#     h = xxhash.xxh64_intdigest(pa.to_bytes(8, "little"), 0x4CA43C7C57D6E1AC)
+#     hashes3.append(h)
 
-hashes4 = []
-for pa in page_addrs:
-    h = xxhash.xxh64_intdigest(pa.to_bytes(8, "little"), 0x88563B2CF574E78B)
-    hashes4.append(h)
-
-
-print(f"len(set(hashes)): {len(set(hashes))}")
-print(f"len(set(hashes2)): {len(set(hashes2))}")
-print(f"len(set(hashes3)): {len(set(hashes3))}")
-print(f"len(set(hashes4)): {len(set(hashes4))}")
+# hashes4 = []
+# for pa in page_addrs:
+#     h = xxhash.xxh64_intdigest(pa.to_bytes(8, "little"), 0x88563B2CF574E78B)
+#     hashes4.append(h)
 
 
-dups_hash = list(unique_everseen(duplicates([h % len(page_addrs) for h in hashes])))
-dups_hash2 = list(unique_everseen(duplicates([h % len(page_addrs) for h in hashes2])))
-dups_hash3 = list(unique_everseen(duplicates([h % len(page_addrs) for h in hashes3])))
-dups_hash4 = list(unique_everseen(duplicates([h % len(page_addrs) for h in hashes4])))
+# print(f"len(set(hashes)): {len(set(hashes))}")
+# print(f"len(set(hashes2)): {len(set(hashes2))}")
+# print(f"len(set(hashes3)): {len(set(hashes3))}")
+# print(f"len(set(hashes4)): {len(set(hashes4))}")
 
-print(f"len(dups_hash): {len(dups_hash)}")
-print(f"len(dups_hash2): {len(dups_hash2)}")
-print(f"len(dups_hash3): {len(dups_hash3)}")
-print(f"len(dups_hash4): {len(dups_hash4)}")
+
+# dups_hash = list(unique_everseen(duplicates([h % len(page_addrs) for h in hashes])))
+# dups_hash2 = list(unique_everseen(duplicates([h % len(page_addrs) for h in hashes2])))
+# dups_hash3 = list(unique_everseen(duplicates([h % len(page_addrs) for h in hashes3])))
+# dups_hash4 = list(unique_everseen(duplicates([h % len(page_addrs) for h in hashes4])))
+
+# print(f"len(dups_hash): {len(dups_hash)}")
+# print(f"len(dups_hash2): {len(dups_hash2)}")
+# print(f"len(dups_hash3): {len(dups_hash3)}")
+# print(f"len(dups_hash4): {len(dups_hash4)}")
 
 # print("dups_hash:")
 # print("\n".join([f"{h:#018x}" for h in dups_hash]))
@@ -65,23 +114,23 @@ print(f"len(dups_hash4): {len(dups_hash4)}")
 # print("dups_hash2:")
 # print("\n".join([f"{h:#018x}" for h in dups_hash2]))
 
-same = list(set(dups_hash).intersection(set(dups_hash2)))
-print(f"dups_hash & dups_hash2 sz {len(same)}")
+# same = list(set(dups_hash).intersection(set(dups_hash2)))
+# print(f"dups_hash & dups_hash2 sz {len(same)}")
 # print("\n".join([f"{h:#018x}" for h in same]))
 
-print("\n" * 10)
+# print("\n" * 10)
 
-same2 = list(set(dups_hash).intersection(set(dups_hash2).intersection(set(dups_hash3))))
-print(f"dups_hash & dups_hash2 & dups_hash3 sz {len(same2)}")
+# same2 = list(set(dups_hash).intersection(set(dups_hash2).intersection(set(dups_hash3))))
+# print(f"dups_hash & dups_hash2 & dups_hash3 sz {len(same2)}")
 # print("\n".join([f"{h:#018x}" for h in same2]))
 
-same3 = list(
-    set(dups_hash).intersection(
-        set(dups_hash2).intersection(set(dups_hash3).intersection(dups_hash4))
-    )
-)
-print(f"dups_hash & dups_hash2 & dups_hash3 & dups_hash4 sz {len(same3)}")
-print("\n".join([f"{h:#018x}" for h in same3]))
+# same3 = list(
+#     set(dups_hash).intersection(
+#         set(dups_hash2).intersection(set(dups_hash3).intersection(dups_hash4))
+#     )
+# )
+# print(f"dups_hash & dups_hash2 & dups_hash3 & dups_hash4 sz {len(same3)}")
+# print("\n".join([f"{h:#018x}" for h in same3]))
 
 # sha_hashes = []
 # for pa in page_addrs:
