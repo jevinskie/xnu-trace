@@ -12,11 +12,7 @@
 namespace fs = std::filesystem;
 
 void dump_log(const TraceLog &trace, bool symbolicate = false) {
-    for (const auto &region : trace.macho_regions().regions()) {
-        fmt::print("base: {:#018x} => {:#018x} size: {:#010x} slide: {:#x} path: '{:s}'\n",
-                   region.base, region.base + region.size, region.size, region.slide,
-                   region.path.string());
-    }
+    trace.macho_regions().dump();
 
     if (symbolicate) {
         for (const auto &sym : trace.symbols().syms()) {
@@ -25,6 +21,7 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
         }
     }
 
+#if 0
     for (const auto &[tid, log] : trace.parsed_logs()) {
         fmt::print("tid: {:d} sz: {:d}\n", tid, log.size());
         const auto bbs = extract_bbs_from_pc_trace(extract_pcs_from_trace(log));
@@ -32,6 +29,7 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
             fmt::print("BB: {:#018x} [{:d}]\n", bb.pc, bb.sz);
         }
     }
+#endif
 }
 
 void dump_histogram(const TraceLog &trace, int max_num) {

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.22)
 
 project(xnu-single-step-trace CXX C)
 
+set(BUILD_SHARED_LIBS OFF)
+
 # set(CMAKE_OSX_ARCHITECTURES arm64e)
 set(CMAKE_XCODE_ATTRIBUTE_COMPILER_INDEX_STORE_ENABLE NO)
 

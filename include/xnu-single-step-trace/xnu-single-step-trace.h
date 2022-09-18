@@ -223,6 +223,7 @@ public:
     XNUTRACE_INLINE std::pair<const image_info &, size_t> lookup_idx(uint64_t addr) const;
     XNUTRACE_INLINE uint32_t lookup_inst(uint64_t addr) const;
     const image_info &lookup(const std::string &image_name) const;
+    void dump() const;
 
 private:
     struct region_lookup {

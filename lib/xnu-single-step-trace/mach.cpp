@@ -21,10 +21,9 @@ std::vector<uint8_t> read_target(task_t target_task, uint64_t target_addr, uint6
 
 std::string read_cstr_target(task_t target_task, uint64_t target_addr) {
     std::vector<uint8_t> buf;
-    constexpr size_t pgsz = 4096;
     do {
         const auto end_addr =
-            target_addr % pgsz ? roundup_pow2_mul(target_addr, pgsz) : target_addr + pgsz;
+            target_addr % PAGE_SZ ? roundup_pow2_mul(target_addr, PAGE_SZ) : target_addr + PAGE_SZ;
         const auto smol_buf = read_target(target_task, target_addr, end_addr - target_addr);
         buf.insert(buf.end(), smol_buf.cbegin(), smol_buf.cend());
         target_addr = end_addr;
