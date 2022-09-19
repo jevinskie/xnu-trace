@@ -10,9 +10,10 @@ from iteration_utilities import duplicates, unique_everseen
 
 class MPH:
     def __init__(self, keys: list[int]) -> None:
+        self.keys = keys
         hashes = {k: self.hash(k) for k in keys}
         buckets = {}
-        nkeys = len(hashes)
+        self.nkeys = nkeys = len(hashes)
         for k, h in hashes.items():
             hmod = h % nkeys
             if hmod not in buckets:
@@ -24,34 +25,49 @@ class MPH:
         }
         print(list(sorted_buckets.items())[0])
         lsb = list(sorted_buckets.values())
-        values = [None] * nkeys
-        for i in range(nkeys):
-            bucket = lsb[i]
-            if len(bucket) < 2:
-                break
-            d = 1
-            item = 0
-            slots = []
-            while item < len(bucket):
-                slot = self.hash(bucket[item], d) % nkeys
-                if values[slot] != None or slot in slots:
+
+        svs = [0] * nkeys
+
+        for i, bucket in enumerate(lsb):
+            if len(bucket) > 1:
+                d = 1
+                while True:
+                    sub_hashes = [self.hash(k, d) % nkeys for k in bucket]
+                    all_free = all([svs[j] == 0 for j in sub_hashes])
+                    if all_free:
+                        svs[i] = d
+                        # print(f"i: {i} d: {d}")
+                        break
+                    if d > 1024:
+                        raise RuntimeError("too long")
                     d += 1
-                    item = 0
-                    slots = []
-                else:
-                    slots.append(slot)
-                    item += 1
+            else:
+                free_idx = svs.index(0)
+                svs[free_idx] = -i - 1
+                pass
+
+        self.svs = svs
 
     @staticmethod
     def hash(v: int, d: int = 0) -> int:
         return xxhash.xxh64_intdigest(v.to_bytes(8, "little"), d)
 
-    @staticmethod
-    def f(disp: int, k: int) -> int:
-        return 0
+    def lookup_idx(self, k: int) -> int:
+        sv = self.svs[self.hash(k) % self.nkeys]
+        if sv < 0:
+            return -sv - 1
+        else:
+            return self.hash(k, sv) % self.nkeys
 
-    def lookup(self, k: int) -> int:
-        return 0
+    def check(self):
+        idxes = [self.lookup_idx(k) for k in self.keys]
+        print(f"len(self.keys): {len(self.keys)}")
+        print(f"len(set(idxes)): {len(set(idxes))}")
+        assert (
+            min(idxes) == 0
+            and max(idxes) == (len(self.keys) - 1)
+            and len(set(idxes)) == len(self.keys)
+        )
 
 
 page_addrs = []
@@ -63,6 +79,7 @@ page_addrs = list(set(page_addrs))
 print(f"len(page_addrs): {len(page_addrs)}")
 
 mph = MPH(page_addrs)
+mph.check()
 
 # dup_pas = [pa for pa in page_addrs if page_addrs.count(pa) > 1]
 # for pa in dup_pas:
