@@ -28,14 +28,15 @@ class MPH:
 
         svs = [0] * nkeys
 
-        for i, bucket in enumerate(lsb):
+        for i, hb in enumerate(sorted_buckets.items()):
+            h, bucket = hb
             if len(bucket) > 1:
                 d = 1
                 while True:
                     sub_hashes = [self.hash(k, d) % nkeys for k in bucket]
-                    all_free = all([svs[j] == 0 for j in sub_hashes])
+                    all_free = all([svs[sh] == 0 for sh in sub_hashes])
                     if all_free:
-                        svs[i] = d
+                        svs[h] = d
                         # print(f"i: {i} d: {d}")
                         break
                     if d > 1024:
@@ -43,7 +44,7 @@ class MPH:
                     d += 1
             else:
                 free_idx = svs.index(0)
-                svs[free_idx] = -i - 1
+                svs[h] = -free_idx - 1
                 pass
 
         self.svs = svs
@@ -60,6 +61,8 @@ class MPH:
             return self.hash(k, sv) % self.nkeys
 
     def check(self):
+        print(f"self.svs.count(0): {self.svs.count(0)}")
+        assert self.svs.count(0) == 1
         idxes = [self.lookup_idx(k) for k in self.keys]
         print(f"len(self.keys): {len(self.keys)}")
         print(f"len(set(idxes)): {len(set(idxes))}")
