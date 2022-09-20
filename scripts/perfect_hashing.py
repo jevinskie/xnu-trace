@@ -22,7 +22,7 @@ class MPH:
         }
         print(list(sorted_buckets.items())[0])
 
-        svs = [None] * nkeys
+        salts = [None] * nkeys
         slot_used = [False] * nkeys
         for hash, bucket in sorted_buckets.items():
             if len(bucket) > 1:
@@ -33,7 +33,7 @@ class MPH:
                     if all_free:
                         for sh in salted_hashes:
                             slot_used[sh] = True
-                        svs[hash] = d
+                        salts[hash] = d
                         break
                     if d > 4096:
                         raise RuntimeError("taking too long, sorry")
@@ -41,15 +41,15 @@ class MPH:
             else:
                 free_idx = slot_used.index(False)
                 slot_used[free_idx] = True
-                svs[hash] = -free_idx - 1
-        self.svs = svs
+                salts[hash] = -free_idx - 1
+        self.salts = salts
 
     @staticmethod
     def hash(v: int, d: int = 0) -> int:
         return xxhash.xxh64_intdigest(v.to_bytes(8, "little"), d)
 
     def lookup_idx(self, k: int) -> int:
-        sv = self.svs[self.hash(k) % self.nkeys]
+        sv = self.salts[self.hash(k) % self.nkeys]
         if sv < 0:
             return -sv - 1
         else:
@@ -61,6 +61,7 @@ class MPH:
             min(idxes) == 0
             and max(idxes) == (len(self.keys) - 1)
             and len(set(idxes)) == len(self.keys)
+            and len(self.salts) == len(self.keys)
         )
 
 
@@ -74,3 +75,4 @@ print(f"len(page_addrs): {len(page_addrs)}")
 
 mph = MPH(page_addrs)
 mph.check()
+print(f"max(mph.salts): {max([s for s in mph.salts if s is not None])}")
