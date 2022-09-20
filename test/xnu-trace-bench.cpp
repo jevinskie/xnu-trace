@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <set>
 
+#include <mach/mach_time.h>
+
 #include <benchmark/benchmark.h>
 #include <fmt/format.h>
 #define XXH_INLINE_ALL
@@ -32,7 +34,7 @@ static void BM_lookup_inst(benchmark::State &state) {
     }
 }
 
-BENCHMARK(BM_lookup_inst);
+// BENCHMARK(BM_lookup_inst);
 
 static void BM_lookup_inst_from_trace(benchmark::State &state) {
     const auto trace   = TraceLog("harness.bundle");
@@ -56,7 +58,7 @@ static void BM_lookup_inst_from_trace(benchmark::State &state) {
     }
 }
 
-BENCHMARK(BM_lookup_inst_from_trace);
+// BENCHMARK(BM_lookup_inst_from_trace);
 
 static void BM_histogram_add(benchmark::State &state) {
     const auto trace   = TraceLog("harness.bundle");
@@ -81,7 +83,7 @@ static void BM_histogram_add(benchmark::State &state) {
     }
 }
 
-BENCHMARK(BM_histogram_add);
+// BENCHMARK(BM_histogram_add);
 
 static void BM_xxhash(benchmark::State &state) {
     uint64_t i = 0;
@@ -93,6 +95,30 @@ static void BM_xxhash(benchmark::State &state) {
     }
 }
 
-BENCHMARK(BM_xxhash);
+// BENCHMARK(BM_xxhash);
+
+static void BM_xnu_commpage_time_seconds(benchmark::State &state) {
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(xnu_commpage_time_seconds());
+    }
+}
+
+BENCHMARK(BM_xnu_commpage_time_seconds);
+
+static void BM_mach_absolute_time(benchmark::State &state) {
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(mach_absolute_time());
+    }
+}
+
+BENCHMARK(BM_mach_absolute_time);
+
+static void BM_mach_approximate_time(benchmark::State &state) {
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(mach_approximate_time());
+    }
+}
+
+BENCHMARK(BM_mach_approximate_time);
 
 BENCHMARK_MAIN();

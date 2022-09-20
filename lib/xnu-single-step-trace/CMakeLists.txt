@@ -15,6 +15,7 @@ set(INSTTRACE_SRC
     TraceLog.cpp
     utils.cpp
     VMRegions.cpp
+    XNUCommpageTime.cpp
     XNUTracer.cpp
 )
 

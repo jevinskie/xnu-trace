@@ -129,6 +129,8 @@ XNUTRACE_EXPORT std::vector<uint8_t> read_target(task_t target_task, uint64_t ta
 
 XNUTRACE_EXPORT sha256_t get_sha256(std::span<const uint8_t> buf);
 
+XNUTRACE_EXPORT XNUTRACE_INLINE uint64_t xnu_commpage_time_seconds();
+
 class XNUTRACE_EXPORT SHA256 {
 public:
     SHA256();

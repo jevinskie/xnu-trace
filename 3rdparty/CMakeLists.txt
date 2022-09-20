@@ -36,6 +36,8 @@ target_include_directories(thread-pool INTERFACE thread-pool)
 add_library(xxhash-xnu-trace INTERFACE)
 target_include_directories(xxhash-xnu-trace INTERFACE xxhash-scoped-include)
 
+add_subdirectory(ut)
+
 set(BENCHMARK_ENABLE_TESTING OFF)
 add_subdirectory(benchmark)
 
