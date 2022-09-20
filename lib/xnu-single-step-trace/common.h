@@ -41,8 +41,6 @@ constexpr U rounddown_pow2_mul(U num, std::size_t pow2_mul) {
 
 // utils.cpp
 
-void posix_check(int retval, const std::string &msg);
-void mach_check(kern_return_t kr, const std::string &msg);
 void zstd_check(size_t retval, const std::string &msg);
 uint32_t get_num_cores();
 double timespec_diff(const timespec &a, const timespec &b);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <concepts>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
@@ -15,6 +16,7 @@
 
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
+#include <mach/mach_time.h>
 #include <uuid/uuid.h>
 
 #include <absl/container/flat_hash_map.h>
@@ -106,6 +108,9 @@ XNUTRACE_EXPORT void pipe_set_single_step(bool do_ss);
 void set_single_step_thread(thread_t thread, bool do_ss);
 void set_single_step_task(task_t thread, bool do_ss);
 
+XNUTRACE_EXPORT void posix_check(int retval, const std::string &msg);
+XNUTRACE_EXPORT void mach_check(kern_return_t kr, const std::string &msg);
+
 XNUTRACE_EXPORT pid_t pid_for_name(std::string process_name);
 
 XNUTRACE_EXPORT pid_t pid_for_task(task_t task);
@@ -130,6 +135,38 @@ XNUTRACE_EXPORT std::vector<uint8_t> read_target(task_t target_task, uint64_t ta
 XNUTRACE_EXPORT sha256_t get_sha256(std::span<const uint8_t> buf);
 
 XNUTRACE_EXPORT XNUTRACE_INLINE uint64_t xnu_commpage_time_seconds();
+XNUTRACE_EXPORT XNUTRACE_INLINE uint64_t xnu_commpage_time_atus();
+
+template <typename T>
+concept VoidVoidCallback = requires(T cb) {
+    { cb() } -> std::same_as<void>;
+};
+
+static inline void xnu_fast_timeout_dummy_cb(){};
+
+template <VoidVoidCallback T = decltype(xnu_fast_timeout_dummy_cb)>
+class XNUTRACE_EXPORT XNUFastTimeout {
+public:
+    XNUFastTimeout(uint64_t nanoseconds, T const &cb) : m_cb(cb) {
+        mach_timebase_info_data_t tb_info;
+        mach_check(mach_timebase_info(&tb_info), "XNUFastTimeout mach_timebase_info");
+        const auto num_atus = (double)nanoseconds * tb_info.denom / tb_info.numer;
+        m_end_deadline      = xnu_commpage_time_atus() + num_atus;
+    };
+    XNUFastTimeout(uint64_t nanoseconds) : XNUFastTimeout(nanoseconds, xnu_fast_timeout_dummy_cb){};
+    XNUTRACE_INLINE void check() const {
+        if (__builtin_expect(xnu_commpage_time_atus() >= m_end_deadline, 0)) {
+            m_cb();
+        }
+    };
+    XNUTRACE_INLINE bool done() const {
+        return xnu_commpage_time_atus() >= m_end_deadline;
+    };
+
+private:
+    uint64_t m_end_deadline;
+    T const &m_cb;
+};
 
 class XNUTRACE_EXPORT SHA256 {
 public:
