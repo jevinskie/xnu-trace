@@ -2,6 +2,7 @@
 
 import sys
 
+import progressbar
 import xxhash
 
 
@@ -24,7 +25,7 @@ class MPH:
 
         salts = [None] * nkeys
         slot_used = [False] * nkeys
-        for hash, bucket in sorted_buckets.items():
+        for hash, bucket in progressbar.progressbar(sorted_buckets.items()):
             if len(bucket) > 1:
                 d = 1
                 while True:
@@ -76,3 +77,4 @@ print(f"len(page_addrs): {len(page_addrs)}")
 mph = MPH(page_addrs)
 mph.check()
 print(f"max(mph.salts): {max([s for s in mph.salts if s is not None])}")
+print(f"{mph.salts.count(None) / mph.nkeys * 100:0.2f}% filled")
