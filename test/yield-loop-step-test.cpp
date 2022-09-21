@@ -12,7 +12,7 @@
 #include <argparse/argparse.hpp>
 #include <fmt/format.h>
 
-#include "xnu-single-step-trace/xnu-single-step-trace.h"
+#include "xnu-trace/xnu-trace.h"
 
 static volatile bool should_stop;
 

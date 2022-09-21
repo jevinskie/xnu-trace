@@ -20,19 +20,19 @@ set(INSTTRACE_SRC
 )
 
 set(INSTTRACE_HDR_STANDALONE
-    xnu-single-step-trace.h
-    xnu-single-step-trace-c.h
+    xnu-trace.h
+    xnu-trace-c.h
 )
 
 set(INSTTRACE_HDR)
 foreach(HDR ${INSTTRACE_HDR_STANDALONE})
-    set(HDR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/xnu-single-step-trace/${HDR}")
+    set(HDR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/xnu-trace/${HDR}")
     list(APPEND INSTTRACE_HDR ${HDR})
 endforeach()
 
 foreach(SRC ${INSTTRACE_SRC})
     get_filename_component(HDR_NAME ${SRC} NAME_WLE)
-    set(HDR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/xnu-single-step-trace/${HDR_NAME}.h")
+    set(HDR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/xnu-trace/${HDR_NAME}.h")
     if(EXISTS ${HDR})
         list(APPEND INSTTRACE_HDR ${HDR})
     endif()
@@ -47,11 +47,11 @@ add_custom_command(OUTPUT
 )
 
 # INSTTRACE_HDR added for Xcode project generation
-add_library(xnu-single-step-trace STATIC ${INSTTRACE_SRC} ${INSTTRACE_HDR})
-add_library(xnu-single-step-trace-shared SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
-set_target_properties(xnu-single-step-trace xnu-single-step-trace-shared PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
+add_library(xnu-trace STATIC ${INSTTRACE_SRC} ${INSTTRACE_HDR})
+add_library(xnu-trace-shared SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
+set_target_properties(xnu-trace xnu-trace-shared PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
 
-target_link_libraries(xnu-single-step-trace
+target_link_libraries(xnu-trace
 PUBLIC
     interval-tree
     frida-gum
@@ -66,14 +66,14 @@ PRIVATE
     thread-pool
     xxhash-xnu-trace
 )
-target_compile_options(xnu-single-step-trace PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(xnu-trace PRIVATE -Wall -Wextra -Wpedantic)
 
-target_include_directories(xnu-single-step-trace
+target_include_directories(xnu-trace
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../include
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_link_libraries(xnu-single-step-trace-shared
+target_link_libraries(xnu-trace-shared
 PUBLIC
     interval-tree
     frida-gum
@@ -88,19 +88,19 @@ PRIVATE
     thread-pool
     xxhash-xnu-trace
 )
-target_compile_options(xnu-single-step-trace-shared PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(xnu-trace-shared PRIVATE -Wall -Wextra -Wpedantic)
 
-target_include_directories(xnu-single-step-trace-shared
+target_include_directories(xnu-trace-shared
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../include
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 
-install(TARGETS xnu-single-step-trace xnu-single-step-trace-shared
+install(TARGETS xnu-trace xnu-trace-shared
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
-    PUBLIC_HEADER DESTINATION include/xnu-single-step-trace
+    PUBLIC_HEADER DESTINATION include/xnu-trace
 )
 
-# target_compile_options(xnu-single-step-trace PRIVATE -Xclang -fdump-record-layouts)
+# target_compile_options(xnu-trace PRIVATE -Xclang -fdump-record-layouts)
 

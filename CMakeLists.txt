@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(xnu-single-step-trace CXX C)
+project(xnu-trace CXX C)
 
 set(BUILD_SHARED_LIBS OFF)
 

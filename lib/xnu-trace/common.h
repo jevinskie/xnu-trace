@@ -3,7 +3,7 @@
 #undef NDEBUG
 #include <cassert>
 
-#include "xnu-single-step-trace/xnu-single-step-trace.h"
+#include "xnu-trace/xnu-trace.h"
 
 #include <mach-o/dyld_images.h>
 #include <mach-o/loader.h>

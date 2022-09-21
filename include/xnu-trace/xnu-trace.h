@@ -25,7 +25,7 @@
 #include <interval-tree/interval_tree.hpp>
 #include <pthash/pthash.hpp>
 
-#include "xnu-single-step-trace-c.h"
+#include "xnu-trace-c.h"
 
 #define XNUTRACE_EXPORT __attribute__((visibility("default")))
 #define XNUTRACE_INLINE __attribute__((always_inline))

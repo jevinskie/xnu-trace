@@ -1,4 +1,4 @@
-#include "xnu-single-step-trace/xnu-single-step-trace.h"
+#include "xnu-trace/xnu-trace.h"
 
 #undef NDEBUG
 #include <cassert>
@@ -82,7 +82,7 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
-    fmt::print(stderr, "xnu-single-step-trace-util begin self PID: {:d}\n", getpid());
+    fmt::print(stderr, "xnu-trace-util begin self PID: {:d}\n", getpid());
 
     std::unique_ptr<XNUTracer> tracer;
 
@@ -130,6 +130,6 @@ int main(int argc, const char **argv) {
 
     dispatch_main();
 
-    fmt::print(stderr, "xnu-single-step-trace-util end\n");
+    fmt::print(stderr, "xnu-trace-util end\n");
     return 0;
 }

@@ -1,4 +1,4 @@
-#include "xnu-single-step-trace/xnu-single-step-trace.h"
+#include "xnu-trace/xnu-trace.h"
 
 #undef NDEBUG
 #include <cassert>

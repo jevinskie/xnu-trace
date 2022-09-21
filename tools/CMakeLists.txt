@@ -1,5 +1,5 @@
 add_subdirectory(spawn-no-aslr)
-add_subdirectory(xnu-single-step-trace-log-util)
-add_subdirectory(xnu-single-step-trace-runner)
+add_subdirectory(xnu-trace-log-util)
+add_subdirectory(xnu-trace-single-step-runner)
 add_subdirectory(xnu-trace-compressed-file-util)
 add_subdirectory(xnu-trace-render)

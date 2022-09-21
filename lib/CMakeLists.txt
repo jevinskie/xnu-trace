@@ -1,1 +1,1 @@
-add_subdirectory(xnu-single-step-trace)
+add_subdirectory(xnu-trace)
