@@ -4,6 +4,18 @@
 
 #include <zstd.h>
 
+static void zstd_check(size_t retval, const std::string &msg) {
+    if (ZSTD_isError(retval)) {
+        fmt::print(stderr, "Zstd error: '{:s}' retval: {:#018x} description: '{:s}'\n", msg, retval,
+                   ZSTD_getErrorName(retval));
+        if (get_task_for_pid_count(mach_task_self())) {
+            __builtin_debugtrap();
+        } else {
+            exit(-1);
+        }
+    }
+}
+
 namespace jev::xnutrace::detail {
 
 CompressedFile::CompressedFile(const fs::path &path, bool read, size_t hdr_sz, uint64_t hdr_magic,

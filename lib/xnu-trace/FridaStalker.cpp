@@ -1,4 +1,9 @@
-#include "common.h"
+#include "xnu-trace/FridaStalker.h"
+
+#include "xnu-trace/TraceLog.h"
+
+#undef G_DISABLE_ASSERT
+#include <frida-gum.h>
 
 FridaStalker::FridaStalker(const std::string &log_dir_path, bool symbolicate, int compression_level,
                            bool stream)
@@ -9,8 +14,7 @@ FridaStalker::FridaStalker(const std::string &log_dir_path, bool symbolicate, in
     m_stalker = gum_stalker_new();
     assert(m_stalker);
     gum_stalker_set_trust_threshold(m_stalker, 0);
-    m_transformer =
-        gum_stalker_transformer_make_from_callback(transform_cb, (gpointer)this, nullptr);
+    m_transformer = gum_stalker_transformer_make_from_callback(transform_cb, (void *)this, nullptr);
     assert(m_transformer);
     if (symbolicate) {
         m_symbols = std::make_unique<Symbols>(mach_task_self());
@@ -31,7 +35,7 @@ void FridaStalker::follow() {
     gum_stalker_follow_me(m_stalker, m_transformer, nullptr);
 }
 
-void FridaStalker::follow(GumThreadId thread_id) {
+void FridaStalker::follow(size_t thread_id) {
     gum_stalker_follow(m_stalker, thread_id, m_transformer, nullptr);
 }
 
@@ -39,7 +43,7 @@ void FridaStalker::unfollow() {
     gum_stalker_unfollow_me(m_stalker);
 }
 
-void FridaStalker::unfollow(GumThreadId thread_id) {
+void FridaStalker::unfollow(size_t thread_id) {
     gum_stalker_unfollow(m_stalker, thread_id);
 }
 
@@ -51,19 +55,19 @@ __attribute__((always_inline)) TraceLog &FridaStalker::logger() {
     return m_log;
 }
 
-void FridaStalker::transform_cb(GumStalkerIterator *iterator, GumStalkerOutput *output,
-                                gpointer user_data) {
+void FridaStalker::transform_cb(void *iterator, void *output, void *user_data) {
     (void)output;
-    while (gum_stalker_iterator_next(iterator, nullptr)) {
-        gum_stalker_iterator_put_callout(iterator, instruction_cb, user_data, nullptr);
-        gum_stalker_iterator_keep(iterator);
+    auto *it = (GumStalkerIterator *)iterator;
+    while (gum_stalker_iterator_next(it, nullptr)) {
+        gum_stalker_iterator_put_callout(it, instruction_cb, user_data, nullptr);
+        gum_stalker_iterator_keep(it);
     }
 }
 
-void FridaStalker::instruction_cb(GumCpuContext *context, gpointer user_data) {
-    (void)context;
+void FridaStalker::instruction_cb(void *context, void *user_data) {
+    auto ctx  = (GumCpuContext *)context;
     auto thiz = (FridaStalker *)user_data;
-    thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), context->pc);
+    thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), ctx->pc);
 }
 
 // C API
@@ -81,7 +85,7 @@ void stalker_follow_me(stalker_t stalker) {
     ((FridaStalker *)stalker)->follow();
 }
 
-void stalker_follow_thread(stalker_t stalker, GumThreadId thread_id) {
+void stalker_follow_thread(stalker_t stalker, size_t thread_id) {
     ((FridaStalker *)stalker)->follow(thread_id);
 }
 
@@ -89,6 +93,6 @@ void stalker_unfollow_me(stalker_t stalker) {
     ((FridaStalker *)stalker)->unfollow();
 }
 
-void stalker_unfollow_thread(stalker_t stalker, GumThreadId thread_id) {
+void stalker_unfollow_thread(stalker_t stalker, size_t thread_id) {
     ((FridaStalker *)stalker)->unfollow(thread_id);
 }

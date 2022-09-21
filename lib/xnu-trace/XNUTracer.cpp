@@ -107,10 +107,10 @@ pid_t XNUTracer::spawn_with_args(const std::vector<std::string> &spawn_args, boo
         assert(!pipe(tracer2target_fds));
         m_tracer2target_fd = tracer2target_fds[1];
         posix_check(
-            posix_spawn_file_actions_adddup2(&action, target2tracer_fds[1], pipe_target2tracer_fd),
+            posix_spawn_file_actions_adddup2(&action, target2tracer_fds[1], PIPE_TARGET2TRACER_FD),
             "dup pipe target2tracer");
         posix_check(
-            posix_spawn_file_actions_adddup2(&action, tracer2target_fds[0], pipe_tracer2target_fd),
+            posix_spawn_file_actions_adddup2(&action, tracer2target_fds[0], PIPE_TRACER2TARGET_FD),
             "dup pipe tracer2target");
     }
 

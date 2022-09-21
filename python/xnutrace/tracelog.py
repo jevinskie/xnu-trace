@@ -19,10 +19,12 @@ log_meta_hdr_magic = 0x8D3A_DFB8_4154_454D
 #     uint64_t base;
 #     uint64_t size;
 #     uint64_t slide;
-#     uuid_t uuid;
+#     uint8_t uuid[16];
+#     uint8_t digest_sha256[32];
+#     uint64_t is_jit;
 #     uint64_t path_len;
 # }
-log_region_t = struct.Struct("=QQQ16BQ")
+log_region_t = struct.Struct("=QQQ16B32BQQ")
 
 # struct log_sym {
 #     uint64_t base;

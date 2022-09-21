@@ -16,7 +16,7 @@ target_include_directories(xnu-trace-mach-exc
 
 set(INSTTRACE_SRC
     ARM64InstrHistogram.cpp
-    common.h
+    common-internal.h
     CompressedFile.cpp
     dyld.cpp
     exception_handlers.cpp
@@ -34,6 +34,8 @@ set(INSTTRACE_SRC
 )
 
 set(INSTTRACE_HDR_STANDALONE
+    drcov.h
+    log_structs.h
     xnu-trace.h
     xnu-trace-c.h
 )

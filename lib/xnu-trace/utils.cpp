@@ -29,18 +29,6 @@ void mach_check(kern_return_t kr, const std::string &msg) {
     }
 }
 
-void zstd_check(size_t retval, const std::string &msg) {
-    if (ZSTD_isError(retval)) {
-        fmt::print(stderr, "Zstd error: '{:s}' retval: {:#018x} description: '{:s}'\n", msg, retval,
-                   ZSTD_getErrorName(retval));
-        if (get_task_for_pid_count(mach_task_self())) {
-            __builtin_debugtrap();
-        } else {
-            exit(-1);
-        }
-    }
-}
-
 uint32_t get_num_cores() {
     uint32_t num;
     size_t sz = sizeof(num);
@@ -59,14 +47,14 @@ double timespec_diff(const timespec &a, const timespec &b) {
     return c.tv_sec + ((double)c.tv_nsec / 1'000'000'000L);
 }
 
-void write_file(std::string path, const uint8_t *buf, size_t sz) {
+void write_file(const std::string &path, const uint8_t *buf, size_t sz) {
     const auto fh = fopen(path.c_str(), "wb");
     assert(fh);
     assert(fwrite(buf, sz, 1, fh) == 1);
     assert(!fclose(fh));
 }
 
-std::vector<uint8_t> read_file(std::string path) {
+std::vector<uint8_t> read_file(const std::string &path) {
     std::vector<uint8_t> res;
     const auto fh = fopen(path.c_str(), "rb");
     assert(fh);
@@ -118,11 +106,11 @@ void hexdump(const void *data, size_t size) {
     }
 }
 
-void pipe_set_single_step(bool do_ss) {
+void pipe_set_single_step(int do_ss) {
     const uint8_t wbuf = do_ss ? 'y' : 'n';
-    assert(write(pipe_target2tracer_fd, &wbuf, 1) == 1);
+    assert(write(PIPE_TARGET2TRACER_FD, &wbuf, 1) == 1);
     uint8_t rbuf = 0;
-    assert(read(pipe_tracer2target_fd, &rbuf, 1) == 1);
+    assert(read(PIPE_TRACER2TARGET_FD, &rbuf, 1) == 1);
     assert(rbuf == 'c');
 }
 

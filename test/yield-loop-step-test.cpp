@@ -56,8 +56,8 @@ int main(int argc, const char **argv) {
     }
 
     bool do_pipe = false;
-    if (fcntl(pipe_tracer2target_fd, F_GETFD) != -1 &&
-        fcntl(pipe_target2tracer_fd, F_GETFD) != -1) {
+    if (fcntl(PIPE_TRACER2TARGET_FD, F_GETFD) != -1 &&
+        fcntl(PIPE_TARGET2TRACER_FD, F_GETFD) != -1) {
         fmt::print("target utilizing pipe ctrl\n");
         do_pipe = true;
     }
