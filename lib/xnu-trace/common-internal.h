@@ -1,24 +1,19 @@
 #pragma once
 
-#include <concepts>
-
 #undef NDEBUG
 #include <cassert>
+#include <concepts>
 
-#include "xnu-trace/xnu-trace.h"
-
-#include <mach-o/dyld_images.h>
-#include <mach-o/loader.h>
+// #include <mach-o/dyld_images.h>
+// #include <mach-o/loader.h>
 
 #include <BS_thread_pool.hpp>
 #include <fmt/format.h>
 
 namespace fs = std::filesystem;
 using namespace std::string_literals;
-using namespace lib_interval_tree;
 
-extern XNUTracer *g_tracer;
-
+#if 0
 template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
 }
@@ -56,3 +51,4 @@ std::vector<segment_command_64> read_macho_segs_target(task_t target_task,
                                                        const mach_header_64 *macho_hdr);
 uint64_t get_text_size(const std::vector<segment_command_64> &segments);
 uint64_t get_text_base(const std::vector<segment_command_64> &segments);
+#endif

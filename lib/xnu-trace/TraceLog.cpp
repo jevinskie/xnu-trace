@@ -1,6 +1,11 @@
 #include "xnu-trace/TraceLog.h"
+#include "common-internal.h"
 
 #include <set>
+
+#include <interval-tree/interval_tree.hpp>
+
+using namespace lib_interval_tree;
 
 std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs) {
     std::vector<bb_t> bbs;

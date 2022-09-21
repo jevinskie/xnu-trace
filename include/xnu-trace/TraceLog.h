@@ -2,6 +2,17 @@
 
 #include "common.h"
 
+#include "CompressedFile.h"
+#include "MachORegions.h"
+#include "Symbols.h"
+#include "log_structs.h"
+
+#include <span>
+
+#include <mach/mach_types.h>
+
+#include <absl/container/flat_hash_map.h>
+
 struct bb_t {
     uint64_t pc;
     uint32_t sz;

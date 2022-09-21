@@ -69,3 +69,5 @@ private:
     std::unique_ptr<VMRegions> m_vm_regions;
     std::unique_ptr<Symbols> m_symbols;
 };
+
+extern XNUTracer *g_tracer;

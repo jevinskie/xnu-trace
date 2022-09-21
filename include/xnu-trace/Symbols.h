@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <interval-tree/interval_tree.hpp>
+
 struct sym_info {
     uint64_t base;
     uint64_t size;

@@ -2,6 +2,11 @@
 
 #include "common.h"
 
+#include <array>
+#include <span>
+
+#include <mach/machine/kern_return.h>
+
 struct mbedtls_sha256_context;
 
 using sha256_t = std::array<uint8_t, 32>;

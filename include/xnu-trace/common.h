@@ -9,8 +9,6 @@
 #include <string>
 #include <vector>
 
-#include <absl/container/flat_hash_map.h>
-
 #include "common-c.h"
 
 template <typename T>

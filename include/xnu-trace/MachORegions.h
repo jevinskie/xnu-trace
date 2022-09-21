@@ -2,6 +2,12 @@
 
 #include "common.h"
 
+#include "utils.h"
+
+#include <mach/mach_types.h>
+
+#include <pthash/pthash.hpp>
+
 struct image_info {
     uint64_t base;
     uint64_t size;
