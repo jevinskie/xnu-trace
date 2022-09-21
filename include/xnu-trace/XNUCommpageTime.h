@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "utils.h"
+
 #include <mach/mach_time.h>
 
 XNUTRACE_EXPORT XNUTRACE_INLINE uint64_t xnu_commpage_time_seconds();

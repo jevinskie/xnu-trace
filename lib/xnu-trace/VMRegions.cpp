@@ -1,7 +1,15 @@
 #include "xnu-trace/VMRegions.h"
 #include "common-internal.h"
 
+#include "xnu-trace/utils.h"
+
 #include <set>
+
+#include <mach/mach_error.h>
+#include <mach/mach_init.h>
+#include <mach/machine/kern_return.h>
+#include <mach/task.h>
+#include <mach/vm_map.h>
 
 std::vector<region> get_vm_regions(task_t target_task) {
     std::vector<region> res;

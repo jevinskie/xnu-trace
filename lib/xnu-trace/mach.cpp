@@ -1,6 +1,14 @@
 #include "xnu-trace/mach.h"
 #include "common-internal.h"
 
+#include "xnu-trace/utils.h"
+
+#include <mach/mach_init.h>
+#include <mach/mach_traps.h>
+#include <mach/task.h>
+#include <mach/thread_act.h>
+#include <mach/vm_map.h>
+
 bool task_is_valid(task_t task) {
     if (!MACH_PORT_VALID(task)) {
         return false;

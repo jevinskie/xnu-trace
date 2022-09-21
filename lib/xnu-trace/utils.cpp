@@ -1,7 +1,13 @@
 #include "xnu-trace/utils.h"
 #include "common-internal.h"
 
+#include "xnu-trace/mach.h"
+#include "xnu-trace/xnu-trace-c.h"
+
 #include <sys/sysctl.h>
+
+#include <mach/mach_error.h>
+#include <mach/mach_init.h>
 
 #include <mbedtls/sha256.h>
 #include <zstd.h>

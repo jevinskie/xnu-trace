@@ -3,6 +3,7 @@
 
 #include <set>
 
+#include <BS_thread_pool.hpp>
 #include <interval-tree/interval_tree.hpp>
 
 using namespace lib_interval_tree;

@@ -1,7 +1,16 @@
 #include "xnu-trace/XNUTracer.h"
 #include "common-internal.h"
 
+#include "xnu-trace/mach.h"
+#include "xnu-trace/proc.h"
+#include "xnu-trace/xnu-trace-c.h"
+
 #include <spawn.h>
+
+#include <mach/mach_init.h>
+#include <mach/mach_port.h>
+#include <mach/mach_traps.h>
+#include <mach/task.h>
 
 #ifndef _POSIX_SPAWN_DISABLE_ASLR
 #define _POSIX_SPAWN_DISABLE_ASLR 0x0100

@@ -1,6 +1,10 @@
 #include "xnu-trace/MachORegions.h"
 #include "common-internal.h"
 
+#include "xnu-trace/VMRegions.h"
+#include "xnu-trace/dyld.h"
+#include "xnu-trace/mach.h"
+
 #include <CoreSymbolication/CoreSymbolication.h>
 
 fs::path image_info::log_path() const {

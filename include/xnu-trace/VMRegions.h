@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#include <mach/mach_types.h>
+#include <mach/vm_prot.h>
+
 struct region {
     uint64_t base;
     uint64_t size;

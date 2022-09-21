@@ -2,6 +2,10 @@
 
 #include "common.h"
 
+#include "log_structs.h"
+
+#include <mach/mach_types.h>
+
 #include <interval-tree/interval_tree.hpp>
 
 struct sym_info {

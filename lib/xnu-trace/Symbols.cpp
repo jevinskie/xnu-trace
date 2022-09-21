@@ -1,7 +1,11 @@
 #include "xnu-trace/Symbols.h"
 #include "common-internal.h"
 
+#include "xnu-trace/utils.h"
+
 #include <CoreSymbolication/CoreSymbolication.h>
+
+using namespace lib_interval_tree;
 
 std::vector<sym_info> get_symbols(task_t target_task) {
     const auto cs = CSSymbolicatorCreateWithTask(target_task);
