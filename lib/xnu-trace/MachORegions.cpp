@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/MachORegions.h"
+#include "common-internal.h"
 
 #include <CoreSymbolication/CoreSymbolication.h>
 

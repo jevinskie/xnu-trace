@@ -1,5 +1,6 @@
 #pragma once
 
+#if 0
 #include <array>
 #include <concepts>
 #include <cstdint>
@@ -19,6 +20,7 @@
 #include <interval-tree/interval_tree.hpp>
 #include <mach/mach.h>
 #include <pthash/pthash.hpp>
+#endif
 
 #include "xnu-trace-c.h"
 
@@ -33,7 +35,6 @@
 #include "XNUTracer.h"
 #include "drcov.h"
 #include "dyld.h"
-#include "exception_handlers.h"
 #include "log_structs.h"
 #include "mach.h"
 #include "macho.h"

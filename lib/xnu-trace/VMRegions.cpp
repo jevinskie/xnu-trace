@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/VMRegions.h"
+#include "common-internal.h"
 
 #include <set>
 

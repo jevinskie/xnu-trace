@@ -38,17 +38,9 @@ constexpr U rounddown_pow2_mul(U num, std::size_t pow2_mul) {
 
 // utils.cpp
 
-double timespec_diff(const timespec &a, const timespec &b);
-std::string prot_to_str(vm_prot_t prot);
-std::string block_str(double percentage, unsigned int width = 80);
 
 // mach.cpp
 
 // macho.cpp
 
-std::vector<segment_command_64> read_macho_segs_target(task_t target_task, uint64_t macho_hdr_addr);
-std::vector<segment_command_64> read_macho_segs_target(task_t target_task,
-                                                       const mach_header_64 *macho_hdr);
-uint64_t get_text_size(const std::vector<segment_command_64> &segments);
-uint64_t get_text_base(const std::vector<segment_command_64> &segments);
 #endif

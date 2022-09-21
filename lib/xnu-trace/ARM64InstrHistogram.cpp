@@ -1,4 +1,7 @@
-#include "common.h"
+#include "xnu-trace/ARM64InstrHistogram.h"
+#include "common-internal.h"
+
+#include "xnu-trace/utils.h"
 
 #include <arch-arm64/arm64dis.h>
 

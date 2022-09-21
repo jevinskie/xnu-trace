@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <span>
+
 struct ZSTD_CCtx_s;
 struct ZSTD_DCtx_s;
 

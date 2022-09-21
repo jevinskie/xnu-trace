@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include "log_structs.h"
 #include "utils.h"
 
 #include <mach/mach_types.h>

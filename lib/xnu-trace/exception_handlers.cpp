@@ -1,4 +1,9 @@
-#include "common.h"
+#include "common-internal.h"
+
+#include "xnu-trace/XNUTracer.h"
+#include "xnu-trace/mach.h"
+
+#include <mach/mach.h>
 
 // Handle EXCEPTION_STATE_IDENTIY behavior
 extern "C" kern_return_t trace_catch_mach_exception_raise_state_identity(

@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/Symbols.h"
+#include "common-internal.h"
 
 #include <CoreSymbolication/CoreSymbolication.h>
 

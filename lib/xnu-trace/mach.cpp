@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/mach.h"
+#include "common-internal.h"
 
 bool task_is_valid(task_t task) {
     if (!MACH_PORT_VALID(task)) {

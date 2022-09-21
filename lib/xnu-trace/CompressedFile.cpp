@@ -1,6 +1,13 @@
-#include "common.h"
+#include "xnu-trace/CompressedFile.h"
+#include "common-internal.h"
+
+#include "xnu-trace/log_structs.h"
+#include "xnu-trace/mach.h"
+#include "xnu-trace/utils.h"
 
 #include <algorithm>
+
+#include <mach/mach_init.h>
 
 #include <zstd.h>
 

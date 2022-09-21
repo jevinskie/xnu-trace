@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/macho.h"
+#include "common-internal.h"
 
 std::vector<segment_command_64> read_macho_segs_target(task_t target_task,
                                                        uint64_t macho_hdr_addr) {

@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/utils.h"
+#include "common-internal.h"
 
 #include <sys/sysctl.h>
 

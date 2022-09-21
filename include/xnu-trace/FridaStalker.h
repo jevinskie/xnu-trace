@@ -2,7 +2,17 @@
 
 #include "common.h"
 
+#include "MachORegions.h"
+#include "Symbols.h"
+#include "TraceLog.h"
+#include "VMRegions.h"
+
 #include <sys/types.h>
+
+struct _GumStalker;
+typedef _GumStalker GumStalker;
+struct _GumStalkerTransformer;
+typedef _GumStalkerTransformer GumStalkerTransformer;
 
 class XNUTRACE_EXPORT FridaStalker {
 public:

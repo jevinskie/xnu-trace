@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/XNUCommpageTime.h"
+#include "common-internal.h"
 
 #include <cstddef>
 

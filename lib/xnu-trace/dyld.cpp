@@ -1,4 +1,11 @@
-#include "common.h"
+#include "xnu-trace/dyld.h"
+#include "common-internal.h"
+
+#include "xnu-trace/mach.h"
+#include "xnu-trace/macho.h"
+
+#include <mach-o/dyld_images.h>
+#include <mach/task.h>
 
 std::vector<image_info> get_dyld_image_infos(task_t target_task) {
     std::vector<image_info> res;

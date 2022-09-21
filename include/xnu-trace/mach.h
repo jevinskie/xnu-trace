@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <mach/mach_types.h>
+
 XNUTRACE_EXPORT bool task_is_valid(task_t task);
 XNUTRACE_EXPORT pid_t pid_for_task(task_t task);
 XNUTRACE_EXPORT integer_t get_suspend_count(task_t task);

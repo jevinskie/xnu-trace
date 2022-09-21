@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/XNUTracer.h"
+#include "common-internal.h"
 
 #include <spawn.h>
 

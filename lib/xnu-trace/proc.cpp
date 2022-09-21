@@ -1,4 +1,5 @@
-#include "common.h"
+#include "xnu-trace/proc.h"
+#include "common-internal.h"
 
 #include <libproc.h>
 

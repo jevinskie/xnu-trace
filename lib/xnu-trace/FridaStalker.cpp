@@ -1,6 +1,10 @@
 #include "xnu-trace/FridaStalker.h"
+#include "common-internal.h"
 
 #include "xnu-trace/TraceLog.h"
+#include "xnu-trace/xnu-trace-c.h"
+
+#include <mach/mach_init.h>
 
 #undef G_DISABLE_ASSERT
 #include <frida-gum.h>
@@ -14,7 +18,8 @@ FridaStalker::FridaStalker(const std::string &log_dir_path, bool symbolicate, in
     m_stalker = gum_stalker_new();
     assert(m_stalker);
     gum_stalker_set_trust_threshold(m_stalker, 0);
-    m_transformer = gum_stalker_transformer_make_from_callback(transform_cb, (void *)this, nullptr);
+    m_transformer = gum_stalker_transformer_make_from_callback(
+        (GumStalkerTransformerCallback)transform_cb, (void *)this, nullptr);
     assert(m_transformer);
     if (symbolicate) {
         m_symbols = std::make_unique<Symbols>(mach_task_self());
@@ -59,7 +64,7 @@ void FridaStalker::transform_cb(void *iterator, void *output, void *user_data) {
     (void)output;
     auto *it = (GumStalkerIterator *)iterator;
     while (gum_stalker_iterator_next(it, nullptr)) {
-        gum_stalker_iterator_put_callout(it, instruction_cb, user_data, nullptr);
+        gum_stalker_iterator_put_callout(it, (GumStalkerCallout)instruction_cb, user_data, nullptr);
         gum_stalker_iterator_keep(it);
     }
 }

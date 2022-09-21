@@ -2,6 +2,13 @@
 
 #include "common.h"
 
+#include "MachORegions.h"
+#include "Symbols.h"
+#include "TraceLog.h"
+#include "VMRegions.h"
+
+#include <dispatch/dispatch.h>
+
 class XNUTRACE_EXPORT XNUTracer {
 public:
     struct opts {
