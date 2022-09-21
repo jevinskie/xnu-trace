@@ -1,3 +1,18 @@
+add_custom_command(OUTPUT
+    ${CMAKE_CURRENT_BINARY_DIR}/mach_exc.h
+    ${CMAKE_CURRENT_BINARY_DIR}/mach_excServer.c
+    ${CMAKE_CURRENT_BINARY_DIR}/mach_excUser.c
+    COMMAND mig ${CMAKE_CURRENT_SOURCE_DIR}/mach_exc.defs
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/mach_exc.defs
+)
+
+add_library(xnu-trace-mach-exc STATIC ${CMAKE_CURRENT_BINARY_DIR}/mach_excServer.c ${CMAKE_CURRENT_BINARY_DIR}/mach_exc.h)
+target_compile_options(xnu-trace-mach-exc PRIVATE -Wall -Wextra -Wpedantic)
+
+target_include_directories(xnu-trace-mach-exc
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 
 set(INSTTRACE_SRC
     ARM64InstrHistogram.cpp
@@ -6,7 +21,6 @@ set(INSTTRACE_SRC
     dyld.cpp
     exception_handlers.cpp
     FridaStalker.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/mach_excServer.c
     mach.cpp
     macho.cpp
     MachORegions.cpp
@@ -38,14 +52,6 @@ foreach(SRC ${INSTTRACE_SRC})
     endif()
 endforeach()
 
-add_custom_command(OUTPUT
-    ${CMAKE_CURRENT_BINARY_DIR}/mach_exc.h
-    ${CMAKE_CURRENT_BINARY_DIR}/mach_excServer.c
-    ${CMAKE_CURRENT_BINARY_DIR}/mach_excUser.c
-    COMMAND mig ${CMAKE_CURRENT_SOURCE_DIR}/mach_exc.defs
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/mach_exc.defs
-)
-
 # INSTTRACE_HDR added for Xcode project generation
 add_library(xnu-trace STATIC ${INSTTRACE_SRC} ${INSTTRACE_HDR})
 add_library(xnu-trace-shared SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
@@ -65,6 +71,7 @@ PRIVATE
     mbedcrypto
     thread-pool
     xxhash-xnu-trace
+    xnu-trace-mach-exc
 )
 target_compile_options(xnu-trace PRIVATE -Wall -Wextra -Wpedantic)
 
@@ -87,6 +94,7 @@ PRIVATE
     mbedcrypto
     thread-pool
     xxhash-xnu-trace
+    xnu-trace-mach-exc
 )
 target_compile_options(xnu-trace-shared PRIVATE -Wall -Wextra -Wpedantic)
 
