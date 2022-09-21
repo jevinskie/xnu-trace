@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <vector>
+
 #include <mach-o/loader.h>
 #include <mach/mach_types.h>
 

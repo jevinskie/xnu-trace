@@ -4,6 +4,10 @@
 
 #include "log_structs.h"
 
+#include <filesystem>
+#include <string>
+#include <vector>
+
 #include <mach/mach_types.h>
 
 #include <interval-tree/interval_tree.hpp>

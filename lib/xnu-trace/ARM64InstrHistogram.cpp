@@ -3,6 +3,9 @@
 
 #include "xnu-trace/utils.h"
 
+#include <locale>
+#include <map>
+
 #include <arch-arm64/arm64dis.h>
 
 ARM64InstrHistogram::ARM64InstrHistogram() {

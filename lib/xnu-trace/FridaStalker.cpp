@@ -4,6 +4,8 @@
 #include "xnu-trace/TraceLog.h"
 #include "xnu-trace/xnu-trace-c.h"
 
+#include <locale>
+
 #include <mach/mach_init.h>
 
 #undef G_DISABLE_ASSERT

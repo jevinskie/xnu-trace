@@ -2,6 +2,10 @@
 
 #include "common.h"
 
+#include <filesystem>
+#include <optional>
+#include <vector>
+
 #include <mach/mach_types.h>
 #include <mach/vm_prot.h>
 

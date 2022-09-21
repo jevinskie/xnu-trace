@@ -5,6 +5,7 @@
 #include <array>
 #include <concepts>
 #include <span>
+#include <string>
 
 #include <mach/machine/kern_return.h>
 #include <mach/vm_prot.h>

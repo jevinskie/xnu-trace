@@ -2,7 +2,6 @@
 
 #undef NDEBUG
 #include <cassert>
-#include <concepts>
 
 #include <fmt/format.h>
 

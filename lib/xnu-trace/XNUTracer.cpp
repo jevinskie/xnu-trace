@@ -5,6 +5,7 @@
 #include "xnu-trace/proc.h"
 #include "xnu-trace/xnu-trace-c.h"
 
+#include <locale>
 #include <spawn.h>
 
 #include <mach/mach_init.h>

@@ -1,13 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
-#include <map>
-#include <memory>
-#include <optional>
-#include <set>
-#include <string>
-#include <vector>
+#include <type_traits>
 
 #include "common-c.h"
 

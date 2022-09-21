@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <vector>
+
 class XNUTRACE_EXPORT ARM64InstrHistogram {
 public:
     ARM64InstrHistogram();

@@ -2,7 +2,9 @@
 
 #include "common.h"
 
+#include <filesystem>
 #include <span>
+#include <vector>
 
 struct ZSTD_CCtx_s;
 struct ZSTD_DCtx_s;

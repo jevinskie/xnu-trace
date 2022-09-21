@@ -1,27 +1,5 @@
 #pragma once
 
-#if 0
-#include <array>
-#include <concepts>
-#include <cstdint>
-#include <ctime>
-#include <filesystem>
-#include <map>
-#include <memory>
-#include <optional>
-#include <span>
-#include <string>
-#include <unistd.h>
-#include <utility>
-#include <vector>
-
-#include <dispatch/dispatch.h>
-#include <frida-gum.h>
-#include <interval-tree/interval_tree.hpp>
-#include <mach/mach.h>
-#include <pthash/pthash.hpp>
-#endif
-
 #include "xnu-trace-c.h"
 
 #include "ARM64InstrHistogram.h"

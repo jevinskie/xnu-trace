@@ -6,6 +6,7 @@
 #include "xnu-trace/utils.h"
 
 #include <algorithm>
+#include <locale>
 
 #include <mach/mach_init.h>
 

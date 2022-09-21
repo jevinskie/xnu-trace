@@ -2,6 +2,10 @@
 
 #include "common.h"
 
+#include <string>
+#include <sys/types.h>
+#include <vector>
+
 #include <mach/mach_types.h>
 
 XNUTRACE_EXPORT bool task_is_valid(task_t task);

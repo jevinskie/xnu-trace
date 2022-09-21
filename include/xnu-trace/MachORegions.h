@@ -5,6 +5,8 @@
 #include "log_structs.h"
 #include "utils.h"
 
+#include <map>
+
 #include <mach/mach_types.h>
 
 #include <pthash/pthash.hpp>

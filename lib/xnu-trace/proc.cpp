@@ -3,6 +3,10 @@
 
 #include "xnu-trace/utils.h"
 
+#include <filesystem>
+#include <utility>
+#include <vector>
+
 #include <libproc.h>
 
 int32_t get_context_switch_count(pid_t pid) {
