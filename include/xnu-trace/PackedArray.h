@@ -19,11 +19,6 @@ using uint_n = decltype([]() {
     }
 }());
 
-static_assert(std::is_same_v<uint_n<0>, void>, "");
-static_assert(std::is_same_v<uint_n<5>, uint8_t>, "");
-static_assert(std::is_same_v<uint_n<11>, uint16_t>, "");
-static_assert(std::is_same_v<uint_n<65>, void>, "");
-
 class XNUTRACE_EXPORT PackedArray {
 public:
     PackedArray(size_t sz, size_t nbits);
