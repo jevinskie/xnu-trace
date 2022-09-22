@@ -24,6 +24,7 @@ set(INSTTRACE_SRC
     mach.cpp
     macho.cpp
     MachORegions.cpp
+    PackedArray.cpp
     proc.cpp
     Symbols.cpp
     TraceLog.cpp

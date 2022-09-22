@@ -6,6 +6,7 @@
 #include "CompressedFile.h"
 #include "FridaStalker.h"
 #include "MachORegions.h"
+#include "PackedArray.h"
 #include "Symbols.h"
 #include "TraceLog.h"
 #include "VMRegions.h"
