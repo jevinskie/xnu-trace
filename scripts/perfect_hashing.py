@@ -71,7 +71,12 @@ page_addrs = []
 for line in open(sys.argv[1]).readlines():
     page_addrs.append(int(line.split()[1], 16))
 
-page_addrs = list(set(page_addrs))
+page_addrs = sorted(list(set(page_addrs)))
+
+# with open("page_addrs.bin", "wb") as f:
+#     for pa in page_addrs:
+#         f.write(pa.to_bytes(8, "little"))
+
 print(f"len(page_addrs): {len(page_addrs)}")
 
 mph = MPH(page_addrs)

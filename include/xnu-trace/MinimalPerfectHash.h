@@ -10,9 +10,10 @@ struct xxhash_64 {
 
 template <typename KeyT, typename Hasher = xxhash_64> class XNUTRACE_EXPORT MinimalPerfectHash {
 public:
-    MinimalPerfectHash<KeyT, Hasher>(const std::vector<KeyT> &keys);
+    MinimalPerfectHash<KeyT, Hasher>(std::vector<KeyT> keys);
     uint32_t lookup(KeyT key);
 
 private:
-    std::unique_ptr<uint32_t[]> m_intermediate_tbl;
+    std::unique_ptr<int32_t[]> m_salts;
+    size_t m_nkeys;
 };
