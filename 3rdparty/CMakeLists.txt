@@ -41,6 +41,7 @@ add_subdirectory(ut)
 
 set(BENCHMARK_ENABLE_TESTING OFF)
 add_subdirectory(benchmark)
+add_subdirectory(nanobench)
 
 cmake_policy(SET CMP0135 NEW)
 include(FetchContent)

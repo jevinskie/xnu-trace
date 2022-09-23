@@ -85,7 +85,7 @@ static void BM_histogram_add(benchmark::State &state) {
 
 // BENCHMARK(BM_histogram_add);
 
-static void BM_xxhash(benchmark::State &state) {
+static void BM_xxhash64(benchmark::State &state) {
     uint64_t i = 0;
     for (auto _ : state) {
         benchmark::DoNotOptimize(XXH64((char *)&i, sizeof(i), i));
@@ -95,7 +95,17 @@ static void BM_xxhash(benchmark::State &state) {
     }
 }
 
-// BENCHMARK(BM_xxhash);
+BENCHMARK(BM_xxhash64);
+
+static void BM_xxhash3_64(benchmark::State &state) {
+    uint64_t i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(XXH3_64bits_withSeed((char *)&i, sizeof(i), i));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_xxhash3_64);
 
 static void BM_xnu_commpage_time_seconds(benchmark::State &state) {
     for (auto _ : state) {

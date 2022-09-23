@@ -8,7 +8,7 @@
 
 #define XXH_INLINE_ALL
 #define XXH_NAMESPACE xnu_trace_mph_
-#include <xxhash.h>
+#include <xxhash-xnu-trace/xxhash.h>
 
 uint64_t xxhash_64::hash(uint64_t val) {
     return XXH64(reinterpret_cast<char const *>(&val), sizeof(val), 0);

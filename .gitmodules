@@ -58,3 +58,6 @@
 	path = 3rdparty/fastmod
 	url = https://github.com/jevinskie/fastmod
 	branch = jev/main
+[submodule "3rdparty/nanobench"]
+	path = 3rdparty/nanobench
+	url = https://github.com/martinus/nanobench
