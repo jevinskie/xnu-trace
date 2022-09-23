@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include <memory>
+#include <span>
 
 struct xxhash_64 {
     XNUTRACE_INLINE static uint64_t hash(uint64_t val);
@@ -16,8 +17,8 @@ struct xxhash3_64 {
 
 template <typename KeyT, typename Hasher = xxhash3_64> class XNUTRACE_EXPORT MinimalPerfectHash {
 public:
-    MinimalPerfectHash<KeyT, Hasher>(std::vector<KeyT> keys);
-    XNUTRACE_INLINE uint32_t lookup(KeyT key);
+    void build(std::span<const KeyT> keys);
+    XNUTRACE_INLINE uint32_t operator()(KeyT key) const;
 
 private:
     std::unique_ptr<int32_t[]> m_salts;

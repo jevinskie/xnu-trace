@@ -21,7 +21,8 @@ int main(int argc, const char **argv) {
         keys.emplace_back(raw_buf[i]);
     }
 
-    const auto mph = MinimalPerfectHash<uint64_t>{keys};
+    auto mph = MinimalPerfectHash<uint64_t>{};
+    mph.build(keys);
 
     return 0;
 }

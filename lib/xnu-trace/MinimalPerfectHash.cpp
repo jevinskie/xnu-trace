@@ -32,12 +32,13 @@ template <typename KeyT> struct bucket {
 };
 
 template <typename KeyT, typename Hasher>
-MinimalPerfectHash<KeyT, Hasher>::MinimalPerfectHash(std::vector<KeyT> keys) {
+void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
     assert(keys.size() <= UINT32_MAX);
     m_nkeys = (uint32_t)keys.size();
-    std::sort(keys.begin(), keys.end());
-    keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
-    assert(keys.size() == m_nkeys && "keys for MPH are not unique");
+    std::vector<KeyT> vkeys{keys.begin(), keys.end()};
+    std::sort(vkeys.begin(), vkeys.end());
+    vkeys.erase(std::unique(vkeys.begin(), vkeys.end()), vkeys.end());
+    assert(vkeys.size() == m_nkeys && "keys for MPH are not unique");
 
     std::vector<bucket<KeyT>> buckets{m_nkeys};
     for (const auto &key : keys) {
@@ -50,7 +51,6 @@ MinimalPerfectHash<KeyT, Hasher>::MinimalPerfectHash(std::vector<KeyT> keys) {
     std::sort(buckets.begin(), buckets.end(), [](const auto &a, const auto &b) {
         return a.keys.size() > b.keys.size();
     });
-    fmt::print("bucket[0] hmod: {:#010x} sz: {:d}\n", buckets[0].hmod, buckets[0].keys.size());
 
     m_salts = std::make_unique<int32_t[]>(m_nkeys);
     std::vector<bool> slot_used(m_nkeys);
@@ -97,7 +97,7 @@ MinimalPerfectHash<KeyT, Hasher>::MinimalPerfectHash(std::vector<KeyT> keys) {
 }
 
 template <typename KeyT, typename Hasher>
-uint32_t MinimalPerfectHash<KeyT, Hasher>::lookup(KeyT key) {
+uint32_t MinimalPerfectHash<KeyT, Hasher>::operator()(KeyT key) const {
     const auto hmod     = Hasher::hash(key) % m_nkeys;
     const auto salt_val = m_salts[hmod];
     if (salt_val < 0) {

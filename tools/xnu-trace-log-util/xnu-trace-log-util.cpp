@@ -34,7 +34,7 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
 
 void dump_histogram(const TraceLog &trace, int max_num) {
     ARM64InstrHistogram hist;
-    const auto regions = trace.macho_regions();
+    const auto &regions = trace.macho_regions();
     for (const auto &[tid, log] : trace.parsed_logs()) {
         for (const auto pc : extract_pcs_from_trace(log)) {
             hist.add(regions.lookup_inst(pc));
@@ -48,7 +48,7 @@ void dump_calls_from(const TraceLog &trace, const std::string &calling_image) {
     for (const auto &ttp : trace.parsed_logs()) {
         tbbs.emplace_back(extract_bbs_from_pc_trace(extract_pcs_from_trace(ttp.second)));
     }
-    const auto macho_regions        = trace.macho_regions();
+    const auto &macho_regions       = trace.macho_regions();
     const auto syms                 = trace.symbols();
     const auto &target_img_info     = macho_regions.lookup(calling_image);
     const image_info *last_img_info = nullptr;
@@ -90,8 +90,8 @@ void write_lighthouse_coverage(std::string path, const TraceLog &trace, bool sym
     const auto fh = fopen(path.c_str(), "w");
     assert(fh);
 
-    const auto macho_regions = trace.macho_regions();
-    const auto syms          = trace.symbols();
+    const auto &macho_regions = trace.macho_regions();
+    const auto syms           = trace.symbols();
     for (const auto &bbs : tbbs) {
         for (const auto &bb : bbs) {
             const auto img_info = macho_regions.lookup(bb.pc);
@@ -147,7 +147,7 @@ Columns: id, base, end, entry, checksum, timestamp, path
 
     fmt::print(fh, "BB Table: {:d} bbs\n", num_bbs);
 
-    const auto macho_regions = trace.macho_regions();
+    const auto &macho_regions = trace.macho_regions();
     for (const auto &bbs : tbbs) {
         for (const auto &bb : bbs) {
             const auto [img_info, idx] = macho_regions.lookup_idx(bb.pc);
