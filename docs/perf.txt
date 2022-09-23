@@ -1,0 +1,28 @@
+MachORegions::lookup_inst
+
+benchmark loop body:
+*load instruction address ptr
+load instruction address
+*load m_nkeys
+hash instr address
+*load mph table ptr
+load salt value from mph table
+[hash again]
+*load buf ptr ptr
+load buf ptr
+load instr bytes
+
+
+header:
+load trace_inst_addrs[] data ptr from caller
+load m_salt_values[] data ptr from MinimalPerfectHash obj
+load m_nkeys from MinimalPerfectHash obj
+load m_page_bufs[] from MachORegions obj
+
+benchmark loop body:
+load inst_addr from trace_inst_addrs[]
+hmod = xxh3(inst_addr)
+load salt_value from m_salt_values[hmod]
+[potentially xxh3 again]
+load buf[] from m_page_bufs[salt_value]
+load buf[inst_addr & (PAGE_SZ-1)]
