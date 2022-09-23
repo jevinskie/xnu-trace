@@ -7,6 +7,7 @@
 #include "TraceLog.h"
 #include "VMRegions.h"
 
+#include <memory>
 #include <sys/types.h>
 
 struct _GumStalker;

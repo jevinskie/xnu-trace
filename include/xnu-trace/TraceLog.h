@@ -7,6 +7,7 @@
 #include "Symbols.h"
 #include "log_structs.h"
 
+#include <memory>
 #include <span>
 
 #include <mach/mach_types.h>

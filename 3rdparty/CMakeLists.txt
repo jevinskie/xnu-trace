@@ -27,6 +27,7 @@ add_subdirectory(mbedtls)
 # add_subdirectory(perf-macos)
 
 add_subdirectory(abseil)
+# add_subdirectory(compact_vector)
 
 add_subdirectory(pthash)
 

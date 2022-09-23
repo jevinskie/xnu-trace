@@ -7,6 +7,8 @@
 #include "TraceLog.h"
 #include "VMRegions.h"
 
+#include <memory>
+
 #include <dispatch/dispatch.h>
 
 class XNUTRACE_EXPORT XNUTracer {

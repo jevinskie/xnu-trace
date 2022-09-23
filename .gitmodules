@@ -46,3 +46,11 @@
 [submodule "3rdparty/ut"]
 	path = 3rdparty/ut
 	url = https://github.com/boost-ext/ut
+[submodule "3rdparty/libdivide"]
+	path = 3rdparty/libdivide
+	url = https://github.com/jevinskie/libdivide
+	branch = jev/main
+[submodule "3rdparty/compact_vector"]
+	path = 3rdparty/compact_vector
+	url = https://github.com/jevinskie/compact_vector
+	branch = jev/main
