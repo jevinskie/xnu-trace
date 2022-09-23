@@ -42,9 +42,8 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
 
     std::vector<bucket<KeyT>> buckets{m_nkeys};
     for (const auto &key : keys) {
-        const auto hash    = Hasher::hash(key);
-        uint32_t hmod      = hash % m_nkeys;
-        buckets[hmod].hmod = hmod;
+        const uint32_t hmod = Hasher::hash(key) % m_nkeys;
+        buckets[hmod].hmod  = hmod;
         buckets[hmod].keys.emplace_back(key);
     }
 

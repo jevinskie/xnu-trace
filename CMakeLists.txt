@@ -18,6 +18,7 @@ if (${FORCE_COLORED_OUTPUT})
 endif ()
 
 add_compile_options(-ggdb3)
+# add_compile_options(-g0)
 
 # add_compile_options(-O0 -fno-omit-frame-pointer)
 

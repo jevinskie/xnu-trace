@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#undef NDEBUG
+#include <cassert>
 #include <filesystem>
 #include <span>
 #include <vector>
