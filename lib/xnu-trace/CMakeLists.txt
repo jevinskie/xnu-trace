@@ -55,18 +55,14 @@ foreach(SRC ${INSTTRACE_SRC})
     endif()
 endforeach()
 
-# INSTTRACE_HDR added for Xcode project generation
-add_library(xnu-trace STATIC ${INSTTRACE_SRC} ${INSTTRACE_HDR})
-add_library(xnu-trace-shared SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
-set_target_properties(xnu-trace xnu-trace-shared PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
-
-target_link_libraries(xnu-trace
-PUBLIC
+set(XNUTRACE_PUBLIC_LIBS
     interval-tree
     frida-gum
     absl::flat_hash_map
     pthash
-PRIVATE
+)
+
+set(XNUTRACE_PRIVATE_LIBS
     bn-arm64-disasm
     CoreSymbolication
     fmt
@@ -75,6 +71,19 @@ PRIVATE
     thread-pool
     xxhash-xnu-trace
     xnu-trace-mach-exc
+    fastmod
+)
+
+# INSTTRACE_HDR added for Xcode project generation
+add_library(xnu-trace STATIC ${INSTTRACE_SRC} ${INSTTRACE_HDR})
+add_library(xnu-trace-shared SHARED ${INSTTRACE_SRC} ${INSTTRACE_HDR})
+set_target_properties(xnu-trace xnu-trace-shared PROPERTIES PUBLIC_HEADER "${INSTTRACE_HDR}")
+
+target_link_libraries(xnu-trace
+PUBLIC
+    ${XNUTRACE_PUBLIC_LIBS}
+PRIVATE
+    ${XNUTRACE_PRIVATE_LIBS}
 )
 target_compile_options(xnu-trace PRIVATE -Wall -Wextra -Wpedantic)
 
@@ -85,19 +94,9 @@ target_include_directories(xnu-trace
 
 target_link_libraries(xnu-trace-shared
 PUBLIC
-    interval-tree
-    frida-gum
-    absl::flat_hash_map
-    pthash
+    ${XNUTRACE_PUBLIC_LIBS}
 PRIVATE
-    bn-arm64-disasm
-    CoreSymbolication
-    fmt
-    libzstd_static
-    mbedcrypto
-    thread-pool
-    xxhash-xnu-trace
-    xnu-trace-mach-exc
+    ${XNUTRACE_PRIVATE_LIBS}
 )
 target_compile_options(xnu-trace-shared PRIVATE -Wall -Wextra -Wpedantic)
 

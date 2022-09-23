@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <vector>
 
+#include <fastmod.h>
 #define XXH_INLINE_ALL
 #define XXH_NAMESPACE xnu_trace_mph_
 #include <xxhash-xnu-trace/xxhash.h>
@@ -34,7 +35,8 @@ template <typename KeyT> struct bucket {
 template <typename KeyT, typename Hasher>
 void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
     assert(keys.size() <= UINT32_MAX);
-    m_nkeys = (uint32_t)keys.size();
+    m_nkeys             = (uint32_t)keys.size();
+    m_nkeys_fastmod_ctx = fastmod::computeM_u64(m_nkeys);
     std::vector<KeyT> vkeys{keys.begin(), keys.end()};
     std::sort(vkeys.begin(), vkeys.end());
     vkeys.erase(std::unique(vkeys.begin(), vkeys.end()), vkeys.end());
@@ -97,12 +99,14 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
 
 template <typename KeyT, typename Hasher>
 uint32_t MinimalPerfectHash<KeyT, Hasher>::operator()(KeyT key) const {
-    const auto hmod     = Hasher::hash(key) % m_nkeys;
+    const auto hmod = fastmod::fastmod_u64(Hasher::hash(key), m_nkeys_fastmod_ctx, m_nkeys);
+    // const auto hmod     = Hasher::hash(key) % m_nkeys;
     const auto salt_val = m_salts[hmod];
     if (salt_val < 0) {
         return -salt_val - 1;
     } else {
-        return Hasher::hash(key, salt_val) % m_nkeys;
+        return fastmod::fastmod_u64(Hasher::hash(key, salt_val), m_nkeys_fastmod_ctx, m_nkeys);
+        // return Hasher::hash(key, salt_val) % m_nkeys;
     }
 }
 

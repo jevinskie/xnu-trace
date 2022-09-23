@@ -28,6 +28,7 @@ add_subdirectory(mbedtls)
 
 add_subdirectory(abseil)
 # add_subdirectory(compact_vector)
+add_subdirectory(fastmod)
 
 add_subdirectory(pthash)
 
