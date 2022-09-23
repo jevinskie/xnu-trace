@@ -19,7 +19,7 @@ uint64_t xxhash_64::hash(uint64_t val, uint64_t seed) {
 }
 
 uint64_t xxhash3_64::hash(uint64_t val) {
-    return XXH3_64bits(reinterpret_cast<char const *>(&val), sizeof(val));
+    return XXH3_64bits_withSeed(reinterpret_cast<char const *>(&val), sizeof(val), 0);
 }
 
 uint64_t xxhash3_64::hash(uint64_t val, uint64_t seed) {

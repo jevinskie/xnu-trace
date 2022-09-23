@@ -17,7 +17,7 @@ struct xxhash3_64 {
 template <typename KeyT, typename Hasher = xxhash3_64> class XNUTRACE_EXPORT MinimalPerfectHash {
 public:
     MinimalPerfectHash<KeyT, Hasher>(std::vector<KeyT> keys);
-    uint32_t lookup(KeyT key);
+    XNUTRACE_INLINE uint32_t lookup(KeyT key);
 
 private:
     std::unique_ptr<int32_t[]> m_salts;
