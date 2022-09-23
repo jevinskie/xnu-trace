@@ -54,3 +54,7 @@
 	path = 3rdparty/compact_vector
 	url = https://github.com/jevinskie/compact_vector
 	branch = jev/main
+[submodule "3rdparty/fastmod"]
+	path = 3rdparty/fastmod
+	url = https://github.com/jevinskie/fastmod
+	branch = jev/main
