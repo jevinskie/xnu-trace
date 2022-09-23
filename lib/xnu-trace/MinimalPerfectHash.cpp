@@ -10,8 +10,20 @@
 #define XXH_NAMESPACE xnu_trace_mph_
 #include <xxhash.h>
 
-uint64_t xxhash_64::hash(uint64_t val, uint64_t seed = 0) {
+uint64_t xxhash_64::hash(uint64_t val) {
+    return XXH64(reinterpret_cast<char const *>(&val), sizeof(val), 0);
+}
+
+uint64_t xxhash_64::hash(uint64_t val, uint64_t seed) {
     return XXH64(reinterpret_cast<char const *>(&val), sizeof(val), seed);
+}
+
+uint64_t xxhash3_64::hash(uint64_t val) {
+    return XXH3_64bits(reinterpret_cast<char const *>(&val), sizeof(val));
+}
+
+uint64_t xxhash3_64::hash(uint64_t val, uint64_t seed) {
+    return XXH3_64bits_withSeed(reinterpret_cast<char const *>(&val), sizeof(val), seed);
 }
 
 template <typename KeyT> struct bucket {
@@ -86,7 +98,13 @@ MinimalPerfectHash<KeyT, Hasher>::MinimalPerfectHash(std::vector<KeyT> keys) {
 
 template <typename KeyT, typename Hasher>
 uint32_t MinimalPerfectHash<KeyT, Hasher>::lookup(KeyT key) {
-    return 0;
+    const auto hmod     = Hasher::hash(key) % m_nkeys;
+    const auto salt_val = m_salts[hmod];
+    if (salt_val < 0) {
+        return -salt_val - 1;
+    } else {
+        return Hasher::hash(key, salt_val) % m_nkeys;
+    }
 }
 
 template class MinimalPerfectHash<uint64_t>;
