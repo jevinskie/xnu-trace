@@ -22,6 +22,5 @@ public:
 
 private:
     std::unique_ptr<int32_t[]> m_salts;
-    __uint128_t m_nkeys_fastmod_ctx;
     uint32_t m_nkeys;
 };
