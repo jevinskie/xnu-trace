@@ -2,10 +2,10 @@
 
 #include "common.h"
 
-#include <os/signpost.h>
 #include <string>
 
 #include <os/log.h>
+#include <os/signpost.h>
 
 constexpr auto SUBSYSTEM = "vin.je.xnutracer";
 
@@ -17,7 +17,8 @@ public:
 
 private:
     os_log_t m_log;
-    os_signpost_id_t m_id;
+    os_signpost_id_t m_id{OS_SIGNPOST_ID_NULL};
     const std::string m_name;
     const bool m_event;
+    bool m_disabled{false};
 };

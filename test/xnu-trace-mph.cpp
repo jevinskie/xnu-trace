@@ -12,8 +12,10 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
-    Signpost("mph", "mph build start", true);
+    Signpost("mph", "read file start", true);
 
+    auto load_sp = Signpost("mph", "loading");
+    load_sp.start();
     const auto buf     = read_file(argv[1]);
     const auto raw_buf = (uint64_t *)buf.data();
     const auto nkeys   = buf.size() / sizeof(uint64_t);
@@ -22,9 +24,13 @@ int main(int argc, const char **argv) {
     for (size_t i = 0; i < nkeys; ++i) {
         keys.emplace_back(raw_buf[i]);
     }
+    load_sp.end();
 
+    auto build_sp = Signpost("mph", "building");
+    build_sp.start();
     auto mph = MinimalPerfectHash<uint64_t>{};
     mph.build(keys);
+    build_sp.end();
 
     return 0;
 }
