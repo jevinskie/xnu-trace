@@ -6,11 +6,11 @@
 #include "log_structs.h"
 #include "utils.h"
 
+#include <filesystem>
 #include <map>
+#include <vector>
 
 #include <mach/mach_types.h>
-
-#include <pthash/pthash.hpp>
 
 struct image_info {
     uint64_t base;
@@ -37,28 +37,13 @@ public:
     XNUTRACE_INLINE const image_info &lookup(uint64_t addr) const;
     XNUTRACE_INLINE std::pair<const image_info &, size_t> lookup_idx(uint64_t addr) const;
     XNUTRACE_INLINE uint32_t lookup_inst(uint64_t addr) const;
-    XNUTRACE_INLINE uint32_t lookup_inst_mine(uint64_t addr) const;
     const image_info &lookup(const std::string &image_name) const;
     void dump() const;
 
 private:
-    struct region_lookup {
-        uint64_t base;
-        const uint8_t *buf;
-        auto operator<=>(const region_lookup &rhs) const {
-            return base <=> rhs.base;
-        }
-    };
-    typedef pthash::single_phf<pthash::xxhash_64,             // base hasher
-                               pthash::dictionary_dictionary, // encoder type
-                               true                           // minimal
-                               >
-        pthash_type;
     void create_hash();
     const task_t m_target_task{};
     std::vector<image_info> m_regions;
     std::vector<const uint8_t *> m_regions_bufs;
-    pthash_type m_page_addr_hasher;
-    std::vector<const uint8_t *> m_regions_bufs2;
     MinimalPerfectHash<uint64_t> m_page_addr_mph;
 };

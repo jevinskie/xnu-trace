@@ -55,44 +55,6 @@ static void BM_lookup_inst_from_trace(const TraceLog &trace) {
     });
 }
 
-static void BM_lookup_inst_mine(const TraceLog &trace) {
-    const auto &regions = trace.macho_regions();
-    std::vector<uint64_t> addrs;
-    for (const auto &region : regions.regions()) {
-        addrs.emplace_back(region.base + 4);
-    }
-    const auto num_addrs  = addrs.size();
-    const auto *addrs_buf = addrs.data();
-
-    size_t i = 0;
-
-    nanobench::Bench().run("MachORegions::lookup_inst_mine even dist", [&]() {
-        nanobench::doNotOptimizeAway(regions.lookup_inst_mine(addrs_buf[i % num_addrs]));
-        ++i;
-    });
-}
-
-static void BM_lookup_inst_mine_from_trace(const TraceLog &trace) {
-    const auto &regions = trace.macho_regions();
-    std::vector<uint64_t> addrs;
-    addrs.resize(trace.num_inst());
-    size_t i = 0;
-    for (const auto &[tid, log] : trace.parsed_logs()) {
-        for (const auto msg : log) {
-            addrs[i] = msg.pc;
-            ++i;
-        }
-    }
-    const auto num_addrs  = addrs.size();
-    const auto *addrs_buf = addrs.data();
-
-    i = 0;
-    nanobench::Bench().run("MachORegions::lookup_inst_mine trace dist", [&]() {
-        nanobench::doNotOptimizeAway(regions.lookup_inst_mine(addrs_buf[i % num_addrs]));
-        ++i;
-    });
-}
-
 static void BM_histogram_add(const TraceLog &trace) {
     const auto &regions = trace.macho_regions();
     std::vector<uint32_t> instrs;
@@ -154,8 +116,6 @@ int main(void) {
 
     BM_lookup_inst(trace);
     BM_lookup_inst_from_trace(trace);
-    BM_lookup_inst_mine(trace);
-    BM_lookup_inst_mine_from_trace(trace);
     BM_histogram_add(trace);
     BM_xxhash64();
     BM_xxhash3_64();

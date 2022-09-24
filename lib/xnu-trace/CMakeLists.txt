@@ -59,7 +59,6 @@ set(XNUTRACE_PUBLIC_LIBS
     interval-tree
     frida-gum
     absl::flat_hash_map
-    pthash
 )
 
 set(XNUTRACE_PRIVATE_LIBS

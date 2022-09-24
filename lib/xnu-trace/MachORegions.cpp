@@ -136,15 +136,9 @@ const image_info &MachORegions::lookup(const std::string &image_name) const {
 }
 
 uint32_t MachORegions::lookup_inst(uint64_t addr) const {
-    const auto idx      = m_page_addr_hasher(addr >> PAGE_SZ_LOG2);
-    const auto page_off = addr & (PAGE_SZ - 1);
-    return *(uint32_t *)(m_regions_bufs[idx] + page_off);
-}
-
-uint32_t MachORegions::lookup_inst_mine(uint64_t addr) const {
     const auto idx      = m_page_addr_mph(addr >> PAGE_SZ_LOG2);
     const auto page_off = addr & (PAGE_SZ - 1);
-    return *(uint32_t *)(m_regions_bufs2[idx] + page_off);
+    return *(uint32_t *)(m_regions_bufs[idx] + page_off);
 }
 
 const std::vector<image_info> &MachORegions::regions() const {
@@ -162,29 +156,16 @@ void MachORegions::create_hash() {
     }
     std::sort(page_addrs.begin(), page_addrs.end());
     page_addrs.erase(std::unique(page_addrs.begin(), page_addrs.end()), page_addrs.end());
-    pthash::build_configuration config;
-    config.minimal_output = true;
-    config.verbose_output = false;
-
-    // fmt::print("building mph with {:d} keys\n", page_addrs.size());
-    m_page_addr_hasher.build_in_internal_memory(page_addrs.begin(), page_addrs.size(), config);
-    // fmt::print("mph building done\n");
-    // const auto bits_per_key = (double)m_page_addr_hasher.num_bits() /
-    // m_page_addr_hasher.num_keys(); fmt::print("function uses {:0.4f} bits/key\n", bits_per_key);
 
     m_page_addr_mph.build(page_addrs);
 
     m_regions_bufs.clear();
-    m_regions_bufs.resize(page_addrs.size());
-    m_regions_bufs2.clear();
-    m_regions_bufs2.resize(page_addrs.size());
+
     // base regions
     for (const auto &region : m_regions) {
         for (size_t off = 0; off < region.size; off += PAGE_SZ) {
-            const auto idx        = m_page_addr_hasher((region.base + off) >> PAGE_SZ_LOG2);
-            m_regions_bufs[idx]   = region.bytes.data() + off;
-            const auto idx2       = m_page_addr_mph((region.base + off) >> PAGE_SZ_LOG2);
-            m_regions_bufs2[idx2] = region.bytes.data() + off;
+            const auto idx      = m_page_addr_mph((region.base + off) >> PAGE_SZ_LOG2);
+            m_regions_bufs[idx] = region.bytes.data() + off;
         }
     }
     // override jit regions
@@ -193,10 +174,8 @@ void MachORegions::create_hash() {
             continue;
         }
         for (size_t off = 0; off < region.size; off += PAGE_SZ) {
-            const auto idx        = m_page_addr_hasher((region.base + off) >> PAGE_SZ_LOG2);
-            m_regions_bufs[idx]   = region.bytes.data() + off;
-            const auto idx2       = m_page_addr_mph((region.base + off) >> PAGE_SZ_LOG2);
-            m_regions_bufs2[idx2] = region.bytes.data() + off;
+            const auto idx      = m_page_addr_mph((region.base + off) >> PAGE_SZ_LOG2);
+            m_regions_bufs[idx] = region.bytes.data() + off;
         }
     }
 }

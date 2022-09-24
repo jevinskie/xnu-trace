@@ -30,8 +30,6 @@ add_subdirectory(abseil)
 # add_subdirectory(compact_vector)
 add_subdirectory(fastmod)
 
-add_subdirectory(pthash)
-
 add_library(thread-pool INTERFACE)
 target_include_directories(thread-pool INTERFACE thread-pool)
 

@@ -60,50 +60,6 @@ static void BM_lookup_inst_from_trace(benchmark::State &state) {
 
 BENCHMARK(BM_lookup_inst_from_trace);
 
-static void BM_lookup_inst_mine(benchmark::State &state) {
-    const auto trace    = TraceLog("harness.bundle");
-    const auto &regions = trace.macho_regions();
-    std::vector<uint64_t> addrs;
-    for (const auto &region : regions.regions()) {
-        addrs.emplace_back(region.base + 4);
-    }
-    const auto num_addrs  = addrs.size();
-    const auto *addrs_buf = addrs.data();
-
-    size_t i = 0;
-
-    for (auto _ : state) {
-        benchmark::DoNotOptimize(regions.lookup_inst_mine(addrs_buf[i % num_addrs]));
-        ++i;
-    }
-}
-
-BENCHMARK(BM_lookup_inst_mine);
-
-static void BM_lookup_inst_mine_from_trace(benchmark::State &state) {
-    const auto trace    = TraceLog("harness.bundle");
-    const auto &regions = trace.macho_regions();
-    std::vector<uint64_t> addrs;
-    addrs.resize(trace.num_inst());
-    size_t i = 0;
-    for (const auto &[tid, log] : trace.parsed_logs()) {
-        for (const auto msg : log) {
-            addrs[i] = msg.pc;
-            ++i;
-        }
-    }
-    const auto num_addrs  = addrs.size();
-    const auto *addrs_buf = addrs.data();
-
-    i = 0;
-    for (auto _ : state) {
-        benchmark::DoNotOptimize(regions.lookup_inst_mine(addrs_buf[i % num_addrs]));
-        ++i;
-    }
-}
-
-BENCHMARK(BM_lookup_inst_mine_from_trace);
-
 static void BM_histogram_add(benchmark::State &state) {
     const auto trace    = TraceLog("harness.bundle");
     const auto &regions = trace.macho_regions();
