@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <vector>
 
+#include <range/v3/algorithm.hpp>
 #define XXH_INLINE_ALL
 #define XXH_NAMESPACE xnu_trace_mph_
 #include <xxhash-xnu-trace/xxhash.h>
@@ -51,6 +52,8 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
         return a.keys.size() > b.keys.size();
     });
 
+    fmt::print("({:d}, [{:d}])\n", buckets[0].hmod, fmt::join(buckets[0].keys, ", "));
+
     m_salts = std::make_unique<int32_t[]>(m_nkeys);
     std::vector<bool> slot_used(m_nkeys);
 
@@ -59,7 +62,7 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
                            }};
     for (uint32_t i = 0; i < m_nkeys; ++i) {
         const auto hmod            = buckets[i].hmod;
-        const auto bucket_num_keys = (int)buckets[i].keys.size();
+        const auto bucket_num_keys = buckets[i].keys.size();
         if (bucket_num_keys > 1) {
             int32_t d = 1;
             while (true) {
@@ -68,8 +71,8 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
                 uint32_t salted_hashes[bucket_num_keys];
 #pragma clang diagnostic pop
                 bool all_free = true;
-                for (int j = 0; j < bucket_num_keys; ++j) {
-                    const auto shmod = Hasher::hash(hmod, d) % m_nkeys;
+                for (size_t j = 0; j < bucket_num_keys; ++j) {
+                    const auto shmod = Hasher::hash(buckets[i].keys[j], d) % m_nkeys;
                     salted_hashes[j] = shmod;
                     all_free &= !slot_used[shmod];
                     if (!all_free) {
@@ -77,7 +80,7 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
                     }
                 }
                 if (all_free) {
-                    for (int j = 0; j < bucket_num_keys; ++j) {
+                    for (size_t j = 0; j < bucket_num_keys; ++j) {
                         slot_used[salted_hashes[j]] = true;
                     }
                     m_salts[hmod] = d;
@@ -104,6 +107,11 @@ uint32_t MinimalPerfectHash<KeyT, Hasher>::operator()(KeyT key) const {
     } else {
         return Hasher::hash(key, salt_val) % m_nkeys;
     }
+}
+
+template <typename KeyT, typename Hasher> void MinimalPerfectHash<KeyT, Hasher>::stats() const {
+    const auto max_d = ranges::max(std::span<int32_t>(m_salts.get(), m_nkeys));
+    fmt::print("max_d: {:d}\n", max_d);
 }
 
 template class MinimalPerfectHash<uint64_t>;

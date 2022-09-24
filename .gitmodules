@@ -58,3 +58,6 @@
 [submodule "3rdparty/nanobench"]
 	path = 3rdparty/nanobench
 	url = https://github.com/martinus/nanobench
+[submodule "3rdparty/range-v3"]
+	path = 3rdparty/range-v3
+	url = https://github.com/ericniebler/range-v3

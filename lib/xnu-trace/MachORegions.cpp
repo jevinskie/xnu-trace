@@ -1,6 +1,7 @@
 #include "xnu-trace/MachORegions.h"
 #include "common-internal.h"
 
+#include "xnu-trace/Signpost.h"
 #include "xnu-trace/VMRegions.h"
 #include "xnu-trace/dyld.h"
 #include "xnu-trace/mach.h"
@@ -157,7 +158,10 @@ void MachORegions::create_hash() {
     std::sort(page_addrs.begin(), page_addrs.end());
     page_addrs.erase(std::unique(page_addrs.begin(), page_addrs.end()), page_addrs.end());
 
+    Signpost mph_build_sp("MachORegions", "mph build");
+    mph_build_sp.start();
     m_page_addr_mph.build(page_addrs);
+    mph_build_sp.end();
 
     m_regions_bufs.clear();
     m_regions_bufs.resize(page_addrs.size());

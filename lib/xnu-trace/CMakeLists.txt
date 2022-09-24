@@ -72,6 +72,7 @@ set(XNUTRACE_PRIVATE_LIBS
     xxhash-xnu-trace
     xnu-trace-mach-exc
     fastmod
+    range-v3
 )
 
 # INSTTRACE_HDR added for Xcode project generation
