@@ -4,6 +4,7 @@
 #include <cassert>
 #include <vector>
 
+#include <fmt/chrono.h>
 #include <fmt/format.h>
 
 int main(int argc, const char **argv) {
@@ -12,7 +13,8 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
-    Signpost("mph", "read file start", true);
+    Signpost("mph", "read file start", true,
+             fmt::format("time: {:%H:%M:%S}", fmt::localtime(std::time(nullptr))));
 
     auto load_sp = Signpost("mph", "loading");
     load_sp.start();
@@ -24,7 +26,9 @@ int main(int argc, const char **argv) {
     for (size_t i = 0; i < nkeys; ++i) {
         keys.emplace_back(raw_buf[i]);
     }
-    load_sp.end();
+    load_sp.end([&](uint64_t ns) {
+        return fmt::format("{:0.3f} bytes / nanosecond", buf.size() / (double)ns);
+    });
 
     auto build_sp = Signpost("mph", "building");
     build_sp.start();

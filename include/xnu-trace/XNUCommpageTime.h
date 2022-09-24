@@ -8,6 +8,7 @@
 
 XNUTRACE_EXPORT XNUTRACE_INLINE uint64_t xnu_commpage_time_seconds();
 XNUTRACE_EXPORT XNUTRACE_INLINE uint64_t xnu_commpage_time_atus();
+XNUTRACE_EXPORT XNUTRACE_INLINE uint64_t xnu_commpage_time_atus_to_ns(uint64_t atus);
 
 template <typename T>
 concept VoidVoidCallback = requires(T cb) {

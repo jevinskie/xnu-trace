@@ -28,3 +28,13 @@ uint64_t xnu_commpage_time_seconds() {
 uint64_t xnu_commpage_time_atus() {
     return *(volatile const uint64_t *)_COMM_PAGE_APPROX_TIME;
 }
+
+uint64_t xnu_commpage_time_atus_to_ns(uint64_t atus) {
+    static bool tb_inited = false;
+    static mach_timebase_info_data_t tb_info;
+    if (!tb_inited) {
+        mach_check(mach_timebase_info(&tb_info), "xnu_commpage_time_atus_to_ns mach_timebase_info");
+        tb_inited = true;
+    }
+    return (double)atus * tb_info.numer / tb_info.denom;
+}
