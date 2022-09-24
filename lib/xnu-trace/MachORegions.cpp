@@ -160,6 +160,7 @@ void MachORegions::create_hash() {
     m_page_addr_mph.build(page_addrs);
 
     m_regions_bufs.clear();
+    m_regions_bufs.resize(page_addrs.size());
 
     // base regions
     for (const auto &region : m_regions) {

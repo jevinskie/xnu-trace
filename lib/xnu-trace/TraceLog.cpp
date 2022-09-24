@@ -1,6 +1,8 @@
 #include "xnu-trace/TraceLog.h"
 #include "common-internal.h"
 
+#include "xnu-trace/Signpost.h"
+
 #include <set>
 
 #include <BS_thread_pool.hpp>
@@ -47,20 +49,28 @@ TraceLog::TraceLog(const std::string &log_dir_path, int compression_level, bool 
 }
 
 TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_path} {
+    Signpost meta_sp("TraceLog", "meta.bin read");
+    meta_sp.start();
     CompressedFile<log_meta_hdr> meta_fh{m_log_dir_path / "meta.bin", true, log_meta_hdr_magic};
     const auto meta_buf = meta_fh.read();
     const auto meta_hdr = meta_fh.header();
+    meta_sp.end();
 
+    Signpost regions_sp("TraceLog", "regions read");
+    regions_sp.start();
     std::map<sha256_t, std::vector<uint8_t>> regions_bytes;
     for (const auto &dirent : std::filesystem::directory_iterator{log_dir_path}) {
         if (!dirent.path().filename().string().starts_with("macho-region-")) {
             continue;
         }
+        Signpost region_sp("TraceLog", fmt::format("{:s} read", dirent.path().filename().string()));
+        region_sp.start();
         CompressedFile<log_macho_region_hdr> region_fh{dirent.path(), true,
                                                        log_macho_region_hdr_magic};
         sha256_t digest;
         memcpy(digest.data(), region_fh.header().digest_sha256, digest.size());
         regions_bytes.emplace(digest, region_fh.read());
+        region_sp.end();
     }
 
     auto region_ptr = (log_region *)meta_buf.data();
@@ -70,14 +80,20 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
         region_ptr =
             (log_region *)((uint8_t *)region_ptr + sizeof(*region_ptr) + region_ptr->path_len);
     }
+    regions_sp.end();
 
+    Signpost syms_sp("TraceLog", "symbols read");
+    syms_sp.start();
     auto syms_ptr = (log_sym *)region_ptr;
     m_symbols     = std::make_unique<Symbols>(syms_ptr, meta_hdr.num_syms);
     for (uint64_t i = 0; i < meta_hdr.num_syms; ++i) {
         syms_ptr = (log_sym *)((uint8_t *)syms_ptr + sizeof(*syms_ptr) + syms_ptr->name_len +
                                syms_ptr->path_len);
     }
+    syms_sp.end();
 
+    Signpost threads_sp("TraceLog", "threads read");
+    threads_sp.start();
     for (const auto &dirent : std::filesystem::directory_iterator{m_log_dir_path}) {
         const auto fn = dirent.path().filename();
         if (fn == "meta.bin" || fn.string().starts_with("macho-region-")) {
@@ -85,9 +101,12 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
         }
         assert(fn.string().starts_with("thread-"));
 
+        Signpost thread_sp("TraceLog", fmt::format("{:s} read", dirent.path().filename().string()));
+        thread_sp.start();
         CompressedFile<log_thread_hdr> thread_fh{dirent.path(), true, log_thread_hdr_magic};
         const auto thread_buf = thread_fh.read();
         const auto thread_hdr = thread_fh.header();
+        thread_sp.end();
 
         std::vector<log_msg_hdr> thread_log;
         auto inst_hdr           = (log_msg_hdr *)thread_buf.data();
@@ -101,6 +120,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
         m_num_inst += thread_hdr.num_inst;
         m_parsed_logs.emplace(thread_hdr.thread_id, std::move(thread_log));
     }
+    threads_sp.end();
 }
 
 uint64_t TraceLog::num_inst() const {
