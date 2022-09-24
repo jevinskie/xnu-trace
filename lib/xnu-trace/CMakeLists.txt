@@ -26,6 +26,7 @@ set(INSTTRACE_SRC
     MachORegions.cpp
     MinimalPerfectHash.cpp
     proc.cpp
+    Signpost.cpp
     Symbols.cpp
     TraceLog.cpp
     utils.cpp

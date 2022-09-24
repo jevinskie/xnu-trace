@@ -7,6 +7,7 @@
 #include "FridaStalker.h"
 #include "MachORegions.h"
 #include "MinimalPerfectHash.h"
+#include "Signpost.h"
 #include "Symbols.h"
 #include "TraceLog.h"
 #include "VMRegions.h"
