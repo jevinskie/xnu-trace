@@ -12,6 +12,8 @@ int main(int argc, const char **argv) {
         return -1;
     }
 
+    Signpost("mph", "mph build start", true);
+
     const auto buf     = read_file(argv[1]);
     const auto raw_buf = (uint64_t *)buf.data();
     const auto nkeys   = buf.size() / sizeof(uint64_t);
