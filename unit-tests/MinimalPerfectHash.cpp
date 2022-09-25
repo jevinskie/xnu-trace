@@ -103,6 +103,10 @@ suite mph_suite = [] {
         std::vector<uint32_t> idxes;
         idxes.reserve(keys.size());
         for (const auto &k : keys) {
+            const auto idx = mph(k);
+            if (idx == 29751) {
+                fmt::print("COLLISION!: key: {:d} idx: {:d}\n", k, idx);
+            }
             idxes.emplace_back(mph(k));
         }
         std::sort(idxes.begin(), idxes.end());
