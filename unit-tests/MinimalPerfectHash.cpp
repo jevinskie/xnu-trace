@@ -21,102 +21,59 @@ std::vector<uint64_t> get_random_uints(size_t n) {
     return res;
 }
 
-template <typename T> static std::vector<T> duplicate_idxes(std::vector<T> idxes) {
+template <typename KeyT>
+static void check_mph(const std::vector<KeyT> &keys, const MinimalPerfectHash<KeyT> &mph) {
+    std::vector<uint32_t> idxes;
+    idxes.reserve(keys.size());
+    for (const auto &k : keys) {
+        idxes.emplace_back(mph(k));
+    }
     std::sort(idxes.begin(), idxes.end());
-    assert(ranges::min(idxes) >= 0);
-    assert(ranges::max(idxes) <= idxes.size() - 1);
-    std::vector<uint32_t> counts(idxes.size());
-    for (const auto &idx : idxes) {
-        ++counts[idx];
+    idxes.erase(std::unique(idxes.begin(), idxes.end()), idxes.end());
+    expect(idxes.size() == keys.size());
+    expect(idxes[0] == 0);
+    expect(idxes[idxes.size() - 1] == idxes.size() - 1);
+}
+
+template <typename T> std::vector<T> read_numbers_from_file(const fs::path &path) {
+    const auto buf     = read_file(path);
+    const auto raw_buf = (T *)buf.data();
+    const auto nnums   = buf.size() / sizeof(T);
+    std::vector<T> nums;
+    nums.reserve(nnums);
+    for (size_t i = 0; i < nnums; ++i) {
+        nums.emplace_back(raw_buf[i]);
     }
-    std::vector<T> dupes;
-    for (size_t idx = 0; idx < counts.size(); ++idx) {
-        if (counts[idx] > 1) {
-            dupes.emplace_back(idx);
-        }
-    }
-    return dupes;
+    return nums;
 }
 
 suite mph_suite = [] {
-    // "build"_test = [] {
-    //     const auto keys = get_random_uints(100'000);
-    //     MinimalPerfectHash<uint64_t> mph;
-    //     mph.build(keys);
-    // };
-
-    // "check"_test = [] {
-    //     const auto keys = get_random_uints(100'000);
-    //     MinimalPerfectHash<uint64_t> mph;
-    //     mph.build(keys);
-    //     std::vector<uint32_t> idxes;
-    //     idxes.reserve(keys.size());
-    //     for (const auto &k : keys) {
-    //         idxes.emplace_back(mph(k));
-    //     }
-    //     std::sort(idxes.begin(), idxes.end());
-    //     idxes.erase(std::unique(idxes.begin(), idxes.end()), idxes.end());
-    //     expect(idxes.size() == keys.size());
-    //     expect(idxes[0] == 0);
-    //     expect(idxes[idxes.size() - 1] == idxes.size() - 1);
-    // };
-
-    // "check_page_addrs"_test = [] {
-    //     const auto buf =
-    //         read_file(fs::path(__FILE__).parent_path().parent_path() / "test" /
-    //         "page_addrs.bin");
-    //     const auto raw_buf = (uint64_t *)buf.data();
-    //     const auto nkeys   = buf.size() / sizeof(uint64_t);
-    //     std::vector<uint64_t> keys;
-    //     keys.reserve(nkeys);
-    //     for (size_t i = 0; i < nkeys; ++i) {
-    //         keys.emplace_back(raw_buf[i]);
-    //     }
-    //     MinimalPerfectHash<uint64_t> mph;
-    //     mph.build(keys);
-    //     mph.stats();
-    //     std::vector<uint32_t> idxes;
-    //     idxes.reserve(keys.size());
-    //     for (const auto &k : keys) {
-    //         idxes.emplace_back(mph(k));
-    //     }
-    //     std::sort(idxes.begin(), idxes.end());
-    //     idxes.erase(std::unique(idxes.begin(), idxes.end()), idxes.end());
-    //     expect(idxes.size() == keys.size());
-    //     expect(idxes[0] == 0);
-    //     expect(idxes[idxes.size() - 1] == idxes.size() - 1);
-    // };
-
-    "check_rand_u64_dup_idx_29751"_test = [] {
-        const auto buf     = read_file(fs::path(__FILE__).parent_path().parent_path() / "test" /
-                                       "rand_u64_dup_idx_29751.bin");
-        const auto raw_buf = (uint64_t *)buf.data();
-        const auto nkeys   = buf.size() / sizeof(uint64_t);
-        std::vector<uint64_t> keys;
-        keys.reserve(nkeys);
-        for (size_t i = 0; i < nkeys; ++i) {
-            keys.emplace_back(raw_buf[i]);
-        }
+    "build"_test = [] {
+        const auto keys = get_random_uints(100'000);
         MinimalPerfectHash<uint64_t> mph;
         mph.build(keys);
-        mph.stats();
-        std::vector<uint32_t> idxes;
-        idxes.reserve(keys.size());
-        for (const auto &k : keys) {
-            const auto idx = mph(k);
-            if (idx == 29751) {
-                fmt::print("COLLISION!: key: {:d} idx: {:d}\n", k, idx);
-            }
-            idxes.emplace_back(mph(k));
-        }
-        std::sort(idxes.begin(), idxes.end());
+    };
 
-        const auto dup_idxes = duplicate_idxes(idxes);
-        fmt::print("dup_idxes: {:d}\n", fmt::join(dup_idxes, ", "));
+    "check"_test = [] {
+        const auto keys = get_random_uints(100'000);
+        MinimalPerfectHash<uint64_t> mph;
+        mph.build(keys);
+        check_mph(keys, mph);
+    };
 
-        idxes.erase(std::unique(idxes.begin(), idxes.end()), idxes.end());
-        expect(idxes.size() == keys.size());
-        expect(idxes[0] == 0);
-        expect(idxes[idxes.size() - 1] == idxes.size() - 1);
+    "check_page_addrs"_test = [] {
+        const auto keys = read_numbers_from_file<uint64_t>(
+            fs::path(__FILE__).parent_path().parent_path() / "test" / "page_addrs.bin");
+        MinimalPerfectHash<uint64_t> mph;
+        mph.build(keys);
+        check_mph(keys, mph);
+    };
+
+    "check_rand_u64_dup_idx_29751"_test = [] {
+        const auto keys = read_numbers_from_file<uint64_t>(
+            fs::path(__FILE__).parent_path().parent_path() / "test" / "rand_u64_dup_idx_29751.bin");
+        MinimalPerfectHash<uint64_t> mph;
+        mph.build(keys);
+        check_mph(keys, mph);
     };
 };

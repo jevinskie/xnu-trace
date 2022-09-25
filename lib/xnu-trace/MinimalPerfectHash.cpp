@@ -41,21 +41,11 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
     vkeys.erase(std::unique(vkeys.begin(), vkeys.end()), vkeys.end());
     assert(vkeys.size() == m_nkeys && "keys for MPH are not unique");
 
-    std::vector<std::pair<KeyT, uint32_t>> colliding_hmods;
-
     std::vector<bucket<KeyT>> buckets{m_nkeys};
     for (const auto &key : keys) {
         const uint32_t hmod = Hasher::hash(key) % m_nkeys;
         buckets[hmod].hmod  = hmod;
         buckets[hmod].keys.emplace_back(key);
-        if (key == 2820618731633718666ull || key == 15384097749270183390ull) {
-            colliding_hmods.emplace_back(std::make_pair(key, hmod));
-        }
-    }
-
-    for (const auto &[key, hmod] : colliding_hmods) {
-        fmt::print("key: {:d} hmod {:d} bucket keys: {:d}\n", key, hmod,
-                   fmt::join(buckets[hmod].keys, ", "));
     }
 
     // sort this way to match python impl
@@ -69,7 +59,7 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
     });
     std::reverse(buckets.begin(), buckets.end());
 
-    fmt::print("({:d}, [{:d}])\n", buckets[0].hmod, fmt::join(buckets[0].keys, ", "));
+    // fmt::print("({:d}, [{:d}])\n", buckets[0].hmod, fmt::join(buckets[0].keys, ", "));
 
     m_salts = std::make_unique<int32_t[]>(m_nkeys);
     std::vector<bool> slot_used(m_nkeys);
@@ -93,7 +83,7 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
                 for (size_t j = 0; j < bucket_num_keys; ++j) {
                     const auto shmod = Hasher::hash(buckets[i].keys[j], d) % m_nkeys;
                     if (std::find(salted_hashes, salted_hashes_end, shmod) != salted_hashes_end) {
-                        fmt::print("got collison in salted hashes\n");
+                        // collision within salted hashes, try again
                         all_free = false;
                         break;
                     }
@@ -108,7 +98,6 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
                         slot_used[salted_hashes[j]] = true;
                     }
                     m_salts[hmod] = d;
-                    fmt::print("bucket idx: {:d} hmod: {:d} d: {:d}\n", i, hmod, d);
                     break;
                 }
                 ++d;

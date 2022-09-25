@@ -20,13 +20,12 @@ class MPH:
             buckets[hmod] = (hmod, buckets[hmod][1] + [k])
         # sort this way to match c++ impl
         sorted_buckets = list(reversed(sorted(buckets, key=lambda t: (len(t[1]), t[0]))))
-        print(sorted_buckets[0])
+        # print(sorted_buckets[0])
 
         salts = [None] * nkeys
         slot_used = [False] * nkeys
-        i = 0
+        # for hash, bucket in sorted_buckets:
         for hash, bucket in progressbar.progressbar(sorted_buckets):
-            # for hash, bucket in sorted_buckets:
             if len(bucket) > 1:
                 d = 1
                 while True:
@@ -48,7 +47,6 @@ class MPH:
                 free_idx = slot_used.index(False)
                 slot_used[free_idx] = True
                 salts[hash] = -free_idx - 1
-            i += 1
         self.salts = salts
 
     @staticmethod
