@@ -33,7 +33,7 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
 }
 
 void dump_histogram(const TraceLog &trace, int max_num) {
-    ARM64InstrHistogram hist;
+    ARM64InstrHistogram hist(true);
     const auto &regions = trace.macho_regions();
     for (const auto &[tid, log] : trace.parsed_logs()) {
         const auto pcs = extract_pcs_from_trace(log);

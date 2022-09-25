@@ -6,7 +6,7 @@
 
 class XNUTRACE_EXPORT ARM64InstrHistogram {
 public:
-    ARM64InstrHistogram();
+    ARM64InstrHistogram(bool add_only = false);
     ARM64InstrHistogram operator+(const ARM64InstrHistogram &other) const;
     ARM64InstrHistogram operator+=(const ARM64InstrHistogram &other);
 
