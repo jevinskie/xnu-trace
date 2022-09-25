@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import random
 import sys
 
 import progressbar
@@ -8,24 +9,21 @@ import xxhash
 
 class MPH:
     def __init__(self, keys: list[int]) -> None:
-        self.keys = keys
+        assert len(set(keys)) == len(keys)
+        self.keys = keys = sorted(keys)
         self.nkeys = nkeys = len(keys)
         hashes = {k: self.hash(k) for k in keys}
-        buckets = {}
+        buckets = [(None, [])] * nkeys
         for k, h in hashes.items():
             hmod = h % nkeys
-            if hmod not in buckets:
-                buckets[hmod] = [k]
-            else:
-                buckets[hmod].append(k)
-        sorted_buckets = {
-            h: ks for h, ks in sorted(buckets.items(), key=lambda i: len(i[1]), reverse=True)
-        }
-        print(list(sorted_buckets.items())[0])
+            buckets[hmod] = (hmod, buckets[hmod][1] + [k])
+        sorted_buckets = sorted(buckets, key=lambda t: len(t[1]), reverse=True)
+        print(sorted_buckets[0])
 
         salts = [None] * nkeys
         slot_used = [False] * nkeys
-        for hash, bucket in progressbar.progressbar(sorted_buckets.items()):
+        i = 0
+        for hash, bucket in progressbar.progressbar(sorted_buckets):
             if len(bucket) > 1:
                 d = 1
                 while True:
@@ -35,14 +33,16 @@ class MPH:
                         for sh in salted_hashes:
                             slot_used[sh] = True
                         salts[hash] = d
+                        print(f"bucket idx: {i} hmod: {hash} d: {d}")
                         break
                     if d > 4096:
                         raise RuntimeError("taking too long, sorry")
                     d += 1
-            else:
+            elif len(bucket) == 1:
                 free_idx = slot_used.index(False)
                 slot_used[free_idx] = True
                 salts[hash] = -free_idx - 1
+            i += 1
         self.salts = salts
 
     @staticmethod
@@ -83,3 +83,10 @@ mph = MPH(page_addrs)
 mph.check()
 print(f"max(mph.salts): {max([s for s in mph.salts if s is not None])}")
 print(f"{mph.salts.count(None) / mph.nkeys * 100:0.2f}% filled")
+
+
+# rand_u64 = [random.randint(0, 0xFFFF_FFFF_FFFF_FFFF) for i in range(100_000)]
+# mph_rand = MPH(rand_u64)
+# mph_rand.check()
+# print(f"max(mph_rand.salts): {max([s for s in mph_rand.salts if s is not None])}")
+# print(f"{mph_rand.salts.count(None) / mph_rand.nkeys * 100:0.2f}% filled")

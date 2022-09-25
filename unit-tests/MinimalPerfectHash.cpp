@@ -20,27 +20,27 @@ std::vector<uint64_t> get_random_uints(size_t n) {
 }
 
 suite mph_suite = [] {
-    "build"_test = [] {
-        const auto keys = get_random_uints(100'000);
-        MinimalPerfectHash<uint64_t> mph;
-        mph.build(keys);
-    };
+    // "build"_test = [] {
+    //     const auto keys = get_random_uints(100'000);
+    //     MinimalPerfectHash<uint64_t> mph;
+    //     mph.build(keys);
+    // };
 
-    "check"_test = [] {
-        const auto keys = get_random_uints(100'000);
-        MinimalPerfectHash<uint64_t> mph;
-        mph.build(keys);
-        std::vector<uint32_t> idxes;
-        idxes.reserve(keys.size());
-        for (const auto &k : keys) {
-            idxes.emplace_back(mph(k));
-        }
-        std::sort(idxes.begin(), idxes.end());
-        idxes.erase(std::unique(idxes.begin(), idxes.end()), idxes.end());
-        expect(idxes.size() == keys.size());
-        expect(idxes[0] == 0);
-        expect(idxes[idxes.size() - 1] == idxes.size() - 1);
-    };
+    // "check"_test = [] {
+    //     const auto keys = get_random_uints(100'000);
+    //     MinimalPerfectHash<uint64_t> mph;
+    //     mph.build(keys);
+    //     std::vector<uint32_t> idxes;
+    //     idxes.reserve(keys.size());
+    //     for (const auto &k : keys) {
+    //         idxes.emplace_back(mph(k));
+    //     }
+    //     std::sort(idxes.begin(), idxes.end());
+    //     idxes.erase(std::unique(idxes.begin(), idxes.end()), idxes.end());
+    //     expect(idxes.size() == keys.size());
+    //     expect(idxes[0] == 0);
+    //     expect(idxes[idxes.size() - 1] == idxes.size() - 1);
+    // };
 
     "check_page_addrs"_test = [] {
         const auto buf =

@@ -84,16 +84,17 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
                         slot_used[salted_hashes[j]] = true;
                     }
                     m_salts[hmod] = d;
+                    fmt::print("bucket idx: {:d} hmod: {:d} d: {:d}\n", i, hmod, d);
                     break;
                 }
                 ++d;
                 timeout.check();
             }
         } else if (bucket_num_keys == 1) {
-            const auto free_idx = std::distance(
-                slot_used.cbegin(), std::find(slot_used.cbegin(), slot_used.cend(), false));
-            slot_used[free_idx] = true;
-            m_salts[hmod]       = -free_idx - 1;
+            auto it = std::find(slot_used.begin(), slot_used.end(), false);
+            assert(it != slot_used.end());
+            *it           = true;
+            m_salts[hmod] = -std::distance(slot_used.begin(), it) - 1;
         }
     }
 }
