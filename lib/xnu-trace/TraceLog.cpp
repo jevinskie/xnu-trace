@@ -190,7 +190,7 @@ const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() cons
     return m_parsed_logs;
 }
 
-__attribute__((always_inline)) void TraceLog::log(thread_t thread, uint64_t pc) {
+void TraceLog::log(thread_t thread, uint64_t pc) {
     const auto msg_hdr = log_msg_hdr{.pc = pc};
     if (!m_stream) {
         std::copy((uint8_t *)&msg_hdr, (uint8_t *)&msg_hdr + sizeof(msg_hdr),

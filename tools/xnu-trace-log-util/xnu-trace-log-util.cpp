@@ -36,8 +36,18 @@ void dump_histogram(const TraceLog &trace, int max_num) {
     ARM64InstrHistogram hist;
     const auto &regions = trace.macho_regions();
     for (const auto &[tid, log] : trace.parsed_logs()) {
-        for (const auto pc : extract_pcs_from_trace(log)) {
-            hist.add(regions.lookup_inst(pc));
+        const auto pcs = extract_pcs_from_trace(log);
+        BS::multi_future<ARM64InstrHistogram> mf =
+            xnutrace_pool.parallelize_loop(pcs.size(), [&](const size_t a, const size_t b) {
+                ARM64InstrHistogram block_hist;
+                for (size_t i = a; i < b; ++i) {
+                    block_hist.add(regions.lookup_inst(pcs[i]));
+                }
+                return block_hist;
+            });
+        std::vector<ARM64InstrHistogram> block_hists = mf.get();
+        for (const auto &h : block_hists) {
+            hist += h;
         }
     }
     hist.print(max_num);

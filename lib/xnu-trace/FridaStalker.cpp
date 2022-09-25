@@ -58,7 +58,7 @@ void FridaStalker::write_trace() {
     logger().write(m_macho_regions, m_symbols.get());
 }
 
-__attribute__((always_inline)) TraceLog &FridaStalker::logger() {
+TraceLog &FridaStalker::logger() {
     return m_log;
 }
 

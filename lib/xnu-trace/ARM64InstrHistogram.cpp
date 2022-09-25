@@ -13,6 +13,35 @@ ARM64InstrHistogram::ARM64InstrHistogram() {
     m_op_count_lut.resize(UINT16_MAX);
 }
 
+ARM64InstrHistogram ARM64InstrHistogram::operator+(const ARM64InstrHistogram &other) const {
+    ARM64InstrHistogram res;
+    for (size_t i = 0; i < m_instr_to_op_lut.size(); ++i) {
+        if (m_instr_to_op_lut[i] != UINT16_MAX) {
+            res.m_instr_to_op_lut[i] = m_instr_to_op_lut[i];
+            continue;
+        }
+        if (other.m_instr_to_op_lut[i] != UINT16_MAX) {
+            res.m_instr_to_op_lut[i] = other.m_instr_to_op_lut[i];
+        }
+    }
+    for (size_t i = 0; i < m_op_count_lut.size(); ++i) {
+        res.m_op_count_lut[i] = m_op_count_lut[i] + other.m_op_count_lut[i];
+    }
+    return res;
+}
+
+ARM64InstrHistogram ARM64InstrHistogram::operator+=(const ARM64InstrHistogram &other) {
+    for (size_t i = 0; i < m_instr_to_op_lut.size(); ++i) {
+        if (other.m_instr_to_op_lut[i] != UINT16_MAX) {
+            m_instr_to_op_lut[i] = other.m_instr_to_op_lut[i];
+        }
+    }
+    for (size_t i = 0; i < m_op_count_lut.size(); ++i) {
+        m_op_count_lut[i] += other.m_op_count_lut[i];
+    }
+    return *this;
+}
+
 void ARM64InstrHistogram::add(uint32_t instr) {
     auto op = m_instr_to_op_lut[instr >> 10];
     if (op == UINT16_MAX) {

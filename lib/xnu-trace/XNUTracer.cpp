@@ -317,7 +317,7 @@ void XNUTracer::resume() {
     mach_check(task_resume(m_target_task), "resume() task_resume");
 }
 
-__attribute__((always_inline)) TraceLog &XNUTracer::logger() {
+TraceLog &XNUTracer::logger() {
     return m_log;
 }
 
