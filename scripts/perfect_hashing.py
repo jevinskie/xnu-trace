@@ -18,7 +18,7 @@ class MPH:
         for k, h in hashes.items():
             hmod = h % nkeys
             buckets[hmod] = (hmod, buckets[hmod][1] + [k])
-        # sort this way to match c++ impl
+        # sort this way to match c++ impl (not matched anymore, but does provide a total ordering here)
         sorted_buckets = list(reversed(sorted(buckets, key=lambda t: (len(t[1]), t[0]))))
         # print(sorted_buckets[0])
 

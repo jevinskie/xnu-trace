@@ -48,16 +48,9 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
         buckets[hmod].keys.emplace_back(key);
     }
 
-    // sort this way to match python impl
     std::sort(buckets.begin(), buckets.end(), [](const auto &a, const auto &b) {
-        const auto sz_a = a.keys.size();
-        const auto sz_b = b.keys.size();
-        if (sz_a == sz_b) {
-            return a.hmod < b.hmod;
-        }
-        return sz_a < sz_b;
+        return a.keys.size() > b.keys.size();
     });
-    std::reverse(buckets.begin(), buckets.end());
 
     // fmt::print("({:d}, [{:d}])\n", buckets[0].hmod, fmt::join(buckets[0].keys, ", "));
 

@@ -15,7 +15,7 @@ struct xxhash3_64 {
     XNUTRACE_INLINE static uint64_t hash(uint64_t val, uint64_t seed);
 };
 
-template <typename KeyT, typename Hasher = xxhash_64> class XNUTRACE_EXPORT MinimalPerfectHash {
+template <typename KeyT, typename Hasher = xxhash3_64> class XNUTRACE_EXPORT MinimalPerfectHash {
 public:
     void build(std::span<const KeyT> keys);
     XNUTRACE_INLINE uint32_t operator()(KeyT key) const;
