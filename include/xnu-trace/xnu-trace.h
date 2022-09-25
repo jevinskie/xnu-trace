@@ -9,6 +9,7 @@
 #include "MinimalPerfectHash.h"
 #include "Signpost.h"
 #include "Symbols.h"
+#include "ThreadPool.h"
 #include "TraceLog.h"
 #include "VMRegions.h"
 #include "XNUCommpageTime.h"

@@ -28,6 +28,7 @@ set(INSTTRACE_SRC
     proc.cpp
     Signpost.cpp
     Symbols.cpp
+    ThreadPool.cpp
     TraceLog.cpp
     utils.cpp
     VMRegions.cpp
@@ -60,6 +61,7 @@ set(XNUTRACE_PUBLIC_LIBS
     interval-tree
     frida-gum
     absl::flat_hash_map
+    thread-pool
 )
 
 set(XNUTRACE_PRIVATE_LIBS
@@ -68,7 +70,6 @@ set(XNUTRACE_PRIVATE_LIBS
     fmt
     libzstd_static
     mbedcrypto
-    thread-pool
     xxhash-xnu-trace
     xnu-trace-mach-exc
     fastmod
