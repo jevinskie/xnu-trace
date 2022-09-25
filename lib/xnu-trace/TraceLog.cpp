@@ -72,7 +72,8 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
     for (size_t i = 0; i < meta_hdr.num_regions; ++i) {
         xnutrace_pool.push_task([&, i] {
             const auto path = regions_paths[i];
-            Signpost region_sp("TraceLog", fmt::format("{:s} read", path.filename().string()));
+            Signpost region_sp("TraceLogRegions",
+                               fmt::format("{:s} read", path.filename().string()));
             region_sp.start();
             CompressedFile<log_macho_region_hdr> region_fh{path, true, log_macho_region_hdr_magic};
             sha256_t digest;
@@ -124,14 +125,15 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
     for (size_t i = 0; i < thread_paths.size(); ++i) {
         xnutrace_pool.push_task([&, i] {
             const auto path = thread_paths[i];
-            Signpost thread_read_sp("TraceLog", fmt::format("{:s} read", path.filename().string()));
+            Signpost thread_read_sp("TraceLogThreads",
+                                    fmt::format("{:s} read", path.filename().string()));
             thread_read_sp.start();
             CompressedFile<log_thread_hdr> thread_fh{path, true, log_thread_hdr_magic};
             const auto thread_buf = thread_fh.read();
             const auto thread_hdr = thread_fh.header();
             thread_read_sp.end();
 
-            Signpost thread_parse_sp("TraceLog",
+            Signpost thread_parse_sp("TraceLogThreads",
                                      fmt::format("{:s} parse", path.filename().string()));
             thread_parse_sp.start();
             std::vector<log_msg_hdr> thread_log;
