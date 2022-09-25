@@ -5,6 +5,7 @@ import sys
 
 import progressbar
 import xxhash
+from iteration_utilities import duplicates, unique_everseen
 
 
 class MPH:
@@ -17,13 +18,15 @@ class MPH:
         for k, h in hashes.items():
             hmod = h % nkeys
             buckets[hmod] = (hmod, buckets[hmod][1] + [k])
-        sorted_buckets = sorted(buckets, key=lambda t: len(t[1]), reverse=True)
+        # sort this way to match c++ impl
+        sorted_buckets = list(reversed(sorted(buckets, key=lambda t: (len(t[1]), t[0]))))
         print(sorted_buckets[0])
 
         salts = [None] * nkeys
         slot_used = [False] * nkeys
         i = 0
-        for hash, bucket in progressbar.progressbar(sorted_buckets):
+        # for hash, bucket in progressbar.progressbar(sorted_buckets):
+        for hash, bucket in sorted_buckets:
             if len(bucket) > 1:
                 d = 1
                 while True:
@@ -33,7 +36,7 @@ class MPH:
                         for sh in salted_hashes:
                             slot_used[sh] = True
                         salts[hash] = d
-                        print(f"bucket idx: {i} hmod: {hash} d: {d}")
+                        # print(f"bucket idx: {i} hmod: {hash} d: {d}")
                         break
                     if d > 4096:
                         raise RuntimeError("taking too long, sorry")
@@ -57,13 +60,12 @@ class MPH:
             return self.hash(k, sv) % self.nkeys
 
     def check(self):
-        idxes = [self.lookup_idx(k) for k in self.keys]
-        assert (
-            min(idxes) == 0
-            and max(idxes) == (len(self.keys) - 1)
-            and len(set(idxes)) == len(self.keys)
-            and len(self.salts) == len(self.keys)
-        )
+        idxes = sorted([self.lookup_idx(k) for k in self.keys])
+        assert idxes[0] == 0
+        assert idxes[-1] == len(self.keys) - 1
+        if len(set(idxes)) != len(self.keys):
+            print(f"dupes: {list(unique_everseen(duplicates(idxes)))}")
+        assert len(self.salts) == len(self.keys)
 
 
 page_addrs = []
@@ -77,16 +79,21 @@ page_addrs = sorted(list(set(page_addrs)))
 #     for pa in page_addrs:
 #         f.write(pa.to_bytes(8, "little"))
 
-print(f"len(page_addrs): {len(page_addrs)}")
+# print(f"len(page_addrs): {len(page_addrs)}")
 
-mph = MPH(page_addrs)
-mph.check()
-print(f"max(mph.salts): {max([s for s in mph.salts if s is not None])}")
-print(f"{mph.salts.count(None) / mph.nkeys * 100:0.2f}% filled")
+# mph = MPH(page_addrs)
+# mph.check()
+# print(f"max(mph.salts): {max([s for s in mph.salts if s is not None])}")
+# print(f"{mph.salts.count(None) / mph.nkeys * 100:0.2f}% filled")
 
+random.seed(243)
+rand_u64 = [random.randint(0, 0xFFFF_FFFF_FFFF_FFFF) for i in range(100_000)]
 
-# rand_u64 = [random.randint(0, 0xFFFF_FFFF_FFFF_FFFF) for i in range(100_000)]
-# mph_rand = MPH(rand_u64)
-# mph_rand.check()
-# print(f"max(mph_rand.salts): {max([s for s in mph_rand.salts if s is not None])}")
-# print(f"{mph_rand.salts.count(None) / mph_rand.nkeys * 100:0.2f}% filled")
+# with open("rand_u64_dup_idx_29751.bin", "wb") as f:
+#     for n in rand_u64:
+#         f.write(n.to_bytes(8, "little"))
+
+mph_rand = MPH(rand_u64)
+mph_rand.check()
+print(f"max(mph_rand.salts): {max([s for s in mph_rand.salts if s is not None])}")
+print(f"{mph_rand.salts.count(None) / mph_rand.nkeys * 100:0.2f}% filled")
