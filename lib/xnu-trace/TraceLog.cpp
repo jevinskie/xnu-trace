@@ -201,13 +201,13 @@ const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() cons
 }
 
 void TraceLog::log(thread_t thread, uint64_t pc) {
+    // const auto &ctx = m_thread_ctxs[thread];
     const auto last_pc = m_thread_last_pc[thread];
 
-    uint8_t msg_buf[rpc_changed_max_sz];
-    uint8_t *buf_ptr = msg_buf + 2 * sizeof(uint32_t);
-
+    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[rpc_changed_max_sz];
+    auto *msg_hdr        = (log_msg_hdr *)msg_buf;
+    uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
     uint32_t gpr_changed = 0;
-    uint32_t vec_changed = 0;
 
     if (last_pc + 4 != pc) {
         rpc_set_branched(gpr_changed);
@@ -215,8 +215,8 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
         buf_ptr += sizeof(uint64_t);
     }
 
-    *(uint32_t *)msg_buf                      = gpr_changed;
-    *(uint32_t *)(msg_buf + sizeof(uint32_t)) = vec_changed;
+    msg_hdr->gpr_changed = gpr_changed;
+    msg_hdr->vec_changed = 0;
 
     if (!m_stream) {
         std::copy(msg_buf, buf_ptr, std::back_inserter(m_log_bufs[thread]));
