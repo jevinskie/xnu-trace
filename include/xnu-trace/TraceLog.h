@@ -46,4 +46,5 @@ private:
     int m_compression_level{};
     bool m_stream{};
     absl::flat_hash_map<uint32_t, uint64_t> m_thread_num_inst;
+    absl::flat_hash_map<uint32_t, uint64_t> m_thread_last_pc;
 };

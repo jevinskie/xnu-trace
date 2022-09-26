@@ -191,6 +191,8 @@ const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() cons
 }
 
 void TraceLog::log(thread_t thread, uint64_t pc) {
+    const auto last_pc = m_thread_last_pc[thread];
+
     const auto msg_hdr = log_msg_hdr{.pc = pc};
     if (!m_stream) {
         std::copy((uint8_t *)&msg_hdr, (uint8_t *)&msg_hdr + sizeof(msg_hdr),
@@ -205,6 +207,7 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
         }
         m_log_streams[thread]->write(msg_hdr);
     }
+    m_thread_last_pc[thread] = pc;
     m_thread_num_inst[thread] += 1;
     ++m_num_inst;
 }
