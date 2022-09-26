@@ -36,6 +36,14 @@ public:
     const std::map<uint32_t, std::vector<log_msg_hdr>> &parsed_logs() const;
 
 private:
+    struct thread_ctx {
+        thread_ctx(uint32_t thread_id, const std::filesystem::path &log_dir_path,
+                   int compression_level, bool stream);
+        std::vector<uint8_t> log_buf;
+        std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
+        uint64_t last_pc;
+        uint64_t num_inst;
+    };
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;
     std::unique_ptr<Symbols> m_symbols;
@@ -47,4 +55,5 @@ private:
     bool m_stream{};
     absl::flat_hash_map<uint32_t, uint64_t> m_thread_num_inst;
     absl::flat_hash_map<uint32_t, uint64_t> m_thread_last_pc;
+    absl::flat_hash_map<uint32_t, thread_ctx> m_thread_ctxs;
 };

@@ -38,6 +38,16 @@ std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg_hdr> 
     return pcs;
 }
 
+TraceLog::thread_ctx::thread_ctx(uint32_t thread_id, const fs::path &log_dir_path,
+                                 int compression_level, bool stream) {
+    const log_thread_hdr thread_hdr{.thread_id = thread_id};
+    if (stream) {
+        log_stream = std::make_unique<CompressedFile<log_thread_hdr>>(
+            log_dir_path / fmt::format("thread-{:d}.bin", thread_id), false, log_thread_hdr_magic,
+            &thread_hdr, compression_level);
+    }
+}
+
 TraceLog::TraceLog(const std::string &log_dir_path, int compression_level, bool stream)
     : m_log_dir_path{log_dir_path}, m_compression_level{compression_level}, m_stream{stream} {
     fs::create_directory(m_log_dir_path);
