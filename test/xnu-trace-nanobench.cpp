@@ -82,15 +82,31 @@ static void BM_histogram_add(const TraceLog &trace) {
 static void BM_xxhash64() {
     uint64_t i = 0;
     nanobench::Bench().run("XXH64", [&]() {
-        nanobench::doNotOptimizeAway(XXH64((char *)&i, sizeof(i), i));
+        nanobench::doNotOptimizeAway(xxhash_64::hash(i, i * 7));
         ++i;
     });
 }
 
 static void BM_xxhash3_64() {
     uint64_t i = 0;
-    nanobench::Bench().run("XXH3_64bits_withSeed", [&]() {
-        nanobench::doNotOptimizeAway(XXH3_64bits_withSeed((char *)&i, sizeof(i), i));
+    nanobench::Bench().run("XXH3_64", [&]() {
+        nanobench::doNotOptimizeAway(xxhash3_64::hash(i, i * 7));
+        ++i;
+    });
+}
+
+static void BM_jevhash_64() {
+    uint64_t i = 0;
+    nanobench::Bench().run("jevhash_64", [&]() {
+        nanobench::doNotOptimizeAway(jevhash_64::hash(i, i * 7));
+        ++i;
+    });
+}
+
+static void BM_jevhash_32() {
+    uint64_t i = 0;
+    nanobench::Bench().run("jevhash_32", [&]() {
+        nanobench::doNotOptimizeAway(jevhash_32::hash(i, i * 7));
         ++i;
     });
 }
@@ -121,6 +137,8 @@ int main(void) {
     BM_histogram_add(trace);
     BM_xxhash64();
     BM_xxhash3_64();
+    BM_jevhash_64();
+    BM_jevhash_32();
     BM_xnu_commpage_time_seconds();
     BM_mach_absolute_time();
     BM_mach_approximate_time();

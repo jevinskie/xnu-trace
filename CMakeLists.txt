@@ -20,7 +20,7 @@ endif ()
 add_compile_options(-ggdb3)
 # add_compile_options(-g0)
 
-add_compile_options(-O0 -fno-omit-frame-pointer)
+# add_compile_options(-O0 -fno-omit-frame-pointer)
 
 add_compile_options(-Os -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections)
 add_link_options(-Os -Wl,-dead_strip)
@@ -34,11 +34,11 @@ add_link_options(-Os -Wl,-dead_strip)
 # add_compile_options(-O3)
 # add_link_options(-O3)
 
-# add_compile_options(-Ofast)
-# add_link_options(-Ofast)
+add_compile_options(-Ofast)
+add_link_options(-Ofast)
 
-# add_compile_options(-flto=full -fwhole-program-vtables -fvirtual-function-elimination)
-# add_link_options(-flto=full)
+add_compile_options(-flto=full -fwhole-program-vtables -fvirtual-function-elimination)
+add_link_options(-flto=full)
 
 # lol just don't its so bad
 # add_compile_options(-fno-inline)
