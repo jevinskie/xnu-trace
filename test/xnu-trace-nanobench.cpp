@@ -41,7 +41,8 @@ static void BM_lookup_inst_from_trace(const TraceLog &trace) {
     size_t i = 0;
     for (const auto &[tid, log] : trace.parsed_logs()) {
         for (const auto msg : log) {
-            addrs[i] = msg.pc;
+            // FIXME
+            // addrs[i] = msg.pc;
             ++i;
         }
     }
@@ -62,7 +63,8 @@ static void BM_histogram_add(const TraceLog &trace) {
     size_t i = 0;
     for (const auto &[tid, log] : trace.parsed_logs()) {
         for (const auto msg : log) {
-            instrs[i] = regions.lookup_inst(msg.pc);
+            // FIXME
+            // instrs[i] = regions.lookup_inst(msg.pc);
             ++i;
         }
     }

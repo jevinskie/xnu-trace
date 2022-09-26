@@ -42,17 +42,20 @@ private:
         uint64_t last_pc;
         uint64_t num_inst;
     };
-    class thread_ctx_map {
+
+    class thread_ctx_map : public absl::flat_hash_map<uint32_t, thread_ctx> {
     public:
+        thread_ctx_map(const std::filesystem::path &log_dir_path);
         thread_ctx_map(const std::filesystem::path &log_dir_path, int compression_level,
                        bool stream);
+        thread_ctx &operator[](uint32_t key);
 
     private:
-        absl::flat_hash_map<uint32_t, thread_ctx> m_map;
         const std::filesystem::path &m_log_dir_path;
-        int m_compression_level;
-        bool m_stream;
+        int m_compression_level{};
+        bool m_stream{};
     };
+
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;
     std::unique_ptr<Symbols> m_symbols;
@@ -64,5 +67,5 @@ private:
     bool m_stream{};
     absl::flat_hash_map<uint32_t, uint64_t> m_thread_num_inst;
     absl::flat_hash_map<uint32_t, uint64_t> m_thread_last_pc;
-    absl::flat_hash_map<uint32_t, thread_ctx> m_thread_ctxs;
+    thread_ctx_map m_thread_ctxs;
 };

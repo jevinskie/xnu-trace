@@ -91,17 +91,16 @@ struct log_comp_hdr {
 struct log_thread_hdr {
     uint64_t thread_id;
     uint64_t num_inst;
+    static constexpr uint64_t magic = 0x8d3a'dfb8'4452'4854ull; // 'THRD'
 } __attribute__((packed));
 
 struct log_meta_hdr {
     uint64_t num_regions;
     uint64_t num_syms;
+    static constexpr uint64_t magic = 0x8d3a'dfb8'4154'454dull; // 'META'
 } __attribute__((packed));
 
 struct log_macho_region_hdr {
     uint8_t digest_sha256[32];
+    static constexpr uint64_t magic = 0x8d3a'dfb8'4843'414dull; // 'MACH'
 } __attribute__((packed));
-
-constexpr uint64_t log_meta_hdr_magic         = 0x8d3a'dfb8'4154'454dull; // 'META'
-constexpr uint64_t log_thread_hdr_magic       = 0x8d3a'dfb8'4452'4854ull; // 'THRD'
-constexpr uint64_t log_macho_region_hdr_magic = 0x8d3a'dfb8'4843'414dull; // 'MACH'

@@ -75,10 +75,10 @@ private:
 template <typename HeaderT>
 class XNUTRACE_EXPORT CompressedFile : public jev::xnutrace::detail::CompressedFile {
 public:
-    CompressedFile(const std::filesystem::path &path, bool read, uint64_t hdr_magic,
-                   const HeaderT *hdr = nullptr, int level = 3, bool verbose = false)
+    CompressedFile(const std::filesystem::path &path, bool read, const HeaderT *hdr = nullptr,
+                   int level = 3, bool verbose = false)
         : jev::xnutrace::detail::CompressedFile::CompressedFile{
-              path, read, sizeof(HeaderT), hdr_magic, hdr, level, verbose} {};
+              path, read, sizeof(HeaderT), HeaderT::magic, hdr, level, verbose} {};
 
     const HeaderT &header() const {
         return jev::xnutrace::detail::CompressedFile::header<HeaderT>();
