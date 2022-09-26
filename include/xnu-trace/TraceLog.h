@@ -59,13 +59,9 @@ private:
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;
     std::unique_ptr<Symbols> m_symbols;
-    std::map<uint32_t, std::vector<uint8_t>> m_log_bufs;
-    std::map<uint32_t, std::unique_ptr<CompressedFile<log_thread_hdr>>> m_log_streams;
     std::map<uint32_t, std::vector<log_msg_hdr>> m_parsed_logs;
     std::filesystem::path m_log_dir_path;
     int m_compression_level{};
     bool m_stream{};
-    absl::flat_hash_map<uint32_t, uint64_t> m_thread_num_inst;
-    absl::flat_hash_map<uint32_t, uint64_t> m_thread_last_pc;
     thread_ctx_map m_thread_ctxs;
 };

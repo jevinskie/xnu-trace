@@ -4,8 +4,7 @@
 #include "xnu-trace/Signpost.h"
 #include "xnu-trace/ThreadPool.h"
 
-#include <set>
-
+#include <absl/container/flat_hash_set.h>
 #include <interval-tree/interval_tree.hpp>
 
 using namespace lib_interval_tree;
@@ -188,13 +187,11 @@ uint64_t TraceLog::num_inst() const {
 
 size_t TraceLog::num_bytes() const {
     size_t sz = 0;
-    if (!m_stream) {
-        for (const auto &thread_log : m_log_bufs) {
-            sz += thread_log.second.size();
-        }
-    } else {
-        for (const auto &thread_stream : m_log_streams) {
-            sz += thread_stream.second->decompressed_size();
+    for (const auto &[tid, ctx] : m_thread_ctxs) {
+        if (!m_stream) {
+            sz += ctx.log_buf.size();
+        } else {
+            sz += ctx.log_stream->decompressed_size();
         }
     }
     return sz;
@@ -215,8 +212,8 @@ const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() cons
 }
 
 void TraceLog::log(thread_t thread, uint64_t pc) {
-    // const auto &ctx = m_thread_ctxs[thread];
-    const auto last_pc = m_thread_last_pc[thread];
+    auto &ctx          = m_thread_ctxs[thread];
+    const auto last_pc = ctx.last_pc;
 
     uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[rpc_changed_max_sz];
     auto *msg_hdr        = (log_msg_hdr *)msg_buf;
@@ -233,34 +230,35 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
     msg_hdr->vec_changed = 0;
 
     if (!m_stream) {
-        std::copy(msg_buf, buf_ptr, std::back_inserter(m_log_bufs[thread]));
+        std::copy(msg_buf, buf_ptr, std::back_inserter(ctx.log_buf));
     } else {
-        if (!m_log_streams.contains(thread)) {
-            const log_thread_hdr thread_hdr{.thread_id = thread};
-            m_log_streams.emplace(thread,
-                                  std::make_unique<CompressedFile<log_thread_hdr>>(
-                                      m_log_dir_path / fmt::format("thread-{:d}.bin", thread),
-                                      false, &thread_hdr, m_compression_level));
-        }
-        m_log_streams[thread]->write(msg_buf, buf_ptr - msg_buf);
+        ctx.log_stream->write(msg_buf, buf_ptr - msg_buf);
     }
-    m_thread_last_pc[thread] = pc;
-    m_thread_num_inst[thread] += 1;
+    ctx.last_pc = pc;
+    ++ctx.num_inst;
     ++m_num_inst;
 }
 
 void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) {
-    std::set<uint64_t> pcs;
-    for (const auto &thread_buf_pair : m_log_bufs) {
-        const auto buf = thread_buf_pair.second;
-        for (const auto pc : extract_pcs_from_trace(
-                 {(log_msg_hdr *)buf.data(), buf.size() / sizeof(log_msg_hdr)})) {
-            pcs.emplace(pc);
-        }
-    }
     interval_tree_t<uint64_t> pc_intervals;
-    for (const auto pc : pcs) {
-        pc_intervals.insert_overlap({pc, pc + 4});
+
+    if (!m_stream) {
+        absl::flat_hash_set<uint64_t> pcs;
+        for (const auto &[tid, ctx] : m_thread_ctxs) {
+            for (const auto pc :
+                 extract_pcs_from_trace({(log_msg_hdr *)ctx.log_buf.data(),
+                                         ctx.log_buf.size() / sizeof(log_msg_hdr)})) {
+                pcs.emplace(pc);
+            }
+        }
+        for (const auto pc : pcs) {
+            pc_intervals.insert_overlap({pc, pc + 4});
+        }
+    } else {
+        // FIXME: streams just add all symbols
+        for (const auto &region : macho_regions.regions()) {
+            pc_intervals.insert_overlap({region.base, region.base + region.size});
+        }
     }
 
     std::vector<sym_info> syms;
@@ -329,17 +327,15 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
         macho_region_fh.write(region.bytes);
     }
 
-    if (!m_stream) {
-        for (const auto &[tid, buf] : m_log_bufs) {
-            const log_thread_hdr thread_hdr{.thread_id = tid, .num_inst = m_thread_num_inst[tid]};
+    for (const auto &[tid, ctx] : m_thread_ctxs) {
+        if (!m_stream) {
+            const log_thread_hdr thread_hdr{.thread_id = tid, .num_inst = ctx.num_inst};
             CompressedFile<log_thread_hdr> thread_fh{
                 m_log_dir_path / fmt::format("thread-{:d}.bin", tid), false, /* read */
                 &thread_hdr, m_compression_level, true /* verbose */};
-            thread_fh.write(buf);
-        }
-    } else {
-        for (const auto &[tid, cf] : m_log_streams) {
-            cf->header().num_inst = m_thread_num_inst[tid];
+            thread_fh.write(ctx.log_buf);
+        } else {
+            ctx.log_stream->header().num_inst = ctx.num_inst;
         }
     }
 }
