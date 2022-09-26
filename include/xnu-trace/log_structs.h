@@ -18,31 +18,34 @@ constexpr uint8_t gpr_idx_sz = (uint8_t)gpr_idx::sp + 1; // sz = 32
 // │ ngc │     │b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
 // └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 
+constexpr size_t rpc_changed_max_sz =
+    2 * sizeof(uint32_t) + sizeof(uint64_t) + 5 * sizeof(uint64_t) + 5 * sizeof(uint128_t);
+
 constexpr int8_t rpc_num_changed_max = 5;
 
-constexpr int8_t rpc_num_changed(uint32_t reg_changes_packed) {
-    return reg_changes_packed >> 29;
+constexpr int8_t rpc_num_changed(uint32_t reg_packed_changes) {
+    return reg_packed_changes >> 29;
 }
 
-constexpr bool rpc_pc_branched(uint32_t reg_changes_packed) {
-    return !!(reg_changes_packed & (1 << 25));
+constexpr bool rpc_pc_branched(uint32_t reg_packed_changes) {
+    return !!(reg_packed_changes & (1 << 25));
 }
 
-constexpr int8_t rpc_reg_idx(uint32_t reg_changes_packed, int8_t changed_idx) {
-    return (reg_changes_packed >> (5 * changed_idx)) & 0b1'1111;
+constexpr int8_t rpc_reg_idx(uint32_t reg_packed_changes, int8_t changed_idx) {
+    return (reg_packed_changes >> (5 * changed_idx)) & 0b1'1111;
 }
 
-constexpr uint32_t rpc_set_reg_idx(uint32_t reg_changes_packed, int8_t changed_idx,
+constexpr uint32_t rpc_set_reg_idx(uint32_t reg_packed_changes, int8_t changed_idx,
                                    int8_t reg_idx) {
-    return reg_changes_packed | (reg_idx << (5 * changed_idx));
+    return reg_packed_changes | (reg_idx << (5 * changed_idx));
 }
 
-constexpr uint32_t rpc_set_num_changed(uint32_t reg_changes_packed, int8_t num_changed) {
-    return reg_changes_packed | (num_changed << 29);
+constexpr uint32_t rpc_set_num_changed(uint32_t reg_packed_changes, int8_t num_changed) {
+    return reg_packed_changes | (num_changed << 29);
 }
 
-constexpr uint32_t rpc_set_branched(uint32_t reg_changes_packed) {
-    return reg_changes_packed | (1 << 25);
+constexpr uint32_t rpc_set_branched(uint32_t reg_packed_changes) {
+    return reg_packed_changes | (1 << 25);
 }
 
 // clang-format off
