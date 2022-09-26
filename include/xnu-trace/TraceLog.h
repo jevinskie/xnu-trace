@@ -37,12 +37,21 @@ public:
 
 private:
     struct thread_ctx {
-        thread_ctx(uint32_t thread_id, const std::filesystem::path &log_dir_path,
-                   int compression_level, bool stream);
         std::vector<uint8_t> log_buf;
         std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
         uint64_t last_pc;
         uint64_t num_inst;
+    };
+    class thread_ctx_map {
+    public:
+        thread_ctx_map(const std::filesystem::path &log_dir_path, int compression_level,
+                       bool stream);
+
+    private:
+        absl::flat_hash_map<uint32_t, thread_ctx> m_map;
+        const std::filesystem::path &m_log_dir_path;
+        int m_compression_level;
+        bool m_stream;
     };
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;
