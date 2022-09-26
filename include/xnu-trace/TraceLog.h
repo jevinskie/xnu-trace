@@ -4,6 +4,7 @@
 
 #include "CompressedFile.h"
 #include "MachORegions.h"
+#include "MinimalPerfectHash.h"
 #include "Symbols.h"
 #include "log_structs.h"
 
@@ -43,7 +44,8 @@ private:
         uint64_t num_inst;
     };
 
-    class thread_ctx_map : public absl::flat_hash_map<uint32_t, thread_ctx> {
+    // class thread_ctx_map : public absl::flat_hash_map<uint32_t, thread_ctx> {
+    class thread_ctx_map : public mph_map<uint32_t, thread_ctx> {
     public:
         thread_ctx_map(const std::filesystem::path &log_dir_path);
         thread_ctx_map(const std::filesystem::path &log_dir_path, int compression_level,

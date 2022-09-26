@@ -56,7 +56,8 @@ TraceLog::thread_ctx &TraceLog::thread_ctx_map::operator[](uint32_t key) {
         }
         try_emplace(key, thread_ctx{.log_stream = std::move(log_stream)});
     }
-    return absl::flat_hash_map<uint32_t, thread_ctx>::operator[](key);
+    // return absl::flat_hash_map<uint32_t, thread_ctx>::operator[](key);
+    return mph_map<uint32_t, thread_ctx>::operator[](key);
 }
 
 TraceLog::TraceLog(const std::string &log_dir_path, int compression_level, bool stream)

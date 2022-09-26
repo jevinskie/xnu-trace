@@ -81,17 +81,17 @@ class XNUTRACE_EXPORT mph_map {
 public:
     ValueT &operator[](KeyT key) {
         if (XNUTRACE_UNLIKELY(m_key_vals.size() == 0)) {
-            m_key_vals.emplace_back(std::make_pair(key, {}));
-            m_mph.build({key});
-            return m_key_vals[0];
+            m_key_vals.emplace_back(std::make_pair(key, ValueT{}));
+            m_mph.build(std::span<KeyT>{&key, 1});
+            return m_key_vals[0].second;
         }
         const auto &[k, v] = m_key_vals[m_mph(key)];
         if (k == key) {
             return v;
         }
-        m_key_vals.emplace_back(std::make_pair(key, {}));
+        m_key_vals.emplace_back(std::make_pair(key, ValueT{}));
         rebuild();
-        return m_key_vals[m_mph(key)];
+        return m_key_vals[m_mph(key)].second;
     }
 
     bool contains(KeyT key) const {
