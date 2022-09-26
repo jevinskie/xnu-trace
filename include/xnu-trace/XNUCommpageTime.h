@@ -28,7 +28,7 @@ public:
     };
     XNUFastTimeout(uint64_t nanoseconds) : XNUFastTimeout(nanoseconds, xnu_fast_timeout_dummy_cb){};
     XNUTRACE_INLINE void check() const {
-        if (__builtin_expect(xnu_commpage_time_atus() >= m_end_deadline, 0)) {
+        if (XNUTRACE_UNLIKELY(xnu_commpage_time_atus() >= m_end_deadline)) {
             m_cb();
         }
     };

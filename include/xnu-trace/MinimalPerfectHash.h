@@ -2,8 +2,9 @@
 
 #include "common.h"
 
-#include <memory>
+#include <functional>
 #include <span>
+#include <vector>
 
 struct xxhash_64 {
     using type = uint64_t;
@@ -44,7 +45,110 @@ public:
 private:
     XNUTRACE_INLINE uint32_t mod(typename Hasher::type n) const;
 
-    std::unique_ptr<int32_t[]> m_salts;
+    std::vector<int32_t> m_salts;
     uint64_t m_fastmod_u32_M;
     uint32_t m_nkeys;
+};
+
+template <typename KeyT, typename ValueT, typename Hasher = jevhash_32>
+class XNUTRACE_EXPORT mph_map_static {
+public:
+    mph_map_static(const std::vector<std::pair<KeyT, ValueT>> &key_vals) {
+        std::vector<KeyT> keys(key_vals.size());
+        size_t i = 0;
+        for (const auto &[k, v] : key_vals) {
+            keys[i] = k;
+            ++i;
+        }
+        m_mph.build(keys);
+        m_values.resize(key_vals.size());
+        for (const auto &[k, v] : key_vals) {
+            m_values[m_mph(k)] = v;
+        }
+    }
+
+    ValueT &operator[](KeyT key) const {
+        return m_values[m_mph(key)];
+    }
+
+private:
+    MinimalPerfectHash<KeyT, Hasher> m_mph;
+    std::vector<ValueT> m_values;
+};
+
+template <typename KeyT, typename ValueT, typename Hasher = jevhash_32>
+class XNUTRACE_EXPORT mph_map {
+public:
+    ValueT &operator[](KeyT key) {
+        if (XNUTRACE_UNLIKELY(m_key_vals.size() == 0)) {
+            m_key_vals.emplace_back(std::make_pair(key, {}));
+            m_mph.build({key});
+            return m_key_vals[0];
+        }
+        const auto &[k, v] = m_key_vals[m_mph(key)];
+        if (k == key) {
+            return v;
+        }
+        m_key_vals.emplace_back(std::make_pair(key, {}));
+        rebuild();
+        return m_key_vals[m_mph(key)];
+    }
+
+    bool contains(KeyT key) const {
+        if (XNUTRACE_UNLIKELY(m_key_vals.size() == 0)) {
+            return false;
+        }
+        return m_key_vals[m_mph(key)].first == key;
+    }
+
+    template <typename... Args> void try_emplace(const KeyT &key, Args &&...args) {
+        if (XNUTRACE_UNLIKELY(!contains(key))) {
+            return;
+        }
+        m_key_vals.emplace_back(
+            std::make_pair(key, ValueT(std::piecewise_construct, std::forward_as_tuple(key),
+                                       std::forward_as_tuple(std::forward<Args>(args)...))));
+        rebuild();
+    }
+
+    std::vector<KeyT> keys() const {
+        std::vector<KeyT> res(m_key_vals.size());
+        size_t i = 0;
+        for (const auto &[k, v] : m_key_vals) {
+            res[i] = k;
+            ++i;
+        }
+        return res;
+    }
+
+private:
+    void rebuild() {
+        m_mph.build(keys());
+        std::vector<uint32_t> new_idx(m_key_vals.size());
+        size_t i = 0;
+        for (const auto &[k, v] : m_key_vals) {
+            new_idx[i] = m_mph(k);
+            ++i;
+        }
+        permute(new_idx);
+    }
+
+    // everybody loves raymond https://devblogs.microsoft.com/oldnewthing/20170102-00/?p=95095
+    void permute(std::vector<uint32_t> &new_idx) {
+        for (uint32_t i = 0; i < new_idx.size(); i++) {
+            std::pair<KeyT, ValueT> t{std::move(m_key_vals[i])};
+            auto current = i;
+            while (i != new_idx[current]) {
+                auto next           = new_idx[current];
+                m_key_vals[current] = std::move(m_key_vals[next]);
+                new_idx[current]    = current;
+                current             = next;
+            }
+            m_key_vals[current] = std::move(t);
+            new_idx[current]    = current;
+        }
+    }
+
+    MinimalPerfectHash<KeyT, Hasher> m_mph;
+    std::vector<std::pair<KeyT, ValueT>> m_key_vals;
 };

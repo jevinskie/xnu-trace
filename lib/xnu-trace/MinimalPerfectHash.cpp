@@ -86,7 +86,7 @@ void MinimalPerfectHash<KeyT, Hasher>::build(std::span<const KeyT> keys) {
 
     // fmt::print("({:d}, [{:d}])\n", buckets[0].hmod, fmt::join(buckets[0].keys, ", "));
 
-    m_salts = std::make_unique<int32_t[]>(m_nkeys);
+    m_salts.resize(m_nkeys);
     std::vector<bool> slot_used(m_nkeys);
 
     XNUFastTimeout timeout{5'000'000'000, []() {
@@ -149,9 +149,9 @@ uint32_t MinimalPerfectHash<KeyT, Hasher>::operator()(KeyT key) const {
 }
 
 template <typename KeyT, typename Hasher> void MinimalPerfectHash<KeyT, Hasher>::stats() const {
-    const auto max_d = ranges::max(std::span<int32_t>(m_salts.get(), m_nkeys));
+    const auto max_d = ranges::max(m_salts);
     fmt::print("max_d: {:d}\n", max_d);
-    const auto num_empty = ranges::count(std::span<int32_t>(m_salts.get(), m_nkeys), 0);
+    const auto num_empty = ranges::count(m_salts, 0);
     fmt::print("empty: {:0.3f}%\n", num_empty * 100.0 / m_nkeys);
 }
 
