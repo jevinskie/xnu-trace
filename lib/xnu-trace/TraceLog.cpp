@@ -221,7 +221,7 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
     uint32_t gpr_changed = 0;
 
     if (last_pc + 4 != pc) {
-        rpc_set_branched(gpr_changed);
+        gpr_changed          = rpc_set_branched(gpr_changed);
         *(uint64_t *)buf_ptr = pc;
         buf_ptr += sizeof(uint64_t);
     }

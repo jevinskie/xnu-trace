@@ -12,8 +12,8 @@
 
 #include <zstd.h>
 
-static void zstd_check(size_t retval, const std::string &msg) {
-    if (ZSTD_isError(retval)) {
+XNUTRACE_INLINE static void zstd_check(size_t retval, const std::string &msg) {
+    if (XNUTRACE_UNLIKELY(ZSTD_isError(retval))) {
         fmt::print(stderr, "Zstd error: '{:s}' retval: {:#018x} description: '{:s}'\n", msg, retval,
                    ZSTD_getErrorName(retval));
         if (get_task_for_pid_count(mach_task_self())) {
@@ -143,7 +143,7 @@ std::vector<uint8_t> CompressedFile::read(size_t size) {
 }
 
 void CompressedFile::read(uint8_t *buf, size_t size) {
-    assert(m_is_read);
+    assert(XNUTRACE_LIKELY(m_is_read));
     if (!m_decomp_ctx) {
         assert(fread(buf, size, 1, m_fh) == 1);
         ++m_num_disk_ops;
@@ -173,9 +173,9 @@ void CompressedFile::read(uint8_t *buf, size_t size) {
 }
 
 void CompressedFile::write(std::span<const uint8_t> buf) {
-    assert(!m_is_read);
-    if (!m_comp_ctx) {
-        assert(fwrite(buf.data(), buf.size(), 1, m_fh) == 1);
+    assert(XNUTRACE_LIKELY(!m_is_read));
+    if (XNUTRACE_UNLIKELY(!m_comp_ctx)) {
+        assert(XNUTRACE_LIKELY(fwrite(buf.data(), buf.size(), 1, m_fh) == 1));
         ++m_num_disk_ops;
     } else {
         ZSTD_inBuffer input{.src = buf.data(), .size = buf.size()};
@@ -184,10 +184,11 @@ void CompressedFile::write(std::span<const uint8_t> buf) {
             ZSTD_outBuffer output{.dst = m_out_buf.data(), .size = m_out_buf.size()};
             const auto remaining =
                 ZSTD_compressStream2(m_comp_ctx, &output, &input, ZSTD_e_continue);
-            zstd_check(remaining, "write ZSTD_compressStream2");
+            // zstd_check(remaining, "write ZSTD_compressStream2"s);
+            assert(XNUTRACE_LIKELY(!ZSTD_isError(remaining)));
             ++m_num_zstd_ops;
             if (output.pos) {
-                assert(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1);
+                assert(XNUTRACE_LIKELY(fwrite(m_out_buf.data(), output.pos, 1, m_fh) == 1));
                 ++m_num_disk_ops;
             }
             done = input.pos == input.size;

@@ -52,7 +52,12 @@ private:
 template <typename KeyT, typename ValueT, typename Hasher = jevhash_32>
 class XNUTRACE_EXPORT mph_map_static {
 public:
+    mph_map_static() = default;
     mph_map_static(const std::vector<std::pair<KeyT, ValueT>> &key_vals) {
+        build(key_vals);
+    }
+
+    void build(const std::vector<std::pair<KeyT, ValueT>> &key_vals) {
         std::vector<KeyT> keys(key_vals.size());
         size_t i = 0;
         for (const auto &[k, v] : key_vals) {
@@ -66,7 +71,7 @@ public:
         }
     }
 
-    ValueT &operator[](KeyT key) const {
+    XNUTRACE_INLINE const ValueT &operator[](KeyT key) const {
         return m_values[m_mph(key)];
     }
 
@@ -78,7 +83,7 @@ private:
 template <typename KeyT, typename ValueT, typename Hasher = jevhash_32>
 class XNUTRACE_EXPORT mph_map {
 public:
-    ValueT &operator[](KeyT key) {
+    XNUTRACE_INLINE ValueT &operator[](KeyT key) {
         if (XNUTRACE_UNLIKELY(m_key_vals.size() == 0)) {
             m_key_vals.emplace_back(std::make_pair(key, ValueT{}));
             m_mph.build(std::span<KeyT>{&key, 1});

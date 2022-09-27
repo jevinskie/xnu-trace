@@ -49,7 +49,7 @@ private:
         thread_ctx_map(const std::filesystem::path &log_dir_path);
         thread_ctx_map(const std::filesystem::path &log_dir_path, int compression_level,
                        bool stream);
-        thread_ctx &operator[](uint32_t key);
+        XNUTRACE_INLINE thread_ctx &operator[](uint32_t key);
 
     private:
         const std::filesystem::path &m_log_dir_path;

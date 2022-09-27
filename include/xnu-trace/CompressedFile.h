@@ -42,13 +42,12 @@ public:
         return buf;
     }
 
-    void write(std::span<const uint8_t> buf);
-    void write(const void *buf, size_t size);
-    void write(const uint8_t *buf, size_t size);
-    void write(const char *buf, size_t size);
+    XNUTRACE_INLINE void write(std::span<const uint8_t> buf);
+    XNUTRACE_INLINE void write(const void *buf, size_t size);
+    XNUTRACE_INLINE void write(const uint8_t *buf, size_t size);
+    XNUTRACE_INLINE void write(const char *buf, size_t size);
     template <typename T>
-    requires POD<T>
-    void write(const T &buf) {
+    requires POD<T> XNUTRACE_INLINE void write(const T &buf) {
         write({(uint8_t *)&buf, sizeof(buf)});
     }
 

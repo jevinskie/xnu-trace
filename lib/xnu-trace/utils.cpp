@@ -13,7 +13,7 @@
 #include <zstd.h>
 
 void posix_check(int retval, const std::string &msg) {
-    if (retval) {
+    if (XNUTRACE_UNLIKELY(retval)) {
         fmt::print(stderr, "POSIX error: '{:s}' retval: {:d} errno: {:d} description: '{:s}'\n",
                    msg, retval, errno, strerror(errno));
         if (get_task_for_pid_count(mach_task_self())) {
@@ -25,7 +25,7 @@ void posix_check(int retval, const std::string &msg) {
 }
 
 void mach_check(kern_return_t kr, const std::string &msg) {
-    if (kr != KERN_SUCCESS) {
+    if (XNUTRACE_UNLIKELY(kr != KERN_SUCCESS)) {
         fmt::print(stderr, "Mach error: '{:s}' retval: {:d} description: '{:s}'\n", msg, kr,
                    mach_error_string(kr));
         if (get_task_for_pid_count(mach_task_self())) {

@@ -137,9 +137,9 @@ const image_info &MachORegions::lookup(const std::string &image_name) const {
 }
 
 uint32_t MachORegions::lookup_inst(uint64_t addr) const {
-    const auto idx      = m_page_addr_mph(addr >> PAGE_SZ_LOG2);
+    const auto pa       = addr >> PAGE_SZ_LOG2;
     const auto page_off = addr & (PAGE_SZ - 1);
-    return *(uint32_t *)(m_regions_bufs[idx] + page_off);
+    return *(uint32_t *)(m_pa2buf[pa] + page_off);
 }
 
 const std::vector<image_info> &MachORegions::regions() const {
@@ -147,42 +147,37 @@ const std::vector<image_info> &MachORegions::regions() const {
 }
 
 void MachORegions::create_hash() {
-    std::vector<uint64_t> page_addrs;
-    for (const auto &region : m_regions) {
-        assert(!(region.base & PAGE_SZ_MASK));
-        assert(!(region.size & PAGE_SZ_MASK));
-        for (size_t off = 0; off < region.size; off += PAGE_SZ) {
-            page_addrs.emplace_back((region.base + off) >> PAGE_SZ_LOG2);
-        }
-    }
-    std::sort(page_addrs.begin(), page_addrs.end());
-    page_addrs.erase(std::unique(page_addrs.begin(), page_addrs.end()), page_addrs.end());
-
-    Signpost mph_build_sp("MachORegions", "mph build");
-    mph_build_sp.start();
-    m_page_addr_mph.build(page_addrs);
-    mph_build_sp.end();
-
-    m_regions_bufs.clear();
-    m_regions_bufs.resize(page_addrs.size());
-
+    std::vector<std::pair<uint64_t, const uint8_t *>> pa2buf_vec;
     // base regions
     for (const auto &region : m_regions) {
         for (size_t off = 0; off < region.size; off += PAGE_SZ) {
-            const auto idx      = m_page_addr_mph((region.base + off) >> PAGE_SZ_LOG2);
-            m_regions_bufs[idx] = region.bytes.data() + off;
+            const auto pa = (region.base + off) >> PAGE_SZ_LOG2;
+            pa2buf_vec.emplace_back(std::make_pair(pa, region.bytes.data() + off));
         }
     }
-    // override jit regions
+    // jit regions override base regions
     for (const auto &region : m_regions) {
         if (!region.is_jit) {
             continue;
         }
         for (size_t off = 0; off < region.size; off += PAGE_SZ) {
-            const auto idx      = m_page_addr_mph((region.base + off) >> PAGE_SZ_LOG2);
-            m_regions_bufs[idx] = region.bytes.data() + off;
+            const auto pa = (region.base + off) >> PAGE_SZ_LOG2;
+            if (auto it = std::find_if(pa2buf_vec.begin(), pa2buf_vec.end(),
+                                       [&](const auto p) {
+                                           return p.first == pa;
+                                       });
+                it != pa2buf_vec.end()) {
+                *it = std::make_pair(pa, region.bytes.data() + off);
+            } else {
+                pa2buf_vec.emplace_back(std::make_pair(pa, region.bytes.data() + off));
+            }
         }
     }
+
+    Signpost mph_build_sp("MachORegions", "mph build");
+    mph_build_sp.start();
+    m_pa2buf.build(pa2buf_vec);
+    mph_build_sp.end();
 }
 
 void MachORegions::dump() const {

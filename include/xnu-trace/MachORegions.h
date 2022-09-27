@@ -45,5 +45,5 @@ private:
     const task_t m_target_task{};
     std::vector<image_info> m_regions;
     std::vector<const uint8_t *> m_regions_bufs;
-    MinimalPerfectHash<uint64_t> m_page_addr_mph;
+    mph_map_static<uint64_t, const uint8_t *> m_pa2buf;
 };
