@@ -17,7 +17,7 @@ void posix_check(int retval, const std::string &msg) {
         fmt::print(stderr, "POSIX error: '{:s}' retval: {:d} errno: {:d} description: '{:s}'\n",
                    msg, retval, errno, strerror(errno));
         if (get_task_for_pid_count(mach_task_self())) {
-            __builtin_debugtrap();
+            XNUTRACE_BREAK();
         } else {
             exit(-1);
         }
@@ -29,7 +29,7 @@ void mach_check(kern_return_t kr, const std::string &msg) {
         fmt::print(stderr, "Mach error: '{:s}' retval: {:d} description: '{:s}'\n", msg, kr,
                    mach_error_string(kr));
         if (get_task_for_pid_count(mach_task_self())) {
-            __builtin_debugtrap();
+            XNUTRACE_BREAK();
         } else {
             exit(-1);
         }
