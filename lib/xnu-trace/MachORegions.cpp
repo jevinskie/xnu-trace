@@ -150,6 +150,9 @@ void MachORegions::create_hash() {
     std::vector<std::pair<uint64_t, const uint8_t *>> pa2buf_vec;
     // base regions
     for (const auto &region : m_regions) {
+        if (region.is_jit) {
+            continue;
+        }
         for (size_t off = 0; off < region.size; off += PAGE_SZ) {
             const auto pa = (region.base + off) >> PAGE_SZ_LOG2;
             pa2buf_vec.emplace_back(std::make_pair(pa, region.bytes.data() + off));
