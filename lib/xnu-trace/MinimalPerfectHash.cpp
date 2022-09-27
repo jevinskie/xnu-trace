@@ -155,4 +155,7 @@ template <typename KeyT, typename Hasher> void MinimalPerfectHash<KeyT, Hasher>:
     fmt::print("empty: {:0.3f}%\n", num_empty * 100.0 / m_nkeys);
 }
 
+template class MinimalPerfectHash<uint8_t>;
+template class MinimalPerfectHash<uint16_t>;
+template class MinimalPerfectHash<uint32_t>;
 template class MinimalPerfectHash<uint64_t>;

@@ -84,7 +84,7 @@ public:
             m_mph.build(std::span<KeyT>{&key, 1});
             return m_key_vals[0].second;
         }
-        const auto &[k, v] = m_key_vals[m_mph(key)];
+        auto &[k, v] = m_key_vals[m_mph(key)];
         if (k == key) {
             return v;
         }
@@ -105,8 +105,8 @@ public:
             return;
         }
         m_key_vals.emplace_back(
-            std::make_pair(key, ValueT(std::piecewise_construct, std::forward_as_tuple(key),
-                                       std::forward_as_tuple(std::forward<Args>(args)...))));
+            std::pair<KeyT, ValueT>(std::piecewise_construct, std::forward_as_tuple(key),
+                                    std::forward_as_tuple(std::forward<Args>(args)...)));
         rebuild();
     }
 
