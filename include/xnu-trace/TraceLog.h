@@ -38,8 +38,9 @@ public:
     const MachORegions &macho_regions() const;
     const Symbols &symbols() const;
     const std::map<uint32_t, std::vector<log_msg_hdr>> &parsed_logs() const;
-    static size_t build_frida_log_msg(const void *context, const void *last_context,
-                                      uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]);
+    XNUTRACE_INLINE static size_t build_frida_log_msg(const void *context, const void *last_context,
+                                                      uint8_t XNUTRACE_ALIGNED(16)
+                                                          msg_buf[rpc_changed_max_sz]);
 
 private:
     struct thread_ctx {

@@ -61,3 +61,6 @@
 [submodule "3rdparty/range-v3"]
 	path = 3rdparty/range-v3
 	url = https://github.com/ericniebler/range-v3
+[submodule "3rdparty/simde"]
+	path = 3rdparty/simde
+	url = https://github.com/simd-everywhere/simde

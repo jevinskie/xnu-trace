@@ -7,7 +7,9 @@
 #include <absl/container/flat_hash_set.h>
 #include <interval-tree/interval_tree.hpp>
 #undef G_DISABLE_ASSERT
+#include <arm_neon.h>
 #include <frida-gum.h>
+#include <simde/arm/neon.h>
 
 using namespace lib_interval_tree;
 
@@ -253,14 +255,17 @@ size_t TraceLog::build_frida_log_msg(const void *context, const void *last_conte
     uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
     uint32_t gpr_changed = 0;
 
-    if (last_ctx->pc + 4 != ctx->pc) {
+    const auto last_pc_sp = *(uint64x2_t *)last_ctx;
+    const auto pc_sp      = *(uint64x2_t *)ctx;
+    const auto pc_sp_diff = pc_sp - last_pc_sp;
+    if (pc_sp_diff[0] != 4) {
         gpr_changed          = rpc_set_pc_branched(gpr_changed);
-        *(uint64_t *)buf_ptr = ctx->pc;
+        *(uint64_t *)buf_ptr = pc_sp[0];
         buf_ptr += sizeof(uint64_t);
     }
-    if (last_ctx->sp != ctx->sp) {
+    if (pc_sp_diff[1] != 0) {
         gpr_changed          = rpc_set_sp_changed(gpr_changed);
-        *(uint64_t *)buf_ptr = ctx->sp;
+        *(uint64_t *)buf_ptr = pc_sp[1];
         buf_ptr += sizeof(uint64_t);
     }
 
