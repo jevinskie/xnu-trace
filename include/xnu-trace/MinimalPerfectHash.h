@@ -85,7 +85,7 @@ public:
             return m_key_vals[0].second;
         }
         auto &[k, v] = m_key_vals[m_mph(key)];
-        if (k == key) {
+        if (XNUTRACE_LIKELY(k == key)) {
             return v;
         }
         m_key_vals.emplace_back(std::make_pair(key, ValueT{}));
@@ -101,7 +101,7 @@ public:
     }
 
     template <typename... Args> void try_emplace(const KeyT &key, Args &&...args) {
-        if (XNUTRACE_UNLIKELY(!contains(key))) {
+        if (XNUTRACE_UNLIKELY(contains(key))) {
             return;
         }
         m_key_vals.emplace_back(
