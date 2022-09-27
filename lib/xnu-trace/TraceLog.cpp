@@ -6,6 +6,8 @@
 
 #include <absl/container/flat_hash_set.h>
 #include <interval-tree/interval_tree.hpp>
+#undef G_DISABLE_ASSERT
+#include <frida-gum.h>
 
 using namespace lib_interval_tree;
 
@@ -209,6 +211,13 @@ const Symbols &TraceLog::symbols() const {
 
 const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() const {
     return m_parsed_logs;
+}
+
+size_t TraceLog::build_frida_log_msg(const void *context,
+                                     uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]) {
+    assert(((uintptr_t)context & 0b1111) == 0 && "cpu context not 16 byte aligned");
+    auto ctx = XNUTRACE_ASSUME_ALIGNED((GumCpuContext *)context, 16);
+    return 0;
 }
 
 void TraceLog::log(thread_t thread, uint64_t pc) {
