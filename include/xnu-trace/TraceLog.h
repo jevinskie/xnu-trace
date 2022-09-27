@@ -15,6 +15,8 @@
 
 #include <absl/container/flat_hash_map.h>
 
+constexpr size_t gum_arm64_cpu_context_sz = 784;
+
 struct bb_t {
     uint64_t pc;
     uint32_t sz;
@@ -29,19 +31,21 @@ public:
     TraceLog(const std::string &log_dir_path, int compression_level, bool stream);
     TraceLog(const std::string &log_dir_path);
     XNUTRACE_INLINE void log(thread_t thread, uint64_t pc);
+    XNUTRACE_INLINE void log(thread_t thread, const void *context);
     void write(const MachORegions &macho_regions, const Symbols *symbols = nullptr);
     uint64_t num_inst() const;
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;
     const Symbols &symbols() const;
     const std::map<uint32_t, std::vector<log_msg_hdr>> &parsed_logs() const;
-    static size_t build_frida_log_msg(const void *context,
+    static size_t build_frida_log_msg(const void *context, const void *last_context,
                                       uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]);
 
 private:
     struct thread_ctx {
         std::vector<uint8_t> log_buf;
         std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
+        XNUTRACE_ALIGNED(16) uint64_t last_cpu_ctx[gum_arm64_cpu_context_sz / sizeof(uint64_t)];
         uint64_t last_pc;
         uint64_t num_inst;
     };

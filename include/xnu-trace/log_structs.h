@@ -13,9 +13,9 @@ enum class gpr_idx : uint8_t {
 
 constexpr uint8_t gpr_idx_sz = (uint8_t)gpr_idx::sp + 1; // sz = 32
 
-// 31  2928  262524      2019      1514      10 9       5 4       0
+// 31  292827262524      2019      1514      10 9       5 4       0
 // ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
-// │ ngc │     │b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
+// │ ngc │   |s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
 // └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 
 constexpr size_t rpc_changed_max_sz =
@@ -31,6 +31,10 @@ constexpr bool rpc_pc_branched(uint32_t reg_packed_changes) {
     return !!(reg_packed_changes & (1 << 25));
 }
 
+constexpr bool rpc_sp_changed(uint32_t reg_packed_changes) {
+    return !!(reg_packed_changes & (1 << 26));
+}
+
 constexpr int8_t rpc_reg_idx(uint32_t reg_packed_changes, int8_t changed_idx) {
     return (reg_packed_changes >> (5 * changed_idx)) & 0b1'1111;
 }
@@ -44,8 +48,12 @@ constexpr uint32_t rpc_set_num_changed(uint32_t reg_packed_changes, int8_t num_c
     return reg_packed_changes | (num_changed << 29);
 }
 
-constexpr uint32_t rpc_set_branched(uint32_t reg_packed_changes) {
+constexpr uint32_t rpc_set_pc_branched(uint32_t reg_packed_changes) {
     return reg_packed_changes | (1 << 25);
+}
+
+constexpr uint32_t rpc_set_sp_branched(uint32_t reg_packed_changes) {
+    return reg_packed_changes | (1 << 26);
 }
 
 // clang-format off
