@@ -5,9 +5,9 @@
 #include "xnu-trace/ThreadPool.h"
 
 #include <absl/container/flat_hash_set.h>
+#include <arm_neon.h>
 #include <interval-tree/interval_tree.hpp>
 #undef G_DISABLE_ASSERT
-#include <arm_neon.h>
 #include <frida-gum.h>
 #include <simde/arm/neon.h>
 
@@ -255,8 +255,8 @@ size_t TraceLog::build_frida_log_msg(const void *context, const void *last_conte
     uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
     uint32_t gpr_changed = 0;
 
-    const auto last_pc_sp = *(uint64x2_t *)last_ctx;
-    const auto pc_sp      = *(uint64x2_t *)ctx;
+    const auto last_pc_sp = *(uint64x2_t *)&last_ctx->pc;
+    const auto pc_sp      = *(uint64x2_t *)&ctx->pc;
     const auto pc_sp_diff = pc_sp - last_pc_sp;
     if (pc_sp_diff[0] != 4) {
         gpr_changed          = rpc_set_pc_branched(gpr_changed);
@@ -269,8 +269,22 @@ size_t TraceLog::build_frida_log_msg(const void *context, const void *last_conte
         buf_ptr += sizeof(uint64_t);
     }
 
+    const auto last_x2 = (uint64x2_t *)&last_ctx->x[0];
+    const auto x2      = (uint64x2_t *)&ctx->x[0];
+    uint32_t x_diff    = 0;
+
+    for (int i = 0; i < 32 / 2; ++i) {
+        const auto diff = x2[i] != last_x2[i];
+        if (diff[0]) {
+            x_diff |= 1 << (2 * i);
+        }
+        if (diff[1]) {
+            x_diff |= 1 << (2 * i + 1);
+        }
+    }
+
     msg_hdr->gpr_changed = gpr_changed;
-    msg_hdr->vec_changed = 0;
+    msg_hdr->vec_changed = x_diff;
 
     return 0;
 }
