@@ -246,7 +246,27 @@ const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() cons
 size_t TraceLog::build_frida_log_msg(const void *context, const void *last_context,
                                      uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]) {
     assert(((uintptr_t)context & 0b1111) == 0 && "cpu context not 16 byte aligned");
-    const auto ctx = XNUTRACE_ASSUME_ALIGNED((GumCpuContext *)context, 16);
+    const auto ctx      = (GumCpuContext *)XNUTRACE_ASSUME_ALIGNED(context, 16);
+    const auto last_ctx = (GumCpuContext *)XNUTRACE_ASSUME_ALIGNED(last_context, 16);
+
+    auto *msg_hdr        = (log_msg_hdr *)msg_buf;
+    uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
+    uint32_t gpr_changed = 0;
+
+    if (last_ctx->pc + 4 != ctx->pc) {
+        gpr_changed          = rpc_set_pc_branched(gpr_changed);
+        *(uint64_t *)buf_ptr = ctx->pc;
+        buf_ptr += sizeof(uint64_t);
+    }
+    if (last_ctx->sp != ctx->sp) {
+        gpr_changed          = rpc_set_sp_changed(gpr_changed);
+        *(uint64_t *)buf_ptr = ctx->sp;
+        buf_ptr += sizeof(uint64_t);
+    }
+
+    msg_hdr->gpr_changed = gpr_changed;
+    msg_hdr->vec_changed = 0;
+
     return 0;
 }
 

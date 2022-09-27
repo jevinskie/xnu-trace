@@ -52,7 +52,7 @@ constexpr uint32_t rpc_set_pc_branched(uint32_t reg_packed_changes) {
     return reg_packed_changes | (1 << 25);
 }
 
-constexpr uint32_t rpc_set_sp_branched(uint32_t reg_packed_changes) {
+constexpr uint32_t rpc_set_sp_changed(uint32_t reg_packed_changes) {
     return reg_packed_changes | (1 << 26);
 }
 
