@@ -2,7 +2,6 @@
 
 #include "common.h"
 
-#include <functional>
 #include <span>
 #include <vector>
 
@@ -119,6 +118,25 @@ public:
             ++i;
         }
         return res;
+    }
+
+    std::pair<KeyT, ValueT> *begin() {
+        return &*m_key_vals.begin();
+    }
+    const std::pair<KeyT, ValueT> *begin() const {
+        return cbegin();
+    }
+    const std::pair<KeyT, ValueT> *cbegin() const {
+        return &*m_key_vals.cbegin();
+    }
+    std::pair<KeyT, ValueT> *end() {
+        return &*m_key_vals.end();
+    }
+    const std::pair<KeyT, ValueT> *end() const {
+        return cend();
+    }
+    const std::pair<KeyT, ValueT> *cend() const {
+        return &*m_key_vals.cend();
     }
 
 private:
