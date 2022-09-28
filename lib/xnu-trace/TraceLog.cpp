@@ -247,10 +247,10 @@ const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() cons
 
 static uint64x2_t interleave_uint64x2_with_zeros_16bit(uint64x2_t input) {
     uint64x2_t word = input;
-    word            = (word ^ (word << 8)) & 0x00ff00ff00ff00ff;
-    word            = (word ^ (word << 4)) & 0x0f0f0f0f0f0f0f0f;
-    word            = (word ^ (word << 2)) & 0x3333333333333333;
-    word            = (word ^ (word << 1)) & 0x5555555555555555;
+    word            = (word ^ (word << 8)) & 0x00ff'00ff;
+    word            = (word ^ (word << 4)) & 0x0f0f'0f0f;
+    word            = (word ^ (word << 2)) & 0x3333'3333;
+    word            = (word ^ (word << 1)) & 0x5555'5555;
     return word;
 }
 
@@ -288,11 +288,21 @@ size_t TraceLog::build_frida_log_msg(const void *context, const void *last_conte
         diff_mask <<= i;
         vx_diff |= diff_mask;
     }
+    vx_diff = interleave_uint64x2_with_zeros_16bit(vx_diff);
 
-    uint32_t x_diff = 0;
+    uint32_t x_diff = vx_diff[0] | (vx_diff[1] << 1);
+
+    const auto last_v = (__uint128_t *)&last_ctx->v[0];
+    const auto v      = (__uint128_t *)&ctx->v[0];
+
+    uint32_t v_diff = 0;
+    for (int i = 0; i < 32; ++i) {
+        uint8_t veq = v[i] != last_v[i];
+        v_diff |= (veq & 1) << i;
+    }
 
     msg_hdr->gpr_changed = gpr_changed;
-    msg_hdr->vec_changed = vx_diff[0] | vx_diff[1];
+    msg_hdr->vec_changed = x_diff | v_diff;
 
     return 0;
 }
