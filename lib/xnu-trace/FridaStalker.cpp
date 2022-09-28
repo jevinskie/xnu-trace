@@ -8,7 +8,6 @@
 
 #include <mach/mach_init.h>
 
-#undef G_DISABLE_ASSERT
 #include <frida-gum.h>
 
 FridaStalker::FridaStalker(const std::string &log_dir_path, bool symbolicate, int compression_level,
@@ -79,8 +78,9 @@ void FridaStalker::instruction_cb(void *context, void *user_data) {
 }
 #else
 void FridaStalker::instruction_cb(void *context, void *user_data) {
-    auto thiz = (FridaStalker *)user_data;
-    thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), context);
+    const auto ctx = (xnutrace_arm64_cpu_context *)context;
+    auto thiz      = (FridaStalker *)user_data;
+    thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), ctx);
 }
 #endif
 

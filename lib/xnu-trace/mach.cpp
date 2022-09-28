@@ -9,6 +9,11 @@
 #include <mach/thread_act.h>
 #include <mach/vm_map.h>
 
+#include <frida-gum.h>
+
+static_assert(sizeof(GumCpuContext) == sizeof(xnutrace_arm64_cpu_context),
+              "thread state mismatch with frida");
+
 bool task_is_valid(task_t task) {
     if (!MACH_PORT_VALID(task)) {
         return false;
@@ -117,4 +122,35 @@ void set_single_step_task(task_t task, bool do_ss) {
     const auto kr_dealloc = vm_deallocate(mach_task_self(), (vm_address_t)thread_list,
                                           sizeof(thread_act_t) * num_threads);
     mach_check(kr_dealloc, "set_single_step_task vm_deallocate");
+}
+
+void read_target_thread_cpu_context(thread_t thread, xnutrace_arm64_cpu_context *ctx) {
+    const auto is_self = thread == mach_thread_self();
+    if (XNUTRACE_UNLIKELY(!is_self)) {
+        assert(thread_suspend(thread) == KERN_SUCCESS);
+    }
+
+    mach_msg_type_number_t gpr_cnt = ARM_THREAD_STATE64_COUNT;
+    arm_thread_state64_t gpr_state;
+    const auto kr_thread_get_gpr =
+        thread_get_state(thread, ARM_THREAD_STATE64, (thread_state_t)&gpr_state, &gpr_cnt);
+    assert(kr_thread_get_gpr == KERN_SUCCESS);
+
+    mach_msg_type_number_t vec_cnt = ARM_NEON_STATE64_COUNT;
+    arm_neon_state64_t vec_state;
+    const auto kr_thread_get_vec =
+        thread_get_state(thread, ARM_NEON_STATE64, (thread_state_t)&vec_state, &vec_cnt);
+    assert(kr_thread_get_vec == KERN_SUCCESS);
+
+    ctx->pc   = arm_thread_state64_get_pc(gpr_state);
+    ctx->sp   = arm_thread_state64_get_sp(gpr_state);
+    ctx->nzcv = 0;
+    memcpy(ctx->x, gpr_state.__x, sizeof(ctx->x));
+    ctx->fp = arm_thread_state64_get_fp(gpr_state);
+    ctx->lr = arm_thread_state64_get_lr(gpr_state);
+    memcpy(ctx->v, vec_state.__v, sizeof(ctx->v));
+
+    if (XNUTRACE_UNLIKELY(!is_self)) {
+        assert(thread_resume(thread) == KERN_SUCCESS);
+    }
 }
