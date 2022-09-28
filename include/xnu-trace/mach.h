@@ -2,23 +2,13 @@
 
 #include "common.h"
 
+#include "log_structs.h"
+
 #include <string>
 #include <sys/types.h>
 #include <vector>
 
 #include <mach/mach_types.h>
-
-struct xnutrace_arm64_cpu_context {
-    uint64_t pc;
-    uint64_t sp;
-    uint64_t nzcv;
-
-    uint64_t x[29];
-    uint64_t fp;
-    uint64_t lr;
-
-    uint128_t v[32];
-};
 
 XNUTRACE_EXPORT bool task_is_valid(task_t task);
 XNUTRACE_EXPORT pid_t pid_for_task(task_t task);
@@ -41,5 +31,5 @@ XNUTRACE_EXPORT std::string read_cstr_target(task_t target_task, const char *tar
 XNUTRACE_EXPORT XNUTRACE_INLINE void set_single_step_thread(thread_t thread, bool do_ss);
 XNUTRACE_EXPORT void set_single_step_task(task_t task, bool do_ss);
 
-XNUTRACE_EXPORT XNUTRACE_INLINE void
-read_target_thread_cpu_context(thread_t thread_id, xnutrace_arm64_cpu_context *ctx);
+XNUTRACE_EXPORT XNUTRACE_INLINE void read_target_thread_cpu_context(thread_t thread_id,
+                                                                    log_arm64_cpu_context *ctx);

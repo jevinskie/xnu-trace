@@ -31,9 +31,22 @@ struct log_comp_hdr {
     uint64_t decompressed_size;
 } __attribute__((packed));
 
+struct log_arm64_cpu_context {
+    uint64_t pc;
+    uint64_t sp;
+    uint64_t nzcv;
+
+    uint64_t x[29];
+    uint64_t fp;
+    uint64_t lr;
+
+    uint128_t v[32];
+} __attribute__((packed));
+
 struct log_thread_hdr {
     uint64_t thread_id;
     uint64_t num_inst;
+    log_arm64_cpu_context initial_ctx;
     static constexpr uint64_t magic = 0x8d3a'dfb8'4452'4854ull; // 'THRD'
 } __attribute__((packed));
 

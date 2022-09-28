@@ -201,8 +201,8 @@ static uint64x2_t interleave_uint64x2_with_zeros_16bit(uint64x2_t input) {
     return word;
 }
 
-size_t TraceLog::build_frida_log_msg(const xnutrace_arm64_cpu_context *ctx,
-                                     const xnutrace_arm64_cpu_context *last_ctx,
+size_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
+                                     const log_arm64_cpu_context *last_ctx,
                                      uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]) {
     assert(((uintptr_t)ctx & 0b1111) == 0 && "cpu context not 16 byte aligned");
 
@@ -211,8 +211,11 @@ size_t TraceLog::build_frida_log_msg(const xnutrace_arm64_cpu_context *ctx,
     uint32_t gpr_changed = 0;
     uint32_t vec_changed = 0;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Waddress-of-packed-member"
     const auto last_pc_sp = *(uint64x2_t *)&last_ctx->pc;
     const auto pc_sp      = *(uint64x2_t *)&ctx->pc;
+#pragma clang diagnostic pop
     const auto pc_sp_diff = pc_sp - last_pc_sp;
     if (pc_sp_diff[0] != 4) {
         gpr_changed          = rpc_set_pc_branched(gpr_changed);
@@ -277,12 +280,13 @@ size_t TraceLog::build_frida_log_msg(const xnutrace_arm64_cpu_context *ctx,
     return buf_ptr - msg_buf;
 }
 
-void TraceLog::log(thread_t thread, const xnutrace_arm64_cpu_context *context) {
+void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
     thread_ctx *tctx;
     if (!m_thread_ctxs.contains(thread)) {
         std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
         if (m_stream) {
-            const log_thread_hdr thread_hdr{.thread_id = thread};
+            log_thread_hdr thread_hdr{.thread_id = thread};
+            memcpy(&thread_hdr.initial_ctx, context, sizeof(thread_hdr.initial_ctx));
             log_stream = std::make_unique<CompressedFile<log_thread_hdr>>(
                 m_log_dir_path / fmt::format("thread-{:d}.bin", thread), false, &thread_hdr,
                 m_compression_level);

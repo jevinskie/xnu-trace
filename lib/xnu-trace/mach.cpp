@@ -11,7 +11,7 @@
 
 #include <frida-gum.h>
 
-static_assert(sizeof(GumCpuContext) == sizeof(xnutrace_arm64_cpu_context),
+static_assert(sizeof(GumCpuContext) == sizeof(log_arm64_cpu_context),
               "thread state mismatch with frida");
 
 bool task_is_valid(task_t task) {
@@ -124,7 +124,7 @@ void set_single_step_task(task_t task, bool do_ss) {
     mach_check(kr_dealloc, "set_single_step_task vm_deallocate");
 }
 
-void read_target_thread_cpu_context(thread_t thread, xnutrace_arm64_cpu_context *ctx) {
+void read_target_thread_cpu_context(thread_t thread, log_arm64_cpu_context *ctx) {
     const auto is_self = thread == mach_thread_self();
     assert(!is_self);
     assert(thread_suspend(thread) == KERN_SUCCESS);
