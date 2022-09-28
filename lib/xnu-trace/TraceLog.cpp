@@ -245,6 +245,15 @@ const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() cons
     return m_parsed_logs;
 }
 
+static uint64x2_t interleave_uint64x2_with_zeros_16bit(uint64x2_t input) {
+    uint64x2_t word = input;
+    word            = (word ^ (word << 8)) & 0x00ff00ff00ff00ff;
+    word            = (word ^ (word << 4)) & 0x0f0f0f0f0f0f0f0f;
+    word            = (word ^ (word << 2)) & 0x3333333333333333;
+    word            = (word ^ (word << 1)) & 0x5555555555555555;
+    return word;
+}
+
 size_t TraceLog::build_frida_log_msg(const void *context, const void *last_context,
                                      uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]) {
     assert(((uintptr_t)context & 0b1111) == 0 && "cpu context not 16 byte aligned");
@@ -271,20 +280,19 @@ size_t TraceLog::build_frida_log_msg(const void *context, const void *last_conte
 
     const auto last_x2 = (uint64x2_t *)&last_ctx->x[0];
     const auto x2      = (uint64x2_t *)&ctx->x[0];
-    uint32_t x_diff    = 0;
+    uint64x2_t vx_diff = {};
 
     for (int i = 0; i < 32 / 2; ++i) {
-        const auto diff = x2[i] != last_x2[i];
-        if (diff[0]) {
-            x_diff |= 1 << (2 * i);
-        }
-        if (diff[1]) {
-            x_diff |= 1 << (2 * i + 1);
-        }
+        auto diff_mask = x2[i] != last_x2[i];
+        diff_mask &= 1;
+        diff_mask <<= i;
+        vx_diff |= diff_mask;
     }
 
+    uint32_t x_diff = 0;
+
     msg_hdr->gpr_changed = gpr_changed;
-    msg_hdr->vec_changed = x_diff;
+    msg_hdr->vec_changed = vx_diff[0] | vx_diff[1];
 
     return 0;
 }
