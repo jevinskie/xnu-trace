@@ -42,35 +42,8 @@ std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg_hdr> 
     return pcs;
 }
 
-TraceLog::thread_ctx_map::thread_ctx_map(const std::filesystem::path &log_dir_path)
-    : m_log_dir_path{log_dir_path} {}
-
-TraceLog::thread_ctx_map::thread_ctx_map(const std::filesystem::path &log_dir_path,
-                                         int compression_level, bool stream)
-    : m_log_dir_path{log_dir_path}, m_compression_level{compression_level}, m_stream{stream} {}
-
-TraceLog::thread_ctx &TraceLog::thread_ctx_map::operator[](uint32_t key) {
-    if (!contains(key)) {
-        std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
-        if (m_stream) {
-            const log_thread_hdr thread_hdr{.thread_id = key};
-            log_stream = std::make_unique<CompressedFile<log_thread_hdr>>(
-                m_log_dir_path / fmt::format("thread-{:d}.bin", key), false, &thread_hdr,
-                m_compression_level);
-        }
-        auto [new_thread_ctx, added] =
-            try_emplace(key, thread_ctx{.log_stream = std::move(log_stream)});
-        assert(added);
-        read_target_thread_cpu_context(key, &new_thread_ctx.last_cpu_ctx);
-        fmt::print("read_target_thread_cpu_context pc was: {:#018x}\n",
-                   new_thread_ctx.last_cpu_ctx.pc);
-    }
-    return mph_map<uint32_t, thread_ctx>::operator[](key);
-}
-
 TraceLog::TraceLog(const std::string &log_dir_path, int compression_level, bool stream)
-    : m_log_dir_path{log_dir_path}, m_compression_level{compression_level}, m_stream{stream},
-      m_thread_ctxs{m_log_dir_path, compression_level, stream} {
+    : m_log_dir_path{log_dir_path}, m_compression_level{compression_level}, m_stream{stream} {
     fs::create_directory(m_log_dir_path);
     for (const auto &dirent : std::filesystem::directory_iterator{m_log_dir_path}) {
         if (!dirent.path().filename().string().starts_with("macho-region-")) {
@@ -79,8 +52,7 @@ TraceLog::TraceLog(const std::string &log_dir_path, int compression_level, bool 
     }
 }
 
-TraceLog::TraceLog(const std::string &log_dir_path)
-    : m_log_dir_path{log_dir_path}, m_thread_ctxs{m_log_dir_path} {
+TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_path} {
     Signpost meta_sp("TraceLog", "meta.bin read");
     meta_sp.start();
     CompressedFile<log_meta_hdr> meta_fh{m_log_dir_path / "meta.bin", true};
@@ -234,9 +206,6 @@ size_t TraceLog::build_frida_log_msg(const xnutrace_arm64_cpu_context *ctx,
                                      uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]) {
     assert(((uintptr_t)ctx & 0b1111) == 0 && "cpu context not 16 byte aligned");
 
-    fmt::print("build_frida_log_msg last_pc is: {:#018x}\n", last_ctx->pc);
-    fmt::print("build_frida_log_msg pc is:      {:#018x}\n", ctx->pc);
-
     auto *msg_hdr        = (log_msg_hdr *)msg_buf;
     uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
     uint32_t gpr_changed = 0;
@@ -308,17 +277,34 @@ size_t TraceLog::build_frida_log_msg(const xnutrace_arm64_cpu_context *ctx,
 }
 
 void TraceLog::log(thread_t thread, const xnutrace_arm64_cpu_context *context) {
-    auto &tctx = m_thread_ctxs[thread];
+    thread_ctx *tctx;
+    if (!m_thread_ctxs.contains(thread)) {
+        std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
+        if (m_stream) {
+            const log_thread_hdr thread_hdr{.thread_id = thread};
+            log_stream = std::make_unique<CompressedFile<log_thread_hdr>>(
+                m_log_dir_path / fmt::format("thread-{:d}.bin", thread), false, &thread_hdr,
+                m_compression_level);
+        }
+        auto [new_thread_ctx, added] =
+            m_thread_ctxs.try_emplace(thread, thread_ctx{.log_stream = std::move(log_stream)});
+        assert(added);
+        memcpy(&new_thread_ctx.last_cpu_ctx, context, sizeof(new_thread_ctx.last_cpu_ctx));
+        tctx = &new_thread_ctx;
+    } else {
+        tctx = &m_thread_ctxs[thread];
+    }
+
     uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[rpc_changed_max_sz];
-    const auto msg_sz = build_frida_log_msg(context, &tctx.last_cpu_ctx, msg_buf);
+    const auto msg_sz = build_frida_log_msg(context, &tctx->last_cpu_ctx, msg_buf);
 
     if (!m_stream) {
-        std::copy(msg_buf, msg_buf + msg_sz, std::back_inserter(tctx.log_buf));
+        std::copy(msg_buf, msg_buf + msg_sz, std::back_inserter(tctx->log_buf));
     } else {
-        tctx.log_stream->write(msg_buf, msg_sz);
+        tctx->log_stream->write(msg_buf, msg_sz);
     }
-    memcpy(&tctx.last_cpu_ctx, context, sizeof(tctx.last_cpu_ctx));
-    ++tctx.num_inst;
+    memcpy(&tctx->last_cpu_ctx, context, sizeof(tctx->last_cpu_ctx));
+    ++tctx->num_inst;
     ++m_num_inst;
 }
 

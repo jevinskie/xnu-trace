@@ -51,19 +51,6 @@ private:
         uint64_t num_inst;
     };
 
-    class thread_ctx_map : public mph_map<uint32_t, thread_ctx> {
-    public:
-        thread_ctx_map(const std::filesystem::path &log_dir_path);
-        thread_ctx_map(const std::filesystem::path &log_dir_path, int compression_level,
-                       bool stream);
-        XNUTRACE_INLINE thread_ctx &operator[](uint32_t key);
-
-    private:
-        const std::filesystem::path &m_log_dir_path;
-        int m_compression_level{};
-        bool m_stream{};
-    };
-
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;
     std::unique_ptr<Symbols> m_symbols;
@@ -71,5 +58,5 @@ private:
     std::filesystem::path m_log_dir_path;
     int m_compression_level{};
     bool m_stream{};
-    thread_ctx_map m_thread_ctxs;
+    mph_map<uint32_t, thread_ctx> m_thread_ctxs;
 };

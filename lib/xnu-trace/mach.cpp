@@ -126,9 +126,8 @@ void set_single_step_task(task_t task, bool do_ss) {
 
 void read_target_thread_cpu_context(thread_t thread, xnutrace_arm64_cpu_context *ctx) {
     const auto is_self = thread == mach_thread_self();
-    if (XNUTRACE_UNLIKELY(!is_self)) {
-        assert(thread_suspend(thread) == KERN_SUCCESS);
-    }
+    assert(!is_self);
+    assert(thread_suspend(thread) == KERN_SUCCESS);
 
     mach_msg_type_number_t gpr_cnt = ARM_THREAD_STATE64_COUNT;
     arm_thread_state64_t gpr_state;
@@ -150,7 +149,5 @@ void read_target_thread_cpu_context(thread_t thread, xnutrace_arm64_cpu_context 
     ctx->lr = arm_thread_state64_get_lr(gpr_state);
     memcpy(ctx->v, vec_state.__v, sizeof(ctx->v));
 
-    if (XNUTRACE_UNLIKELY(!is_self)) {
-        assert(thread_resume(thread) == KERN_SUCCESS);
-    }
+    assert(thread_resume(thread) == KERN_SUCCESS);
 }
