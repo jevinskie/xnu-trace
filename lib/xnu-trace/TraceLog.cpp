@@ -236,6 +236,7 @@ size_t TraceLog::build_frida_log_msg(const xnutrace_arm64_cpu_context *ctx,
     }
     vx2_diff        = interleave_uint64x2_with_zeros_16bit(vx2_diff);
     uint32_t x_diff = vx2_diff[0] | (vx2_diff[1] << 1);
+    x_diff &= ~(1 << 31); // 32nd slot isn't used (x[29], fp, lr) and comes from v[] so ignore
 
     const auto last_v = (uint64x2_t *)&last_ctx->v[0];
     const auto v      = (uint64x2_t *)&ctx->v[0];
@@ -250,7 +251,7 @@ size_t TraceLog::build_frida_log_msg(const xnutrace_arm64_cpu_context *ctx,
     gpr_changed         = rpc_set_num_changed(gpr_changed, num_gpr_changed);
     uint8_t gpr_idx     = 0;
     const auto *gpr_ptr = (uint64_t *)&ctx->x[0];
-    for (int i = 0; i < 32; ++i) {
+    for (int i = 0; i < 31; ++i) {
         if ((x_diff >> i) & 1) {
             *(uint64_t *)buf_ptr = gpr_ptr[i];
             buf_ptr += sizeof(uint64_t);
