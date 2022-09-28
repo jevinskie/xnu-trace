@@ -4,6 +4,8 @@
 #include "xnu-trace/Signpost.h"
 #include "xnu-trace/ThreadPool.h"
 
+#include <bit>
+
 #include <absl/container/flat_hash_set.h>
 #include <arm_neon.h>
 #include <interval-tree/interval_tree.hpp>
@@ -263,6 +265,7 @@ size_t TraceLog::build_frida_log_msg(const void *context, const void *last_conte
     auto *msg_hdr        = (log_msg_hdr *)msg_buf;
     uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
     uint32_t gpr_changed = 0;
+    uint32_t vec_changed = 0;
 
     const auto last_pc_sp = *(uint64x2_t *)&last_ctx->pc;
     const auto pc_sp      = *(uint64x2_t *)&ctx->pc;
@@ -278,33 +281,55 @@ size_t TraceLog::build_frida_log_msg(const void *context, const void *last_conte
         buf_ptr += sizeof(uint64_t);
     }
 
-    const auto last_x2 = (uint64x2_t *)&last_ctx->x[0];
-    const auto x2      = (uint64x2_t *)&ctx->x[0];
-    uint64x2_t vx_diff = {};
-
+    const auto last_x2  = (uint64x2_t *)&last_ctx->x[0];
+    const auto x2       = (uint64x2_t *)&ctx->x[0];
+    uint64x2_t vx2_diff = {};
     for (int i = 0; i < 32 / 2; ++i) {
         auto diff_mask = x2[i] != last_x2[i];
         diff_mask &= 1;
         diff_mask <<= i;
-        vx_diff |= diff_mask;
+        vx2_diff |= diff_mask;
     }
-    vx_diff = interleave_uint64x2_with_zeros_16bit(vx_diff);
-
-    uint32_t x_diff = vx_diff[0] | (vx_diff[1] << 1);
+    vx2_diff        = interleave_uint64x2_with_zeros_16bit(vx2_diff);
+    uint32_t x_diff = vx2_diff[0] | (vx2_diff[1] << 1);
 
     const auto last_v = (uint64x2_t *)&last_ctx->v[0];
     const auto v      = (uint64x2_t *)&ctx->v[0];
-
-    uint32_t v_diff = 0;
+    uint32_t v_diff   = 0;
     for (int i = 0; i < 32; ++i) {
         auto vneq = v[i] != last_v[i];
         v_diff |= ((vneq[0] | vneq[1]) & 1) << i;
     }
 
-    msg_hdr->gpr_changed = gpr_changed;
-    msg_hdr->vec_changed = x_diff | v_diff;
+    const auto num_gpr_changed = std::popcount(x_diff);
+    assert(XNUTRACE_LIKELY(num_gpr_changed <= rpc_num_changed_max));
+    gpr_changed         = rpc_set_num_changed(gpr_changed, num_gpr_changed);
+    uint8_t gpr_idx     = 0;
+    const auto *gpr_ptr = (uint64_t *)&ctx->x[0];
+    for (int i = 0; i < 32; ++i) {
+        if ((x_diff >> i) & 1) {
+            *(uint64_t *)buf_ptr = gpr_ptr[i];
+            buf_ptr += sizeof(uint64_t);
+            gpr_changed = rpc_set_reg_idx(gpr_changed, gpr_idx++, i);
+        }
+    }
 
-    return 0;
+    const auto num_vec_changed = std::popcount(v_diff);
+    assert(XNUTRACE_LIKELY(num_vec_changed <= rpc_num_changed_max));
+    vec_changed     = rpc_set_num_changed(vec_changed, num_vec_changed);
+    uint8_t vec_idx = 0;
+    for (int i = 0; i < 32; ++i) {
+        if ((v_diff >> i) & 1) {
+            *(uint128_t *)buf_ptr = *(uint128_t *)&ctx->v[i];
+            buf_ptr += sizeof(uint128_t);
+            vec_changed = rpc_set_reg_idx(vec_changed, vec_idx++, i);
+        }
+    }
+
+    msg_hdr->gpr_changed = gpr_changed;
+    msg_hdr->vec_changed = vec_changed;
+
+    return buf_ptr - msg_buf;
 }
 
 void TraceLog::log(thread_t thread, const void *context) {
