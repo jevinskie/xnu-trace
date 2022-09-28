@@ -62,6 +62,8 @@ TraceLog::thread_ctx &TraceLog::thread_ctx_map::operator[](uint32_t key) {
             try_emplace(key, thread_ctx{.log_stream = std::move(log_stream)});
         assert(added);
         read_target_thread_cpu_context(key, &new_thread_ctx.last_cpu_ctx);
+        fmt::print("read_target_thread_cpu_context pc was: {:#018x}\n",
+                   new_thread_ctx.last_cpu_ctx.pc);
     }
     return mph_map<uint32_t, thread_ctx>::operator[](key);
 }
@@ -231,6 +233,9 @@ size_t TraceLog::build_frida_log_msg(const xnutrace_arm64_cpu_context *ctx,
                                      const xnutrace_arm64_cpu_context *last_ctx,
                                      uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]) {
     assert(((uintptr_t)ctx & 0b1111) == 0 && "cpu context not 16 byte aligned");
+
+    fmt::print("build_frida_log_msg last_pc is: {:#018x}\n", last_ctx->pc);
+    fmt::print("build_frida_log_msg pc is:      {:#018x}\n", ctx->pc);
 
     auto *msg_hdr        = (log_msg_hdr *)msg_buf;
     uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
