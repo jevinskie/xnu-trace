@@ -105,14 +105,16 @@ public:
         return m_key_vals[m_mph(key)].first == key;
     }
 
-    template <typename... Args> void try_emplace(const KeyT &key, Args &&...args) {
+    template <typename... Args>
+    std::pair<ValueT &, bool> try_emplace(const KeyT &key, Args &&...args) {
         if (XNUTRACE_UNLIKELY(contains(key))) {
-            return;
+            return {m_key_vals[m_mph(key)].second, false};
         }
         m_key_vals.emplace_back(
             std::pair<KeyT, ValueT>(std::piecewise_construct, std::forward_as_tuple(key),
                                     std::forward_as_tuple(std::forward<Args>(args)...)));
         rebuild();
+        return {m_key_vals[m_mph(key)].second, true};
     }
 
     std::vector<KeyT> keys() const {
