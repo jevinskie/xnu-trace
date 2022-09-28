@@ -71,11 +71,18 @@ void FridaStalker::transform_cb(void *iterator, void *output, void *user_data) {
     }
 }
 
+#if 0
 void FridaStalker::instruction_cb(void *context, void *user_data) {
     auto ctx  = (GumCpuContext *)context;
     auto thiz = (FridaStalker *)user_data;
     thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), ctx->pc);
 }
+#else
+void FridaStalker::instruction_cb(void *context, void *user_data) {
+    auto thiz = (FridaStalker *)user_data;
+    thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), context);
+}
+#endif
 
 // C API
 
