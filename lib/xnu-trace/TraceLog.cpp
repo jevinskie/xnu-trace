@@ -292,13 +292,13 @@ size_t TraceLog::build_frida_log_msg(const void *context, const void *last_conte
 
     uint32_t x_diff = vx_diff[0] | (vx_diff[1] << 1);
 
-    const auto last_v = (__uint128_t *)&last_ctx->v[0];
-    const auto v      = (__uint128_t *)&ctx->v[0];
+    const auto last_v = (uint64x2_t *)&last_ctx->v[0];
+    const auto v      = (uint64x2_t *)&ctx->v[0];
 
     uint32_t v_diff = 0;
     for (int i = 0; i < 32; ++i) {
-        uint8_t veq = v[i] != last_v[i];
-        v_diff |= (veq & 1) << i;
+        auto vneq = v[i] != last_v[i];
+        v_diff |= ((vneq[0] | vneq[1]) & 1) << i;
     }
 
     msg_hdr->gpr_changed = gpr_changed;
