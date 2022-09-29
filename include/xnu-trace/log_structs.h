@@ -87,6 +87,10 @@ constexpr int8_t rpc_num_changed(uint32_t reg_packed_changes) {
     return reg_packed_changes >> 29;
 }
 
+constexpr int8_t rpc_num_fixed_changed(uint32_t reg_packed_changes) {
+    return ((reg_packed_changes & (1 << 25)) >> 25) + ((reg_packed_changes & (1 << 26)) >> 26);
+}
+
 constexpr bool rpc_pc_branched(uint32_t reg_packed_changes) {
     return !!(reg_packed_changes & (1 << 25));
 }
@@ -127,11 +131,12 @@ enum class vec_idx : uint8_t {
 
 constexpr uint8_t vec_idx_sz = (uint8_t)vec_idx::v31 + 1; // sz = 32
 
-constexpr size_t log_msg_size(const log_msg_hdr *msg_hdr) {
-    size_t sz = sizeof(*msg_hdr);
-    sz += rpc_pc_branched(msg_hdr->gpr_changed) * sizeof(uint64_t);
-    sz += rpc_sp_changed(msg_hdr->gpr_changed) * sizeof(uint64_t);
-    sz += rpc_num_changed(msg_hdr->gpr_changed) * sizeof(uint64_t);
-    sz += rpc_num_changed(msg_hdr->vec_changed) * sizeof(uint128_t);
+constexpr size_t log_msg_size(const log_msg_hdr &msg_hdr) {
+    size_t sz = sizeof(msg_hdr);
+    // sz += rpc_pc_branched(msg_hdr.gpr_changed) * sizeof(uint64_t);
+    // sz += rpc_sp_changed(msg_hdr.gpr_changed) * sizeof(uint64_t);
+    sz += rpc_num_fixed_changed(msg_hdr.gpr_changed) * sizeof(uint64_t);
+    sz += rpc_num_changed(msg_hdr.gpr_changed) * sizeof(uint64_t);
+    sz += rpc_num_changed(msg_hdr.vec_changed) * sizeof(uint128_t);
     return sz;
 }
