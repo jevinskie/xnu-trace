@@ -203,9 +203,10 @@ static uint64x2_t interleave_uint64x2_with_zeros_16bit(uint64x2_t input) {
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wvla-extension"
-size_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
-                                     const log_arm64_cpu_context *last_ctx,
-                                     uint8_t XNUTRACE_ALIGNED(16) msg_buf[log_msg::max_size]) {
+uint32_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
+                                       const log_arm64_cpu_context *last_ctx,
+                                       uint8_t XNUTRACE_ALIGNED(16)
+                                           msg_buf[log_msg::size_full_ctx]) {
 #pragma clang diagnostic pop
     assert(((uintptr_t)ctx & 0b1111) == 0 && "cpu context not 16 byte aligned");
 
@@ -283,6 +284,17 @@ size_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
     return buf_ptr - msg_buf;
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvla-extension"
+uint32_t TraceLog::build_sync_log_msg(const log_arm64_cpu_context *ctx,
+                                      uint8_t XNUTRACE_ALIGNED(16)
+                                          msg_buf[log_msg::size_full_ctx]) {
+#pragma clang diagnostic pop
+    memcpy(msg_buf, log_msg::sync_frame_buf, sizeof(log_msg::sync_frame_buf));
+    memcpy(msg_buf + sizeof(log_msg::sync_frame_buf), ctx, sizeof(*ctx));
+    return log_msg::size_full_ctx;
+}
+
 void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
     thread_ctx *tctx;
     if (!m_thread_ctxs.contains(thread)) {
@@ -305,7 +317,7 @@ void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wvla-extension"
-    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::max_size];
+    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::size_full_ctx];
 #pragma clang diagnostic pop
     const auto msg_sz = build_frida_log_msg(context, &tctx->last_cpu_ctx, msg_buf);
 
@@ -313,6 +325,16 @@ void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
         std::copy(msg_buf, msg_buf + msg_sz, std::back_inserter(tctx->log_buf));
     } else {
         tctx->log_stream->write(msg_buf, msg_sz);
+    }
+    tctx->sz_since_last_sync += msg_sz;
+    if (tctx->sz_since_last_sync > sync_every) {
+        const auto sync_msg_sz = build_sync_log_msg(context, msg_buf);
+        if (!m_stream) {
+            std::copy(msg_buf, msg_buf + sync_msg_sz, std::back_inserter(tctx->log_buf));
+        } else {
+            tctx->log_stream->write(msg_buf, sync_msg_sz);
+        }
+        tctx->sz_since_last_sync = 0;
     }
     memcpy(&tctx->last_cpu_ctx, context, sizeof(tctx->last_cpu_ctx));
     ++tctx->num_inst;
@@ -325,7 +347,7 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wvla-extension"
-    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::max_size];
+    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::size_full_ctx];
 #pragma clang diagnostic pop
     auto *msg_hdr        = (log_msg *)msg_buf;
     uint8_t *buf_ptr     = msg_buf + sizeof(log_msg);
@@ -337,8 +359,9 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
         buf_ptr += sizeof(uint64_t);
     }
 
-    msg_hdr->gpr_changed = gpr_changed;
-    msg_hdr->vec_changed = 0;
+    const uint32_t msg_sz = buf_ptr - (uint8_t *)msg_hdr;
+    msg_hdr->gpr_changed  = gpr_changed;
+    msg_hdr->vec_changed  = 0;
 
     if (!m_stream) {
         std::copy(msg_buf, buf_ptr, std::back_inserter(ctx.log_buf));
@@ -346,6 +369,16 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
         ctx.log_stream->write(msg_buf, buf_ptr - msg_buf);
     }
     ctx.last_cpu_ctx.pc = pc;
+    ctx.sz_since_last_sync += msg_sz;
+    if (ctx.sz_since_last_sync > sync_every) {
+        const auto sync_msg_sz = build_sync_log_msg(&ctx.last_cpu_ctx, msg_buf);
+        if (!m_stream) {
+            std::copy(msg_buf, msg_buf + sync_msg_sz, std::back_inserter(ctx.log_buf));
+        } else {
+            ctx.log_stream->write(msg_buf, sync_msg_sz);
+        }
+        ctx.sz_since_last_sync = 0;
+    }
     ++ctx.num_inst;
     ++m_num_inst;
 }

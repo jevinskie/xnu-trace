@@ -195,7 +195,7 @@ struct log_msg {
 
 static_assert(sizeof(log_msg) == 2 * sizeof(uint32_t), "log_msg header is not 8 bytes");
 static_assert(sizeof(log_msg) % sizeof(uint64_t) == 0, "log_msg not 8 byte aligned");
-static_assert(sizeof(log_msg::sync_frame_buf) == log_msg::max_size,
+static_assert(sizeof(log_msg::sync_frame_buf) == log_msg::size_max,
               "log_msg::sync_frame_buf not max_size");
 
 struct log_region {
