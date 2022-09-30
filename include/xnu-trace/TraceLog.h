@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <span>
+#include <vector>
 
 #include <mach/mach_types.h>
 
@@ -22,7 +23,10 @@ struct bb_t {
 } __attribute__((packed));
 
 XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
-XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg> &msgs);
+XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const log_msg *msgs_begin,
+                                                             const log_msg *msgs_end);
+XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const std::span<const uint8_t> msgs);
+XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const std::vector<uint8_t> &msgs);
 
 class XNUTRACE_EXPORT TraceLog {
 public:
@@ -35,7 +39,7 @@ public:
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;
     const Symbols &symbols() const;
-    const std::map<uint32_t, std::vector<log_msg>> &parsed_logs() const;
+    const std::map<uint32_t, std::vector<uint8_t>> &parsed_logs() const;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wvla-extension"
     XNUTRACE_INLINE static size_t build_frida_log_msg(const log_arm64_cpu_context *ctx,
@@ -56,7 +60,7 @@ private:
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;
     std::unique_ptr<Symbols> m_symbols;
-    std::map<uint32_t, std::vector<log_msg>> m_parsed_logs;
+    std::map<uint32_t, std::vector<uint8_t>> m_parsed_logs;
     std::filesystem::path m_log_dir_path;
     int m_compression_level{};
     bool m_stream{};

@@ -31,15 +31,25 @@ std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs
     return bbs;
 }
 
-std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg> &msgs) {
+std::vector<uint64_t> extract_pcs_from_trace(const log_msg *msgs_begin, const log_msg *msgs_end) {
     std::vector<uint64_t> pcs;
-    pcs.resize(msgs.size());
+    // pcs.resize(msgs.size());
     size_t i = 0;
-    for (const auto &msg : msgs) {
-        // FIXME
-        // pcs[i++] = msg.pc;
-    }
+    // for (const auto &msg : msgs) {
+    // FIXME
+    // pcs[i++] = msg.pc;
+    // }
     return pcs;
+}
+
+std::vector<uint64_t> extract_pcs_from_trace(const std::span<const uint8_t> msgs) {
+    return extract_pcs_from_trace((const log_msg *)msgs.data(),
+                                  (const log_msg *)(msgs.data() + msgs.size()));
+}
+
+std::vector<uint64_t> extract_pcs_from_trace(const std::vector<uint8_t> &msgs) {
+    return extract_pcs_from_trace((const log_msg *)msgs.data(),
+                                  (const log_msg *)(msgs.data() + msgs.size()));
 }
 
 TraceLog::TraceLog(const std::string &log_dir_path, int compression_level, bool stream)
@@ -125,7 +135,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
         thread_paths.emplace_back(dirent.path());
     }
 
-    std::vector<std::pair<uint32_t, std::vector<log_msg>>> parsed_logs_vec(thread_paths.size());
+    std::vector<std::pair<uint32_t, std::vector<uint8_t>>> parsed_logs_vec(thread_paths.size());
     for (size_t i = 0; i < thread_paths.size(); ++i) {
         xnutrace_pool.push_task([&, i] {
             const auto path = thread_paths[i];
@@ -140,16 +150,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
             Signpost thread_parse_sp("TraceLogThreads",
                                      fmt::format("{:s} parse", path.filename().string()));
             thread_parse_sp.start();
-            std::vector<log_msg> thread_log;
-            auto inst_hdr           = (log_msg *)thread_buf.data();
-            const auto inst_hdr_end = (log_msg *)(thread_buf.data() + thread_buf.size());
-            thread_log.resize(thread_hdr.num_inst);
-            size_t idx = 0;
-            while (inst_hdr < inst_hdr_end) {
-                thread_log[idx++] = *inst_hdr;
-                ++inst_hdr;
-            }
-            parsed_logs_vec[i] = {thread_hdr.thread_id, std::move(thread_log)};
+            parsed_logs_vec[i] = {thread_hdr.thread_id, std::move(thread_buf)};
             thread_parse_sp.end();
         });
     }
@@ -188,7 +189,7 @@ const Symbols &TraceLog::symbols() const {
     return *m_symbols;
 }
 
-const std::map<uint32_t, std::vector<log_msg>> &TraceLog::parsed_logs() const {
+const std::map<uint32_t, std::vector<uint8_t>> &TraceLog::parsed_logs() const {
     return m_parsed_logs;
 }
 
@@ -356,8 +357,7 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
     if (!m_stream) {
         absl::flat_hash_set<uint64_t> pcs;
         for (const auto &[tid, ctx] : m_thread_ctxs) {
-            for (const auto pc : extract_pcs_from_trace(
-                     {(log_msg *)ctx.log_buf.data(), ctx.log_buf.size() / sizeof(log_msg)})) {
+            for (const auto pc : extract_pcs_from_trace(ctx.log_buf)) {
                 pcs.emplace(pc);
             }
         }

@@ -30,7 +30,7 @@ constexpr uint8_t gpr_idx_sz = (uint8_t)gpr_idx::sp + 1; // sz = 32
 
 // 31  292827262524      2019      1514      10 9       5 4       0
 // ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
-// │ ngc │   |s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
+// │ ngc │ |c|s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
 // └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 
 constexpr int8_t rpc_num_changed_max = 5;
@@ -49,6 +49,10 @@ constexpr bool rpc_pc_branched(uint32_t reg_packed_changes) {
 
 constexpr bool rpc_sp_changed(uint32_t reg_packed_changes) {
     return !!(reg_packed_changes & (1 << 26));
+}
+
+constexpr bool rpc_sync(uint32_t reg_packed_changes) {
+    return !!(reg_packed_changes & (1 << 27));
 }
 
 constexpr uint32_t rpc_reg_idx(uint32_t reg_packed_changes, uint32_t changed_idx) {
@@ -72,6 +76,10 @@ constexpr uint32_t rpc_set_sp_changed(uint32_t reg_packed_changes) {
     return reg_packed_changes | (1 << 26);
 }
 
+constexpr uint32_t rpc_set_sync(uint32_t reg_packed_changes) {
+    return reg_packed_changes | (1 << 27);
+}
+
 // clang-format off
 enum class vec_idx : uint8_t {
     v0 = 0, v1, v2, v3, v4, v5, v6, v7,
@@ -87,6 +95,9 @@ struct log_msg {
     uint32_t gpr_changed;
     uint32_t vec_changed;
     size_t size() const {
+        if (is_sync_frame()) {
+            return sizeof(*this) + sizeof(sync_frame_magic);
+        }
         return sizeof(*this) + num_fixed() * sizeof(uint64_t) + num_gpr() * sizeof(uint64_t) +
                num_vec() * sizeof(uint128_t);
     }
@@ -122,11 +133,19 @@ struct log_msg {
             sizeof(*this) + num_fixed() * sizeof(uint64_t) + num_gpr() * sizeof(uint64_t);
         return ((uint128_t *)((uintptr_t)this + off))[idx];
     }
+    bool is_sync_frame() const {
+        return rpc_sync(gpr_changed);
+    }
     static constexpr size_t max_size = 2 * sizeof(uint32_t) /* hdr */ +
                                        2 * sizeof(uint64_t) /* pc/sp */ +
                                        rpc_num_changed_max * sizeof(uint64_t) /* gpr */ +
                                        rpc_num_changed_max * sizeof(uint128_t) /* vec */;
-
+    static constexpr uint64_t sync_frame_magic_lo = 0xba10'49b9'5359'4e43ULL; /* SYNC */
+    static constexpr uint64_t sync_frame_magic_hi = 0x32a8'7c8c'5359'4e43ULL; /* SYNC */
+    static constexpr uint128_t sync_frame_magic =
+        ((uint128_t)sync_frame_magic_hi << 64) | sync_frame_magic_lo; /* SYNC SYNC */
+    static constexpr uint64_t sync_frame_buf[] = {((uint64_t)0 << 32) | rpc_set_sync(0),
+                                                  sync_frame_magic_lo, sync_frame_magic_hi};
 } __attribute__((packed, aligned(8)));
 
 static_assert(sizeof(log_msg) == 2 * sizeof(uint32_t), "log_msg header is not 8 bytes");
