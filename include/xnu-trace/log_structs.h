@@ -87,11 +87,8 @@ struct log_msg {
     uint32_t gpr_changed;
     uint32_t vec_changed;
     size_t size() const {
-        size_t sz = sizeof(*this);
-        sz += rpc_num_fixed_changed(gpr_changed) * sizeof(uint64_t);
-        sz += rpc_num_changed(gpr_changed) * sizeof(uint64_t);
-        sz += rpc_num_changed(vec_changed) * sizeof(uint128_t);
-        return sz;
+        return sizeof(*this) + num_fixed() * sizeof(uint64_t) + num_gpr() * sizeof(uint64_t) +
+               num_vec() * sizeof(uint128_t);
     }
     uint32_t num_fixed() const {
         return rpc_num_fixed_changed(gpr_changed);
@@ -130,7 +127,7 @@ struct log_msg {
                                        rpc_num_changed_max * sizeof(uint64_t) /* gpr */ +
                                        rpc_num_changed_max * sizeof(uint128_t) /* vec */;
 
-} __attribute__((packed));
+} __attribute__((packed, aligned(8)));
 
 static_assert(sizeof(log_msg) == 2 * sizeof(uint32_t), "log_msg header is not 8 bytes");
 static_assert(sizeof(log_msg) % sizeof(uint64_t) == 0, "log_msg not 8 byte aligned");
