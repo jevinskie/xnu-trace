@@ -7,15 +7,16 @@
 struct log_msg;
 
 struct log_arm64_cpu_context {
-    uint64_t pc;
-    uint64_t sp;
-    uint64_t nzcv;
+    uint64_t pc;   // off 0x000
+    uint64_t sp;   // off 0x008
+    uint64_t nzcv; // off 0x010
 
-    uint64_t x[29];
-    uint64_t fp;
-    uint64_t lr;
+    uint64_t x[29]; // off 0x018
+    uint64_t fp;    // off 0x100
+    uint64_t lr;    // off 0x108
 
-    uint128_t v[32];
+    uint128_t v[32]; // off 0x110
+    // sz 0x310
 
     void update(const log_msg &msg);
 };
@@ -36,7 +37,7 @@ constexpr uint8_t gpr_idx_sz = (uint8_t)gpr_idx::sp + 1; // sz = 32
 
 // 31  292827262524      2019      1514      10 9       5 4       0
 // ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
-// │ ngc │ |c|s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
+// │ ngc │f|c|s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
 // └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 
 constexpr int8_t rpc_num_changed_max = 5;
@@ -170,6 +171,8 @@ struct log_msg {
                                        2 * sizeof(uint64_t) /* pc/sp */ +
                                        rpc_num_changed_max * sizeof(uint64_t) /* gpr */ +
                                        rpc_num_changed_max * sizeof(uint128_t) /* vec */;
+    static constexpr size_t max_size_full_ctx =
+        2 * sizeof(uint32_t) /* hdr */ + sizeof(log_arm64_cpu_context) /* ctx */;
     static constexpr uint64_t sync_frame_buf[] = {((uint64_t)0 << 32) | rpc_set_sync(0),
                                                   0x1b30'aabd'5359'4e43ULL /* SYNC */,
                                                   0x7699'0430'4a1b'4410ULL,
