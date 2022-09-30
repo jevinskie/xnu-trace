@@ -40,10 +40,10 @@ log_sym_t = struct.Struct("=QQQQ")
 log_thread_hdr_t = struct.Struct("=Q")
 log_thread_hdr_magic = 0x8D3A_DFB8_4452_4854
 
-# struct log_msg_hdr {
+# struct log_msg {
 #     uint64_t pc;
 # }
-log_msg_hdr_t = struct.Struct("=Q")
+log_msg_t = struct.Struct("=Q")
 
 
 @define(slots=False)

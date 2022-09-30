@@ -31,7 +31,7 @@ std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs
     return bbs;
 }
 
-std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg_hdr> &msgs) {
+std::vector<uint64_t> extract_pcs_from_trace(const std::span<const log_msg> &msgs) {
     std::vector<uint64_t> pcs;
     pcs.resize(msgs.size());
     size_t i = 0;
@@ -125,7 +125,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
         thread_paths.emplace_back(dirent.path());
     }
 
-    std::vector<std::pair<uint32_t, std::vector<log_msg_hdr>>> parsed_logs_vec(thread_paths.size());
+    std::vector<std::pair<uint32_t, std::vector<log_msg>>> parsed_logs_vec(thread_paths.size());
     for (size_t i = 0; i < thread_paths.size(); ++i) {
         xnutrace_pool.push_task([&, i] {
             const auto path = thread_paths[i];
@@ -140,9 +140,9 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
             Signpost thread_parse_sp("TraceLogThreads",
                                      fmt::format("{:s} parse", path.filename().string()));
             thread_parse_sp.start();
-            std::vector<log_msg_hdr> thread_log;
-            auto inst_hdr           = (log_msg_hdr *)thread_buf.data();
-            const auto inst_hdr_end = (log_msg_hdr *)(thread_buf.data() + thread_buf.size());
+            std::vector<log_msg> thread_log;
+            auto inst_hdr           = (log_msg *)thread_buf.data();
+            const auto inst_hdr_end = (log_msg *)(thread_buf.data() + thread_buf.size());
             thread_log.resize(thread_hdr.num_inst);
             size_t idx = 0;
             while (inst_hdr < inst_hdr_end) {
@@ -188,7 +188,7 @@ const Symbols &TraceLog::symbols() const {
     return *m_symbols;
 }
 
-const std::map<uint32_t, std::vector<log_msg_hdr>> &TraceLog::parsed_logs() const {
+const std::map<uint32_t, std::vector<log_msg>> &TraceLog::parsed_logs() const {
     return m_parsed_logs;
 }
 
@@ -201,13 +201,16 @@ static uint64x2_t interleave_uint64x2_with_zeros_16bit(uint64x2_t input) {
     return word;
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvla-extension"
 size_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
                                      const log_arm64_cpu_context *last_ctx,
-                                     uint8_t XNUTRACE_ALIGNED(16) msg_buf[rpc_changed_max_sz]) {
+                                     uint8_t XNUTRACE_ALIGNED(16) msg_buf[log_msg::max_size]) {
+#pragma clang diagnostic pop
     assert(((uintptr_t)ctx & 0b1111) == 0 && "cpu context not 16 byte aligned");
 
-    auto *msg_hdr        = (log_msg_hdr *)msg_buf;
-    uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
+    auto *msg_hdr        = (log_msg *)msg_buf;
+    uint8_t *buf_ptr     = msg_buf + sizeof(log_msg);
     uint32_t gpr_changed = 0;
     uint32_t vec_changed = 0;
 
@@ -300,7 +303,10 @@ void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
         tctx = &m_thread_ctxs[thread];
     }
 
-    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[rpc_changed_max_sz];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvla-extension"
+    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::max_size];
+#pragma clang diagnostic pop
     const auto msg_sz = build_frida_log_msg(context, &tctx->last_cpu_ctx, msg_buf);
 
     if (!m_stream) {
@@ -317,9 +323,12 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
     auto &ctx          = m_thread_ctxs[thread];
     const auto last_pc = ctx.last_pc;
 
-    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[rpc_changed_max_sz];
-    auto *msg_hdr        = (log_msg_hdr *)msg_buf;
-    uint8_t *buf_ptr     = msg_buf + sizeof(log_msg_hdr);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvla-extension"
+    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::max_size];
+#pragma clang diagnostic pop
+    auto *msg_hdr        = (log_msg *)msg_buf;
+    uint8_t *buf_ptr     = msg_buf + sizeof(log_msg);
     uint32_t gpr_changed = 0;
 
     if (last_pc + 4 != pc) {
@@ -347,9 +356,8 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
     if (!m_stream) {
         absl::flat_hash_set<uint64_t> pcs;
         for (const auto &[tid, ctx] : m_thread_ctxs) {
-            for (const auto pc :
-                 extract_pcs_from_trace({(log_msg_hdr *)ctx.log_buf.data(),
-                                         ctx.log_buf.size() / sizeof(log_msg_hdr)})) {
+            for (const auto pc : extract_pcs_from_trace(
+                     {(log_msg *)ctx.log_buf.data(), ctx.log_buf.size() / sizeof(log_msg)})) {
                 pcs.emplace(pc);
             }
         }
