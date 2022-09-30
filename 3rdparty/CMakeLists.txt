@@ -31,6 +31,10 @@ add_subdirectory(abseil)
 add_subdirectory(fastmod)
 add_subdirectory(range-v3)
 
+add_library(static_vector INTERFACE static_vector/include/experimental/fixed_capacity_vector)
+target_include_directories(static_vector INTERFACE static_vector/include)
+target_compile_definitions(static_vector INTERFACE FCV_NDEBUG)
+
 add_library(thread-pool INTERFACE)
 target_include_directories(thread-pool INTERFACE thread-pool)
 

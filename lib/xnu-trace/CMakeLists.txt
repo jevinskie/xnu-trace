@@ -62,6 +62,7 @@ set(XNUTRACE_PUBLIC_LIBS
     frida-gum
     absl::flat_hash_map
     thread-pool
+    static_vector
 )
 
 set(XNUTRACE_PRIVATE_LIBS

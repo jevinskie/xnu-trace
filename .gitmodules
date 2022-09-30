@@ -64,3 +64,8 @@
 [submodule "3rdparty/simde"]
 	path = 3rdparty/simde
 	url = https://github.com/simd-everywhere/simde
+[submodule "3rdparty/static_vector"]
+	path = 3rdparty/static_vector
+	url = https://github.com/jevinskie/static_vector
+[submodule "static_vector"]
+	branch = jev/main

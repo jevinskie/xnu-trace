@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <experimental/fixed_capacity_vector>
+
 struct log_msg;
 
 struct log_arm64_cpu_context {
@@ -96,6 +98,10 @@ enum class vec_idx : uint8_t {
 constexpr uint8_t vec_idx_sz = (uint8_t)vec_idx::v31 + 1; // sz = 32
 
 struct log_msg {
+    using changed_gpr_t = std::experimental::fixed_capacity_vector<std::pair<uint32_t, uint64_t>,
+                                                                   rpc_num_changed_max>;
+    using changed_vec_t = std::experimental::fixed_capacity_vector<std::pair<uint32_t, uint128_t>,
+                                                                   rpc_num_changed_max>;
     uint32_t gpr_changed;
     uint32_t vec_changed;
     size_t size() const {
@@ -125,17 +131,37 @@ struct log_msg {
     uint32_t num_gpr() const {
         return rpc_num_changed(gpr_changed);
     }
-    uint64_t gpr(uint32_t idx) const {
+    uint32_t gpr_idx(uint32_t change_idx) const {
+        return rpc_reg_idx(gpr_changed, change_idx);
+    }
+    uint64_t gpr(uint32_t change_idx) const {
         const auto off = sizeof(*this) + num_fixed() * sizeof(uint64_t);
-        return ((uint64_t *)((uintptr_t)this + off))[idx];
+        return ((uint64_t *)((uintptr_t)this + off))[change_idx];
+    }
+    changed_gpr_t changed_gpr() const {
+        changed_gpr_t res;
+        for (uint32_t i = 0; i < num_gpr(); ++i) {
+            res.emplace_back(std::make_pair(gpr_idx(i), gpr(i)));
+        }
+        return res;
     }
     uint32_t num_vec() const {
         return rpc_num_changed(vec_changed);
     }
-    uint128_t vec(uint32_t idx) const {
+    uint32_t vec_idx(uint32_t change_idx) const {
+        return rpc_reg_idx(vec_changed, change_idx);
+    }
+    uint128_t vec(uint32_t change_idx) const {
         const auto off =
             sizeof(*this) + num_fixed() * sizeof(uint64_t) + num_gpr() * sizeof(uint64_t);
-        return ((uint128_t *)((uintptr_t)this + off))[idx];
+        return ((uint128_t *)((uintptr_t)this + off))[change_idx];
+    }
+    changed_vec_t changed_vec() const {
+        changed_vec_t res;
+        for (uint32_t i = 0; i < num_vec(); ++i) {
+            res.emplace_back(std::make_pair(vec_idx(i), vec(i)));
+        }
+        return res;
     }
     bool is_sync_frame() const {
         return rpc_sync(gpr_changed);
