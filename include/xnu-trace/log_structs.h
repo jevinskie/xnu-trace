@@ -37,7 +37,7 @@ constexpr uint8_t gpr_idx_sz = (uint8_t)gpr_idx::sp + 1; // sz = 32
 
 // 31  292827262524      2019      1514      10 9       5 4       0
 // ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
-// │ ngc │f|c|s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
+// │ ngc │ |c|s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
 // └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 
 constexpr int8_t rpc_num_changed_max = 5;
@@ -107,7 +107,7 @@ struct log_msg {
     uint32_t vec_changed;
     size_t size() const {
         if (is_sync_frame()) {
-            return sizeof(sync_frame_buf);
+            return size_full_ctx;
         }
         return sizeof(*this) + num_fixed() * sizeof(uint64_t) + num_gpr() * sizeof(uint64_t) +
                num_vec() * sizeof(uint128_t);
@@ -167,12 +167,10 @@ struct log_msg {
     bool is_sync_frame() const {
         return rpc_sync(gpr_changed);
     }
-    static constexpr size_t max_size = 2 * sizeof(uint32_t) /* hdr */ +
+    static constexpr size_t size_max = 2 * sizeof(uint32_t) /* hdr */ +
                                        2 * sizeof(uint64_t) /* pc/sp */ +
                                        rpc_num_changed_max * sizeof(uint64_t) /* gpr */ +
                                        rpc_num_changed_max * sizeof(uint128_t) /* vec */;
-    static constexpr size_t max_size_full_ctx =
-        2 * sizeof(uint32_t) /* hdr */ + sizeof(log_arm64_cpu_context) /* ctx */;
     static constexpr uint64_t sync_frame_buf[] = {((uint64_t)0 << 32) | rpc_set_sync(0),
                                                   0x1b30'aabd'5359'4e43ULL /* SYNC */,
                                                   0x7699'0430'4a1b'4410ULL,
@@ -191,6 +189,8 @@ struct log_msg {
                                                   0xf46d'78eb'e3ae'77ddULL,
                                                   0xb135'4b20'367b'48a2ULL,
                                                   0x9ba2'c577'f87b'0c83ULL};
+    static constexpr size_t size_full_ctx =
+        sizeof(sync_frame_buf) /* hdr/magic */ + sizeof(log_arm64_cpu_context) /* ctx */;
 } __attribute__((packed, aligned(8)));
 
 static_assert(sizeof(log_msg) == 2 * sizeof(uint32_t), "log_msg header is not 8 bytes");

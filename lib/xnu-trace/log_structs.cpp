@@ -9,10 +9,10 @@ void log_arm64_cpu_context::update(const log_msg &msg) {
         sp = msg.sp();
     }
     auto gpr_ptr = &x[0];
-    for (const auto &[gpr_idx, gpr_val] : msg.changed_gpr()) {
-        gpr_ptr[gpr_idx] = gpr_val;
+    for (uint32_t i = 0; i < msg.num_gpr(); ++i) {
+        gpr_ptr[msg.gpr_idx(i)] = msg.gpr(i);
     }
-    for (const auto &[vec_idx, vec_val] : msg.changed_vec()) {
-        v[vec_idx] = vec_val;
+    for (uint32_t i = 0; i < msg.num_vec(); ++i) {
+        v[msg.vec_idx(i)] = msg.vec(i);
     }
 }

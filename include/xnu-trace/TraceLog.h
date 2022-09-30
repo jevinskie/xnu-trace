@@ -100,7 +100,7 @@ public:
     XNUTRACE_INLINE static size_t build_frida_log_msg(const log_arm64_cpu_context *ctx,
                                                       const log_arm64_cpu_context *last_ctx,
                                                       uint8_t XNUTRACE_ALIGNED(16)
-                                                          msg_buf[log_msg::max_size]);
+                                                          msg_buf[log_msg::size_max]);
 #pragma clang diagnostic pop
 
 private:
