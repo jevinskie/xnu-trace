@@ -96,7 +96,7 @@ struct log_msg {
     uint32_t vec_changed;
     size_t size() const {
         if (is_sync_frame()) {
-            return sizeof(*this) + sizeof(sync_frame_magic);
+            return sizeof(sync_frame_buf);
         }
         return sizeof(*this) + num_fixed() * sizeof(uint64_t) + num_gpr() * sizeof(uint64_t) +
                num_vec() * sizeof(uint128_t);
@@ -140,16 +140,30 @@ struct log_msg {
                                        2 * sizeof(uint64_t) /* pc/sp */ +
                                        rpc_num_changed_max * sizeof(uint64_t) /* gpr */ +
                                        rpc_num_changed_max * sizeof(uint128_t) /* vec */;
-    static constexpr uint64_t sync_frame_magic_lo = 0xba10'49b9'5359'4e43ULL; /* SYNC */
-    static constexpr uint64_t sync_frame_magic_hi = 0x32a8'7c8c'5359'4e43ULL; /* SYNC */
-    static constexpr uint128_t sync_frame_magic =
-        ((uint128_t)sync_frame_magic_hi << 64) | sync_frame_magic_lo; /* SYNC SYNC */
     static constexpr uint64_t sync_frame_buf[] = {((uint64_t)0 << 32) | rpc_set_sync(0),
-                                                  sync_frame_magic_lo, sync_frame_magic_hi};
+                                                  0x1b30'aabd'5359'4e43ULL /* SYNC */,
+                                                  0x7699'0430'4a1b'4410ULL,
+                                                  0x9c62'5989'63b9'7672ULL,
+                                                  0x43d5'3630'a5ea'edd9ULL,
+                                                  0x6dc3'de59'4553'5e98ULL,
+                                                  0x6089'461f'fc1f'b52bULL,
+                                                  0xa4e0'a6f1'2861'b739ULL,
+                                                  0x3404'3c2d'70ca'6e6fULL,
+                                                  0xd6e1'dba5'098c'd02aULL,
+                                                  0xf2e6'b552'4519'baccULL,
+                                                  0xfd91'ff9d'e376'3e78ULL,
+                                                  0x77f0'f681'59e4'e2e8ULL,
+                                                  0x3d5d'2cff'136d'f711ULL,
+                                                  0xfee4'c678'6443'd6b8ULL,
+                                                  0xf46d'78eb'e3ae'77ddULL,
+                                                  0xb135'4b20'367b'48a2ULL,
+                                                  0x9ba2'c577'f87b'0c83ULL};
 } __attribute__((packed, aligned(8)));
 
 static_assert(sizeof(log_msg) == 2 * sizeof(uint32_t), "log_msg header is not 8 bytes");
 static_assert(sizeof(log_msg) % sizeof(uint64_t) == 0, "log_msg not 8 byte aligned");
+static_assert(sizeof(log_msg::sync_frame_buf) == log_msg::max_size,
+              "log_msg::sync_frame_buf not max_size");
 
 struct log_region {
     uint64_t base;
