@@ -33,7 +33,6 @@ std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs
 
 std::vector<uint64_t> extract_pcs_from_trace(const log_msg *msgs_begin, const log_msg *msgs_end) {
     std::vector<uint64_t> pcs;
-    // pcs.resize(msgs.size());
     size_t i = 0;
     // for (const auto &msg : msgs) {
     // FIXME
@@ -322,7 +321,7 @@ void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
 
 void TraceLog::log(thread_t thread, uint64_t pc) {
     auto &ctx          = m_thread_ctxs[thread];
-    const auto last_pc = ctx.last_pc;
+    const auto last_pc = ctx.last_cpu_ctx.pc;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wvla-extension"
@@ -346,7 +345,7 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
     } else {
         ctx.log_stream->write(msg_buf, buf_ptr - msg_buf);
     }
-    ctx.last_pc = pc;
+    ctx.last_cpu_ctx.pc = pc;
     ++ctx.num_inst;
     ++m_num_inst;
 }
