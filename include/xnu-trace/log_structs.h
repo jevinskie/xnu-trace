@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+struct log_msg;
+
 struct log_arm64_cpu_context {
     uint64_t pc;
     uint64_t sp;
@@ -12,6 +14,8 @@ struct log_arm64_cpu_context {
     uint64_t lr;
 
     uint128_t v[32];
+
+    void update(const log_msg &msg);
 };
 
 static_assert(sizeof(log_arm64_cpu_context) % sizeof(uint64_t) == 0,

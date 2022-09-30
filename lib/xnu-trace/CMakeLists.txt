@@ -21,6 +21,7 @@ set(INSTTRACE_SRC
     dyld.cpp
     exception_handlers.cpp
     FridaStalker.cpp
+    log_structs.cpp
     mach.cpp
     macho.cpp
     MachORegions.cpp
@@ -38,7 +39,6 @@ set(INSTTRACE_SRC
 
 set(INSTTRACE_HDR_STANDALONE
     drcov.h
-    log_structs.h
     xnu-trace.h
     xnu-trace-c.h
 )

@@ -22,6 +22,61 @@ struct bb_t {
     uint32_t sz;
 } __attribute__((packed));
 
+class log_thread_buf {
+public:
+    class iterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
+        using value_type        = const log_msg;
+        using pointer           = const log_msg *;
+        using reference         = const log_msg &;
+
+        iterator() : m_ptr(nullptr) {}
+        iterator(pointer ptr) : m_ptr(ptr) {}
+
+        reference operator*() const {
+            return *m_ptr;
+        }
+        pointer operator->() {
+            return m_ptr;
+        }
+        iterator &operator++() {
+            m_ptr = (pointer)((uintptr_t)m_ptr + m_ptr->size());
+            return *this;
+        }
+        iterator operator++(int) {
+            iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+        friend bool operator==(const iterator &a, const iterator &b) {
+            return a.m_ptr == b.m_ptr;
+        };
+        friend bool operator!=(const iterator &a, const iterator &b) {
+            return a.m_ptr != b.m_ptr;
+        };
+
+    private:
+        pointer m_ptr;
+    };
+
+    class ctx_iterator : public iterator {
+    public:
+        ctx_iterator() : iterator() {}
+        ctx_iterator(pointer ptr, const log_arm64_cpu_context &ctx) : iterator(ptr) {
+            memcpy(&m_ctx, &ctx, sizeof(m_ctx));
+        }
+
+    private:
+        log_arm64_cpu_context m_ctx;
+    };
+
+private:
+    std::vector<uint8_t> m_buf;
+    const log_thread_hdr &m_hdr;
+};
+
 XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
 XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const log_msg *msgs_begin,
                                                              const log_msg *msgs_end);
