@@ -16,6 +16,7 @@ using namespace lib_interval_tree;
 std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs) {
     std::vector<bb_t> bbs;
 
+    // TODO: vectorize: vector if pcs - last_pcs != {4, 8, 12, 16} then scalar code else next
     uint64_t bb_start = pcs[0];
     uint64_t last_pc  = pcs[0] - 4;
     for (const auto pc : pcs) {
