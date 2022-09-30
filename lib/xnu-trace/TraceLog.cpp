@@ -201,14 +201,15 @@ static uint64x2_t interleave_uint64x2_with_zeros_16bit(uint64x2_t input) {
     return word;
 }
 
+void TraceLog::thread_ctx::write_log_msg(const log_arm64_cpu_context *ctx) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wvla-extension"
-uint32_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
-                                       const log_arm64_cpu_context *last_ctx,
-                                       uint8_t XNUTRACE_ALIGNED(16)
-                                           msg_buf[log_msg::size_full_ctx]) {
+    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::size_full_ctx];
 #pragma clang diagnostic pop
-    assert(((uintptr_t)ctx & 0b1111) == 0 && "cpu context not 16 byte aligned");
+
+    if (sz_since_last_sync >= sync_every) {
+        write_sync();
+    }
 
     auto *msg_hdr        = (log_msg *)msg_buf;
     uint8_t *buf_ptr     = msg_buf + sizeof(log_msg);
@@ -217,7 +218,7 @@ uint32_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Waddress-of-packed-member"
-    const auto last_pc_sp = *(uint64x2_t *)&last_ctx->pc;
+    const auto last_pc_sp = *(uint64x2_t *)&last_cpu_ctx.pc;
     const auto pc_sp      = *(uint64x2_t *)&ctx->pc;
 #pragma clang diagnostic pop
     const auto pc_sp_diff = pc_sp - last_pc_sp;
@@ -232,7 +233,7 @@ uint32_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
         buf_ptr += sizeof(uint64_t);
     }
 
-    const auto last_x2  = (uint64x2_t *)&last_ctx->x[0];
+    const auto last_x2  = (uint64x2_t *)&last_cpu_ctx.x[0];
     const auto x2       = (uint64x2_t *)&ctx->x[0];
     uint64x2_t vx2_diff = {};
     for (int i = 0; i < 32 / 2; ++i) {
@@ -245,7 +246,7 @@ uint32_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
     uint32_t x_diff = vx2_diff[0] | (vx2_diff[1] << 1);
     x_diff &= ~(1 << 31); // 32nd slot isn't used (x[29], fp, lr) and comes from v[] so ignore
 
-    const auto last_v = (uint64x2_t *)&last_ctx->v[0];
+    const auto last_v = (uint64x2_t *)&last_cpu_ctx.v[0];
     const auto v      = (uint64x2_t *)&ctx->v[0];
     uint32_t v_diff   = 0;
     for (int i = 0; i < 32; ++i) {
@@ -281,18 +282,53 @@ uint32_t TraceLog::build_frida_log_msg(const log_arm64_cpu_context *ctx,
     msg_hdr->gpr_changed = gpr_changed;
     msg_hdr->vec_changed = vec_changed;
 
-    return buf_ptr - msg_buf;
+    const auto msg_sz = buf_ptr - msg_buf;
+    if (!log_stream) {
+        std::copy(msg_buf, buf_ptr, std::back_inserter(log_buf));
+    } else {
+        log_stream->write(msg_buf, msg_sz);
+    }
+    sz_since_last_sync += msg_sz;
+
+    memcpy(&last_cpu_ctx, ctx, sizeof(last_cpu_ctx));
+    ++num_inst;
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wvla-extension"
-uint32_t TraceLog::build_sync_log_msg(const log_arm64_cpu_context *ctx,
-                                      uint8_t XNUTRACE_ALIGNED(16)
-                                          msg_buf[log_msg::size_full_ctx]) {
-#pragma clang diagnostic pop
-    memcpy(msg_buf, log_msg::sync_frame_buf, sizeof(log_msg::sync_frame_buf));
-    memcpy(msg_buf + sizeof(log_msg::sync_frame_buf), ctx, sizeof(*ctx));
-    return log_msg::size_full_ctx;
+void TraceLog::thread_ctx::write_log_msg(uint64_t pc) {
+    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[sizeof(log_msg) + sizeof(uint64_t)];
+    auto *msg_hdr        = (log_msg *)msg_buf;
+    uint8_t *buf_ptr     = msg_buf + sizeof(log_msg);
+    uint32_t gpr_changed = 0;
+
+    if (last_cpu_ctx.pc + 4 != pc) {
+        gpr_changed          = rpc_set_pc_branched(gpr_changed);
+        *(uint64_t *)buf_ptr = pc;
+        buf_ptr += sizeof(uint64_t);
+    }
+    msg_hdr->gpr_changed = gpr_changed;
+    msg_hdr->vec_changed = 0;
+    const auto msg_sz    = buf_ptr - (uint8_t *)msg_hdr;
+    if (!log_stream) {
+        std::copy(msg_buf, buf_ptr, std::back_inserter(log_buf));
+    } else {
+        log_stream->write(msg_buf, msg_sz);
+    }
+    last_cpu_ctx.pc = pc;
+    ++num_inst;
+}
+
+void TraceLog::thread_ctx::write_sync() {
+    if (!log_stream) {
+        std::copy((uint8_t *)&log_msg::sync_frame_buf,
+                  (uint8_t *)&log_msg::sync_frame_buf + sizeof(log_msg::sync_frame_buf),
+                  std::back_inserter(log_buf));
+        std::copy((uint8_t *)&last_cpu_ctx, (uint8_t *)&last_cpu_ctx + sizeof(last_cpu_ctx),
+                  std::back_inserter(log_buf));
+    } else {
+        log_stream->write((uint8_t *)&log_msg::sync_frame_buf, sizeof(log_msg::sync_frame_buf));
+        log_stream->write((uint8_t *)&last_cpu_ctx, sizeof(last_cpu_ctx));
+    }
+    sz_since_last_sync = 0;
 }
 
 void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
@@ -301,7 +337,6 @@ void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
         std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
         if (m_stream) {
             log_thread_hdr thread_hdr{.thread_id = thread};
-            memcpy(&thread_hdr.initial_ctx, context, sizeof(thread_hdr.initial_ctx));
             log_stream = std::make_unique<CompressedFile<log_thread_hdr>>(
                 m_log_dir_path / fmt::format("thread-{:d}.bin", thread), false, &thread_hdr,
                 m_compression_level);
@@ -314,72 +349,30 @@ void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context) {
     } else {
         tctx = &m_thread_ctxs[thread];
     }
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wvla-extension"
-    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::size_full_ctx];
-#pragma clang diagnostic pop
-    const auto msg_sz = build_frida_log_msg(context, &tctx->last_cpu_ctx, msg_buf);
-
-    if (!m_stream) {
-        std::copy(msg_buf, msg_buf + msg_sz, std::back_inserter(tctx->log_buf));
-    } else {
-        tctx->log_stream->write(msg_buf, msg_sz);
-    }
-    tctx->sz_since_last_sync += msg_sz;
-    if (tctx->sz_since_last_sync > sync_every) {
-        const auto sync_msg_sz = build_sync_log_msg(context, msg_buf);
-        if (!m_stream) {
-            std::copy(msg_buf, msg_buf + sync_msg_sz, std::back_inserter(tctx->log_buf));
-        } else {
-            tctx->log_stream->write(msg_buf, sync_msg_sz);
-        }
-        tctx->sz_since_last_sync = 0;
-    }
-    memcpy(&tctx->last_cpu_ctx, context, sizeof(tctx->last_cpu_ctx));
-    ++tctx->num_inst;
+    tctx->write_log_msg(context);
     ++m_num_inst;
 }
 
 void TraceLog::log(thread_t thread, uint64_t pc) {
-    auto &ctx          = m_thread_ctxs[thread];
-    const auto last_pc = ctx.last_cpu_ctx.pc;
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wvla-extension"
-    uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::size_full_ctx];
-#pragma clang diagnostic pop
-    auto *msg_hdr        = (log_msg *)msg_buf;
-    uint8_t *buf_ptr     = msg_buf + sizeof(log_msg);
-    uint32_t gpr_changed = 0;
-
-    if (last_pc + 4 != pc) {
-        gpr_changed          = rpc_set_pc_branched(gpr_changed);
-        *(uint64_t *)buf_ptr = pc;
-        buf_ptr += sizeof(uint64_t);
-    }
-
-    const uint32_t msg_sz = buf_ptr - (uint8_t *)msg_hdr;
-    msg_hdr->gpr_changed  = gpr_changed;
-    msg_hdr->vec_changed  = 0;
-
-    if (!m_stream) {
-        std::copy(msg_buf, buf_ptr, std::back_inserter(ctx.log_buf));
-    } else {
-        ctx.log_stream->write(msg_buf, buf_ptr - msg_buf);
-    }
-    ctx.last_cpu_ctx.pc = pc;
-    ctx.sz_since_last_sync += msg_sz;
-    if (ctx.sz_since_last_sync > sync_every) {
-        const auto sync_msg_sz = build_sync_log_msg(&ctx.last_cpu_ctx, msg_buf);
-        if (!m_stream) {
-            std::copy(msg_buf, msg_buf + sync_msg_sz, std::back_inserter(ctx.log_buf));
-        } else {
-            ctx.log_stream->write(msg_buf, sync_msg_sz);
+    thread_ctx *tctx;
+    if (!m_thread_ctxs.contains(thread)) {
+        std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
+        if (m_stream) {
+            log_thread_hdr thread_hdr{.thread_id = thread};
+            log_stream = std::make_unique<CompressedFile<log_thread_hdr>>(
+                m_log_dir_path / fmt::format("thread-{:d}.bin", thread), false, &thread_hdr,
+                m_compression_level);
         }
-        ctx.sz_since_last_sync = 0;
+        auto [new_thread_ctx, added] =
+            m_thread_ctxs.try_emplace(thread, thread_ctx{.log_stream = std::move(log_stream)});
+        assert(added);
+        const auto context = log_arm64_cpu_context{.pc = pc};
+        memcpy(&new_thread_ctx.last_cpu_ctx, &context, sizeof(new_thread_ctx.last_cpu_ctx));
+        tctx = &new_thread_ctx;
+    } else {
+        tctx = &m_thread_ctxs[thread];
     }
-    ++ctx.num_inst;
+    tctx->write_log_msg(pc);
     ++m_num_inst;
 }
 

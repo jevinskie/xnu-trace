@@ -95,28 +95,18 @@ public:
     const MachORegions &macho_regions() const;
     const Symbols &symbols() const;
     const std::map<uint32_t, std::vector<uint8_t>> &parsed_logs() const;
-
-private:
     static constexpr uint32_t sync_every = 1024 * 1024; // 1 MB, overhead 0.09% per MB
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wvla-extension"
-    XNUTRACE_INLINE static uint32_t build_frida_log_msg(const log_arm64_cpu_context *ctx,
-                                                        const log_arm64_cpu_context *last_ctx,
-                                                        uint8_t XNUTRACE_ALIGNED(16)
-                                                            msg_buf[log_msg::size_full_ctx]);
-    XNUTRACE_INLINE static uint32_t build_sync_log_msg(const log_arm64_cpu_context *ctx,
-                                                       uint8_t XNUTRACE_ALIGNED(16)
-                                                           msg_buf[log_msg::size_full_ctx]);
-#pragma clang diagnostic pop
-
+private:
     struct thread_ctx {
         std::vector<uint8_t> log_buf;
         std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
         XNUTRACE_ALIGNED(16) log_arm64_cpu_context last_cpu_ctx;
-        uint64_t last_pc;
         uint64_t num_inst{};
-        uint32_t sz_since_last_sync{};
+        uint32_t sz_since_last_sync{sync_every + 1};
+        XNUTRACE_INLINE void write_log_msg(const log_arm64_cpu_context *ctx);
+        XNUTRACE_INLINE void write_log_msg(uint64_t pc);
+        void write_sync();
     };
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;

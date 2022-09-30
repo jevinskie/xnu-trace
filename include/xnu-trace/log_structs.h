@@ -165,8 +165,9 @@ struct log_msg {
         return res;
     }
     bool is_sync_frame() const {
-        return rpc_sync(gpr_changed);
+        return rpc_sync(gpr_changed) && !memcmp(sync_frame_buf, this, sizeof(sync_frame_buf));
     }
+
     static constexpr size_t size_max = 2 * sizeof(uint32_t) /* hdr */ +
                                        2 * sizeof(uint64_t) /* pc/sp */ +
                                        rpc_num_changed_max * sizeof(uint64_t) /* gpr */ +
@@ -191,6 +192,11 @@ struct log_msg {
                                                   0x9ba2'c577'f87b'0c83ULL};
     static constexpr size_t size_full_ctx =
         sizeof(sync_frame_buf) /* hdr/magic */ + sizeof(log_arm64_cpu_context) /* ctx */;
+
+    const log_arm64_cpu_context *sync_ctx() const {
+        return is_sync_frame() ? (log_arm64_cpu_context *)((uintptr_t)this + sizeof(sync_frame_buf))
+                               : nullptr;
+    }
 } __attribute__((packed, aligned(8)));
 
 static_assert(sizeof(log_msg) == 2 * sizeof(uint32_t), "log_msg header is not 8 bytes");
@@ -225,7 +231,6 @@ struct log_comp_hdr {
 struct log_thread_hdr {
     uint64_t thread_id;
     uint64_t num_inst;
-    log_arm64_cpu_context initial_ctx;
     static constexpr uint64_t magic = 0x8d3a'dfb8'4452'4854ull; // 'THRD'
 } __attribute__((packed));
 
