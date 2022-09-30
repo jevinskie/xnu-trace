@@ -100,25 +100,25 @@ struct log_msg {
         return rpc_sp_changed(gpr_changed);
     }
     uint64_t pc() const {
-        const size_t off = sizeof(*this);
+        const auto off = sizeof(*this);
         return *(uint64_t *)((uintptr_t)this + off);
     }
     uint64_t sp() const {
-        const size_t off = sizeof(*this) + pc_branched() * sizeof(uint64_t);
+        const auto off = sizeof(*this) + pc_branched() * sizeof(uint64_t);
         return *(uint64_t *)((uintptr_t)this + off);
     }
     uint32_t num_gpr() const {
         return rpc_num_changed(gpr_changed);
     }
     uint64_t gpr(uint32_t idx) const {
-        const size_t off = sizeof(*this) + num_fixed() * sizeof(uint64_t);
+        const auto off = sizeof(*this) + num_fixed() * sizeof(uint64_t);
         return ((uint64_t *)((uintptr_t)this + off))[idx];
     }
     uint32_t num_vec() const {
         return rpc_num_changed(vec_changed);
     }
     uint128_t vec(uint32_t idx) const {
-        const size_t off =
+        const auto off =
             sizeof(*this) + num_fixed() * sizeof(uint64_t) + num_gpr() * sizeof(uint64_t);
         return ((uint128_t *)((uintptr_t)this + off))[idx];
     }
