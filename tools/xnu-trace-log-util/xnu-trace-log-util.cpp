@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <filesystem>
+#include <locale>
 #include <set>
 
 #include <argparse/argparse.hpp>
@@ -21,15 +22,29 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
         }
     }
 
-#if 0
+#if 1
     for (const auto &[tid, log] : trace.parsed_logs()) {
-        fmt::print("tid: {:d} sz: {:d}\n", tid, log.size());
+        fmt::print("{:s}\n", fmt::format(std::locale("en_US.UTF-8"),
+                                         "tid: {:d} # inst: {:Ld} # bytes {:Ld}\n", tid,
+                                         log.num_inst(), log.num_bytes()));
         const auto bbs = extract_bbs_from_pc_trace(extract_pcs_from_trace(log));
         for (const auto &bb : bbs) {
             fmt::print("BB: {:#018x} [{:d}]\n", bb.pc, bb.sz);
         }
     }
 #endif
+}
+
+void dump_bb(const TraceLog &trace) {
+    for (const auto &[tid, log] : trace.parsed_logs()) {
+        fmt::print("{:s}\n", fmt::format(std::locale("en_US.UTF-8"),
+                                         "tid: {:d} # inst: {:Ld} # bytes {:Ld}\n", tid,
+                                         log.num_inst(), log.num_bytes()));
+        const auto bbs = extract_bbs_from_pc_trace(extract_pcs_from_trace(log));
+        for (const auto &bb : bbs) {
+            fmt::print("BB: {:#018x} [{:d}]\n", bb.pc, bb.sz);
+        }
+    }
 }
 
 void dump_histogram(const TraceLog &trace, int max_num) {
@@ -185,6 +200,10 @@ int main(int argc, const char **argv) {
         .default_value(false)
         .implicit_value(true)
         .help("dump trace log to console");
+    parser.add_argument("-b", "--dump-bb")
+        .default_value(false)
+        .implicit_value(true)
+        .help("dump basic blocks to console");
     parser.add_argument("-H", "--histogram")
         .default_value(false)
         .implicit_value(true)
@@ -215,6 +234,10 @@ int main(int argc, const char **argv) {
 
     if (parser.get<bool>("--dump")) {
         dump_log(trace, symbolicate);
+    }
+
+    if (parser.get<bool>("--dump-bb")) {
+        dump_bb(trace);
     }
 
     if (parser.get<bool>("--histogram")) {

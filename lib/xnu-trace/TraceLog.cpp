@@ -32,6 +32,12 @@ std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs
     return bbs;
 }
 
+std::vector<bb_t> extract_bbs_from_trace(const log_thread_buf &thread_buf) {
+    std::vector<bb_t> bbs;
+    (void)thread_buf;
+    assert(!"not implemented");
+}
+
 std::vector<uint64_t> extract_pcs_from_trace(const log_thread_buf &thread_buf) {
     std::vector<uint64_t> pcs;
     pcs.reserve(thread_buf.num_inst());
