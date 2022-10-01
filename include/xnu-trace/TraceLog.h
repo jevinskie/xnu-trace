@@ -71,7 +71,7 @@ public:
             memcpy(&m_ctx, &ctx, sizeof(m_ctx));
         }
         iterator &operator++() {
-            auto res = iterator::operator++();
+            auto &res = iterator::operator++();
             m_ctx.update(*res);
             return res;
         }
