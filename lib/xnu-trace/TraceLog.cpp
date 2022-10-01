@@ -132,21 +132,21 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
                                     fmt::format("{:s} read", path.filename().string()));
             thread_read_sp.start();
             CompressedFile<log_thread_hdr> thread_fh{path, true};
-            const auto thread_buf = thread_fh.read();
+            auto thread_buf       = thread_fh.read();
             const auto thread_hdr = thread_fh.header();
             thread_read_sp.end();
 
             Signpost thread_parse_sp("TraceLogThreads",
                                      fmt::format("{:s} parse", path.filename().string()));
             thread_parse_sp.start();
-            parsed_logs_vec[i] = {thread_hdr.thread_id,
-                                  log_thread_buf(std::move(thread_buf), thread_hdr.num_inst)};
+            parsed_logs_vec[i] = std::make_pair(
+                thread_hdr.thread_id, log_thread_buf(std::move(thread_buf), thread_hdr.num_inst));
             thread_parse_sp.end();
         });
     }
     xnutrace_pool.wait_for_tasks();
 
-    for (const auto &[thread_id, log] : parsed_logs_vec) {
+    for (auto &[thread_id, log] : parsed_logs_vec) {
         m_num_inst += log.num_inst();
         m_parsed_logs.emplace(thread_id, std::move(log));
     }
@@ -370,7 +370,7 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
 void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) {
     absl::flat_hash_map<uint32_t, log_thread_buf> thread_bufs;
     if (!m_stream) {
-        for (const auto &[tid, ctx] : m_thread_ctxs) {
+        for (auto &[tid, ctx] : m_thread_ctxs) {
             const auto tbuf = log_thread_buf(std::move(ctx.log_buf), ctx.num_inst);
             thread_bufs.try_emplace(tid, tbuf);
         }
@@ -379,7 +379,7 @@ void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) 
     interval_tree_t<uint64_t> pc_intervals;
     if (!m_stream) {
         absl::flat_hash_set<uint64_t> pcs;
-        for (const auto &[tid, tbuf] : thread_bufs) {
+        for (auto &[tid, tbuf] : thread_bufs) {
             for (const auto pc : extract_pcs_from_trace(tbuf)) {
                 pcs.emplace(pc);
             }

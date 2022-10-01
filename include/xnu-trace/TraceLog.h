@@ -144,8 +144,8 @@ public:
     }
 
 private:
-    const std::vector<uint8_t> m_buf;
-    const uint64_t m_num_inst{};
+    std::vector<uint8_t> m_buf;
+    uint64_t m_num_inst{};
 };
 
 XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
