@@ -24,6 +24,7 @@ struct bb_t {
 
 class log_thread_buf {
 public:
+    class ctx_iterator;
     class iterator {
     public:
         using iterator_category = std::forward_iterator_tag;
@@ -32,7 +33,6 @@ public:
         using pointer           = const log_msg *;
         using reference         = const log_msg &;
 
-        iterator() : m_ptr(nullptr) {}
         iterator(pointer ptr) : m_ptr(ptr) {}
 
         reference operator*() const {
@@ -43,6 +43,10 @@ public:
         }
         iterator &operator++() {
             m_ptr = (pointer)((uintptr_t)m_ptr + m_ptr->size());
+            if (m_ptr->is_sync_frame()) {
+                // sync frame guaranteed to be followed by non-sync
+                m_ptr = (pointer)((uintptr_t)m_ptr + m_ptr->size());
+            }
             return *this;
         }
         iterator operator++(int) {
@@ -58,14 +62,18 @@ public:
         };
 
     private:
-        pointer m_ptr;
+        pointer m_ptr{};
     };
 
     class ctx_iterator : public iterator {
     public:
-        ctx_iterator() : iterator() {}
         ctx_iterator(pointer ptr, const log_arm64_cpu_context &ctx) : iterator(ptr) {
             memcpy(&m_ctx, &ctx, sizeof(m_ctx));
+        }
+        iterator &operator++() {
+            auto res = iterator::operator++();
+            m_ctx.update(*res);
+            return res;
         }
 
     private:
