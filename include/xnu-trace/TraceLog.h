@@ -148,6 +148,10 @@ private:
     uint64_t m_num_inst{};
 };
 
+static_assert(std::is_move_constructible_v<log_thread_buf>,
+              "log_thread_buf not move constructable");
+static_assert(std::is_move_assignable_v<log_thread_buf>, "log_thread_buf not move assignable");
+
 XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
 XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const log_thread_buf &thread_buf);
 XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const log_thread_buf &thread_buf);
