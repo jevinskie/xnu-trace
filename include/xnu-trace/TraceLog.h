@@ -67,28 +67,80 @@ public:
 
     class ctx_iterator : public iterator {
     public:
-        ctx_iterator(pointer ptr, const log_arm64_cpu_context &ctx) : iterator(ptr) {
-            memcpy(&m_ctx, &ctx, sizeof(m_ctx));
+        ctx_iterator(pointer ptr, const log_arm64_cpu_context *ctx) : iterator(ptr) {
+            if (ctx) {
+                memcpy(&m_ctx, &ctx, sizeof(m_ctx));
+            }
         }
         iterator &operator++() {
             auto &res = iterator::operator++();
             m_ctx.update(*res);
             return res;
         }
+        const log_arm64_cpu_context &ctx() const {
+            return m_ctx;
+        }
 
     private:
         log_arm64_cpu_context m_ctx;
     };
 
+    class pc_iterator : public iterator {
+    public:
+        pc_iterator(pointer ptr, uint64_t pc) : iterator(ptr), m_pc{pc} {}
+        iterator &operator++() {
+            auto &res = iterator::operator++();
+            if (res->pc_branched()) {
+                m_pc = res->pc();
+            } else {
+                m_pc += 4;
+            }
+            return res;
+        }
+        uint64_t pc() const {
+            return m_pc;
+        }
+
+    private:
+        uint64_t m_pc;
+    };
+
+    log_thread_buf() = delete;
+    log_thread_buf(const std::vector<uint8_t> &&buf, uint64_t num_inst)
+        : m_buf{buf}, m_num_inst{num_inst} {};
+
+    uint64_t num_inst() const {
+        return m_num_inst;
+    }
+
+    const log_msg &front() const {
+        const auto &res = *(log_msg *)m_buf.data();
+        assert(res.is_sync_frame());
+        return res;
+    }
+
+    iterator begin() const {
+        return iterator((log_msg *)m_buf.data());
+    }
+    iterator end() const {
+        return iterator((log_msg *)(m_buf.data() + m_buf.size()));
+    }
+
+    ctx_iterator ctx_begin() const {
+        return ctx_iterator((log_msg *)m_buf.data(), front().sync_ctx());
+    }
+    ctx_iterator ctx_end() const {
+        return ctx_iterator((log_msg *)(m_buf.data() + m_buf.size()), nullptr);
+    }
+
 private:
-    std::vector<uint8_t> m_buf;
+    const std::vector<uint8_t> m_buf;
+    const uint64_t m_num_inst;
 };
 
 XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
-XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const log_msg *msgs_begin,
-                                                             const log_msg *msgs_end);
-XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const std::span<const uint8_t> msgs);
-XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const std::vector<uint8_t> &msgs);
+XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const log_thread_buf &thread_buf);
+XNUTRACE_EXPORT std::vector<uint64_t> extract_pcs_from_trace(const log_thread_buf &thread_buf);
 
 class XNUTRACE_EXPORT TraceLog {
 public:
@@ -101,7 +153,7 @@ public:
     size_t num_bytes() const;
     const MachORegions &macho_regions() const;
     const Symbols &symbols() const;
-    const std::map<uint32_t, std::vector<uint8_t>> &parsed_logs() const;
+    const std::map<uint32_t, log_thread_buf> &parsed_logs() const;
     static constexpr uint32_t sync_every = 1024 * 1024; // 1 MB, overhead 0.09% per MB
 
 private:
@@ -118,7 +170,7 @@ private:
     uint64_t m_num_inst{};
     std::unique_ptr<MachORegions> m_macho_regions;
     std::unique_ptr<Symbols> m_symbols;
-    std::map<uint32_t, std::vector<uint8_t>> m_parsed_logs;
+    std::map<uint32_t, log_thread_buf> m_parsed_logs;
     std::filesystem::path m_log_dir_path;
     int m_compression_level{};
     bool m_stream{};

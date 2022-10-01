@@ -32,13 +32,12 @@ std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs
     return bbs;
 }
 
-std::vector<uint64_t> extract_pcs_from_trace(const log_msg *msgs_begin, const log_msg *msgs_end) {
+std::vector<uint64_t> extract_pcs_from_trace(const log_thread_buf &thread_buf) {
     std::vector<uint64_t> pcs;
     size_t i = 0;
-    // for (const auto &msg : msgs) {
-    // FIXME
-    // pcs[i++] = msg.pc;
-    // }
+    for (const auto &msg : thread_buf) {
+        pcs[i++] = msg.pc;
+    }
     return pcs;
 }
 
@@ -189,7 +188,7 @@ const Symbols &TraceLog::symbols() const {
     return *m_symbols;
 }
 
-const std::map<uint32_t, std::vector<uint8_t>> &TraceLog::parsed_logs() const {
+const std::map<uint32_t, log_thread_buf> &TraceLog::parsed_logs() const {
     return m_parsed_logs;
 }
 
