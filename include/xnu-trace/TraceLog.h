@@ -74,7 +74,6 @@ public:
 
 private:
     std::vector<uint8_t> m_buf;
-    const log_thread_hdr &m_hdr;
 };
 
 XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);

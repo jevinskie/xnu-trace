@@ -173,7 +173,7 @@ struct log_msg {
                                        rpc_num_changed_max * sizeof(uint64_t) /* gpr */ +
                                        rpc_num_changed_max * sizeof(uint128_t) /* vec */;
     static constexpr uint64_t sync_frame_buf[] = {((uint64_t)0 << 32) | rpc_set_sync(0),
-                                                  0x1b30'aabd'5359'4e43ULL /* SYNC */,
+                                                  0x1b30'aabd'434e'5953ULL /* SYNC */,
                                                   0x7699'0430'4a1b'4410ULL,
                                                   0x9c62'5989'63b9'7672ULL,
                                                   0x43d5'3630'a5ea'edd9ULL,
