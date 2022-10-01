@@ -34,21 +34,11 @@ std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs
 
 std::vector<uint64_t> extract_pcs_from_trace(const log_thread_buf &thread_buf) {
     std::vector<uint64_t> pcs;
-    size_t i = 0;
-    for (const auto &msg : thread_buf) {
-        pcs[i++] = msg.pc;
+    pcs.reserve(thread_buf.num_inst());
+    for (auto i = thread_buf.pcs_begin(), e = thread_buf.pcs_end(); i != e; ++i) {
+        pcs.emplace_back(i.pc());
     }
     return pcs;
-}
-
-std::vector<uint64_t> extract_pcs_from_trace(const std::span<const uint8_t> msgs) {
-    return extract_pcs_from_trace((const log_msg *)msgs.data(),
-                                  (const log_msg *)(msgs.data() + msgs.size()));
-}
-
-std::vector<uint64_t> extract_pcs_from_trace(const std::vector<uint8_t> &msgs) {
-    return extract_pcs_from_trace((const log_msg *)msgs.data(),
-                                  (const log_msg *)(msgs.data() + msgs.size()));
 }
 
 TraceLog::TraceLog(const std::string &log_dir_path, int compression_level, bool stream)
@@ -134,7 +124,7 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
         thread_paths.emplace_back(dirent.path());
     }
 
-    std::vector<std::pair<uint32_t, std::vector<uint8_t>>> parsed_logs_vec(thread_paths.size());
+    std::vector<std::pair<uint32_t, log_thread_buf>> parsed_logs_vec(thread_paths.size());
     for (size_t i = 0; i < thread_paths.size(); ++i) {
         xnutrace_pool.push_task([&, i] {
             const auto path = thread_paths[i];
@@ -149,14 +139,15 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
             Signpost thread_parse_sp("TraceLogThreads",
                                      fmt::format("{:s} parse", path.filename().string()));
             thread_parse_sp.start();
-            parsed_logs_vec[i] = {thread_hdr.thread_id, std::move(thread_buf)};
+            parsed_logs_vec[i] = {thread_hdr.thread_id,
+                                  log_thread_buf(std::move(thread_buf), thread_hdr.num_inst)};
             thread_parse_sp.end();
         });
     }
     xnutrace_pool.wait_for_tasks();
 
     for (const auto &[thread_id, log] : parsed_logs_vec) {
-        m_num_inst += log.size();
+        m_num_inst += log.num_inst();
         m_parsed_logs.emplace(thread_id, std::move(log));
     }
     threads_sp.end();
@@ -377,12 +368,19 @@ void TraceLog::log(thread_t thread, uint64_t pc) {
 }
 
 void TraceLog::write(const MachORegions &macho_regions, const Symbols *symbols) {
-    interval_tree_t<uint64_t> pc_intervals;
+    absl::flat_hash_map<uint32_t, log_thread_buf> thread_bufs;
+    if (!m_stream) {
+        for (const auto &[tid, ctx] : m_thread_ctxs) {
+            const auto tbuf = log_thread_buf(std::move(ctx.log_buf), ctx.num_inst);
+            thread_bufs.try_emplace(tid, tbuf);
+        }
+    }
 
+    interval_tree_t<uint64_t> pc_intervals;
     if (!m_stream) {
         absl::flat_hash_set<uint64_t> pcs;
-        for (const auto &[tid, ctx] : m_thread_ctxs) {
-            for (const auto pc : extract_pcs_from_trace(ctx.log_buf)) {
+        for (const auto &[tid, tbuf] : thread_bufs) {
+            for (const auto pc : extract_pcs_from_trace(tbuf)) {
                 pcs.emplace(pc);
             }
         }

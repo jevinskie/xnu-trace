@@ -105,12 +105,15 @@ public:
         uint64_t m_pc;
     };
 
-    log_thread_buf() = delete;
+    log_thread_buf() = default;
     log_thread_buf(const std::vector<uint8_t> &&buf, uint64_t num_inst)
         : m_buf{buf}, m_num_inst{num_inst} {};
 
     uint64_t num_inst() const {
         return m_num_inst;
+    }
+    uint64_t num_bytes() const {
+        return m_buf.size();
     }
 
     const log_msg &front() const {
@@ -133,9 +136,16 @@ public:
         return ctx_iterator((log_msg *)(m_buf.data() + m_buf.size()), nullptr);
     }
 
+    pc_iterator pcs_begin() const {
+        return pc_iterator((log_msg *)m_buf.data(), front().sync_ctx()->pc);
+    }
+    pc_iterator pcs_end() const {
+        return pc_iterator((log_msg *)(m_buf.data() + m_buf.size()), 0);
+    }
+
 private:
     const std::vector<uint8_t> m_buf;
-    const uint64_t m_num_inst;
+    const uint64_t m_num_inst{};
 };
 
 XNUTRACE_EXPORT std::vector<bb_t> extract_bbs_from_pc_trace(const std::span<const uint64_t> &pcs);
