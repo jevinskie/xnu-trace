@@ -47,19 +47,19 @@ constexpr uint32_t rpc_num_changed(uint32_t reg_packed_changes) {
 }
 
 constexpr uint32_t rpc_num_fixed_changed(uint32_t reg_packed_changes) {
-    return ((reg_packed_changes & (1 << 25)) >> 25) + ((reg_packed_changes & (1 << 26)) >> 26);
+    return ((reg_packed_changes >> 25) & 1) + ((reg_packed_changes >> 26) & 1);
 }
 
 constexpr bool rpc_pc_branched(uint32_t reg_packed_changes) {
-    return !!(reg_packed_changes & (1 << 25));
+    return reg_packed_changes & (1 << 25);
 }
 
 constexpr bool rpc_sp_changed(uint32_t reg_packed_changes) {
-    return !!(reg_packed_changes & (1 << 26));
+    return reg_packed_changes & (1 << 26);
 }
 
 constexpr bool rpc_sync(uint32_t reg_packed_changes) {
-    return !!(reg_packed_changes & (1 << 27));
+    return reg_packed_changes & (1 << 27);
 }
 
 constexpr uint32_t rpc_reg_idx(uint32_t reg_packed_changes, uint32_t changed_idx) {
