@@ -4,6 +4,7 @@
 
 #include <array>
 #include <concepts>
+#include <filesystem>
 #include <span>
 #include <string>
 #include <vector>
@@ -72,3 +73,26 @@ XNUTRACE_EXPORT void *horspool_memmem(const void *haystack, size_t haystack_sz, 
 XNUTRACE_EXPORT std::vector<void *> chunk_into_bins_by_needle(uint32_t n, const void *haystack,
                                                               size_t haystack_sz,
                                                               const void *needle, size_t needle_sz);
+
+template <typename T> std::vector<T> read_numbers_from_file(const std::filesystem::path &path) {
+    const auto buf     = read_file(path);
+    const auto raw_buf = (T *)buf.data();
+    const auto nnums   = buf.size() / sizeof(T);
+    std::vector<T> nums;
+    nums.reserve(nnums);
+    for (size_t i = 0; i < nnums; ++i) {
+        nums.emplace_back(raw_buf[i]);
+    }
+    return nums;
+}
+
+template <typename T> std::vector<T> get_random_scalars(size_t n) {
+    std::vector<T> res;
+    res.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        T r;
+        arc4random_buf((uint8_t *)&r, sizeof(r));
+        res.emplace_back(r);
+    }
+    return res;
+}
