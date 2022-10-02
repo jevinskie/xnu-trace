@@ -1,9 +1,7 @@
 #include "xnu-trace/TraceLog.h"
 #include "common-internal.h"
 
-#include "xnu-trace/Signpost.h"
 #include "xnu-trace/ThreadPool.h"
-#include "xnu-trace/mach.h"
 
 #include <bit>
 

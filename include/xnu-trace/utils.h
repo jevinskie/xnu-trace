@@ -6,6 +6,7 @@
 #include <concepts>
 #include <span>
 #include <string>
+#include <vector>
 
 #include <mach/machine/kern_return.h>
 #include <mach/vm_prot.h>
@@ -64,3 +65,10 @@ private:
     sha256_t m_digest;
     bool m_finished{};
 };
+
+XNUTRACE_EXPORT void *horspool_memmem(const void *haystack, size_t haystack_sz, const void *needle,
+                                      size_t needle_sz);
+
+XNUTRACE_EXPORT std::vector<void *> chunk_into_bins_by_needle(uint32_t n, const void *haystack,
+                                                              size_t haystack_sz,
+                                                              const void *needle, size_t needle_sz);

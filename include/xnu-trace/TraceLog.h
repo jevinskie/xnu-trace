@@ -5,9 +5,11 @@
 #include "CompressedFile.h"
 #include "MachORegions.h"
 #include "MinimalPerfectHash.h"
+#include "Signpost.h"
 #include "Symbols.h"
 #include "log_structs.h"
 #include "mach.h"
+#include "util.h"
 
 #include <memory>
 #include <span>
@@ -72,6 +74,11 @@ public:
                 memcpy(&m_ctx, &ctx, sizeof(m_ctx));
             }
         }
+        ctx_iterator(iterator it, const log_arm64_cpu_context *ctx) : iterator(it) {
+            if (ctx) {
+                memcpy(&m_ctx, &ctx, sizeof(m_ctx));
+            }
+        }
         iterator &operator++() {
             auto &res = iterator::operator++();
             m_ctx.update(*res);
@@ -88,6 +95,7 @@ public:
     class pc_iterator : public iterator {
     public:
         pc_iterator(pointer ptr, uint64_t pc) : iterator(ptr), m_pc{pc} {}
+        pc_iterator(iterator it, uint64_t pc) : iterator(it), m_pc{pc} {}
         iterator &operator++() {
             auto &res = iterator::operator++();
             if (res->pc_branched()) {
@@ -141,6 +149,17 @@ public:
     }
     pc_iterator pcs_end() const {
         return pc_iterator((log_msg *)(m_buf.data() + m_buf.size()), 0);
+    }
+
+    std::vector<iterator> chunk_into_bins(uint32_t n) {
+        Signpost chunk_sp("log_thread_buf", "chunk_into_bins");
+        chunk_sp.start();
+        std::vector<const uint8_t *> res(n);
+        const auto bin_sz  = num_bytes() / n;
+        const auto buf_end = (uintptr_t)(m_buf.data() + m_buf.size());
+        for (uint32_t i = 0; i < n; ++i) {}
+        chunk_sp.end();
+        return {};
     }
 
 private:
