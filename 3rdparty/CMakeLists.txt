@@ -44,7 +44,6 @@ target_include_directories(xxhash-xnu-trace INTERFACE xxhash-scoped-include)
 add_library(simde INTERFACE)
 target_include_directories(simde INTERFACE simde-scoped-include)
 
-add_subdirectory(ut)
 add_subdirectory(Catch2)
 
 set(BENCHMARK_ENABLE_TESTING OFF)
