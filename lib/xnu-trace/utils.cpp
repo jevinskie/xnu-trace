@@ -327,12 +327,13 @@ void *horspool_memmem(const void *haystack, size_t haystack_sz, const void *need
 std::vector<void *> chunk_into_bins_by_needle(uint32_t n, const void *haystack, size_t haystack_sz,
                                               const void *needle, size_t needle_sz) {
     std::vector<void *> res(n);
-    const auto bin_sz       = haystack_sz / n;
-    const auto haystack_end = (uint8_t *)haystack + haystack_sz;
-    xnutrace_pool.wait_on_n_tasks(n, [&](const auto i) {
-        const auto sub_haystack_begin = (uint8_t *)((uintptr_t)haystack + i * bin_sz);
-        const auto sub_haystack_sz = std::min(bin_sz, (size_t)(haystack_end - sub_haystack_begin));
-        res[i] = horspool_memmem(sub_haystack_begin, sub_haystack_sz, needle, needle_sz);
-    });
+    xnutrace_pool.parallelize_indexed_loop(
+        haystack_sz,
+        [&](auto i, auto a, auto b) {
+            const auto sub_haystack_begin = (uint8_t *)((uintptr_t)haystack + a);
+            const auto sub_haystack_sz    = b - a;
+            res[i] = horspool_memmem(sub_haystack_begin, sub_haystack_sz, needle, needle_sz);
+        },
+        n);
     return res;
 }
