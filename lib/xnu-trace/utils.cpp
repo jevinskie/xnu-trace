@@ -5,6 +5,7 @@
 #include "xnu-trace/mach.h"
 #include "xnu-trace/xnu-trace-c.h"
 
+#include <atomic>
 #include <cstring>
 #include <sys/sysctl.h>
 
@@ -325,16 +326,21 @@ void *horspool_memmem(const void *haystack, size_t haystack_sz, const void *need
 std::vector<void *> chunk_into_bins_by_needle(uint32_t n, const void *haystack, size_t haystack_sz,
                                               const void *needle, size_t needle_sz) {
     std::vector<void *> res(n);
-    const auto bin_sz       = haystack_sz / n;
-    const auto haystack_end = (uint8_t *)haystack + haystack_sz;
+    const auto bin_sz          = haystack_sz / n;
+    const auto haystack_end    = (uint8_t *)haystack + haystack_sz;
+    std::atomic<uint32_t> done = 0;
     for (uint32_t i = 0; i < n; ++i) {
         xnutrace_pool.push_task([&, i] {
             const auto sub_haystack_begin = (uint8_t *)((uintptr_t)haystack + i * bin_sz);
             const auto sub_haystack_sz =
                 std::min(bin_sz, (size_t)(haystack_end - sub_haystack_begin));
             res[i] = horspool_memmem(sub_haystack_begin, sub_haystack_sz, needle, needle_sz);
+            ++done;
+            done.notify_all();
         });
     }
-    xnutrace_pool.wait_for_tasks();
+    while (done != n) {
+        done.wait(done);
+    }
     return res;
 }

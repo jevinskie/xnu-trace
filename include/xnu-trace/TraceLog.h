@@ -9,7 +9,7 @@
 #include "Symbols.h"
 #include "log_structs.h"
 #include "mach.h"
-#include "util.h"
+#include "utils.h"
 
 #include <memory>
 #include <span>
@@ -154,10 +154,9 @@ public:
     std::vector<iterator> chunk_into_bins(uint32_t n) {
         Signpost chunk_sp("log_thread_buf", "chunk_into_bins");
         chunk_sp.start();
-        std::vector<const uint8_t *> res(n);
-        const auto bin_sz  = num_bytes() / n;
-        const auto buf_end = (uintptr_t)(m_buf.data() + m_buf.size());
-        for (uint32_t i = 0; i < n; ++i) {}
+        const auto raw_bins =
+            chunk_into_bins_by_needle(n, m_buf.data(), m_buf.size(), log_msg::sync_frame_buf,
+                                      sizeof(log_msg::sync_frame_buf));
         chunk_sp.end();
         return {};
     }
