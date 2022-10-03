@@ -3,6 +3,7 @@
 #include "xnu-trace-c.h"
 
 #include "ARM64InstrHistogram.h"
+#include "Atomic.h"
 #include "CompressedFile.h"
 #include "FridaStalker.h"
 #include "MachORegions.h"

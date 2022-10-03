@@ -38,6 +38,7 @@ set(INSTTRACE_SRC
 )
 
 set(INSTTRACE_HDR_STANDALONE
+    Atomic.h
     drcov.h
     xnu-trace.h
     xnu-trace-c.h
