@@ -7,20 +7,19 @@
 
 template <typename T> class AtomicWaiter {
 public:
-    AtomicWaiter(T max) : m_max{max} {};
-    void increment(T num = 1) {
-        m_cnt += num;
+    AtomicWaiter(T count) : m_cnt{count} {};
+    void release(T num = 1) {
+        m_cnt -= num;
         m_cnt.notify_all();
     }
     void wait() {
         T cur = m_cnt;
-        while (cur != m_max) {
+        while (cur) {
             m_cnt.wait(cur);
             cur = m_cnt;
         }
     }
 
 private:
-    T m_max;
-    std::atomic<T> m_cnt{};
+    std::atomic<T> m_cnt;
 };

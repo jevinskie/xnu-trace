@@ -76,20 +76,16 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
     assert(regions_paths.size() == meta_hdr.num_regions);
 
     std::vector<std::pair<sha256_t, std::vector<uint8_t>>> regions_bytes_vec(meta_hdr.num_regions);
-    for (size_t i = 0; i < meta_hdr.num_regions; ++i) {
-        xnutrace_pool.push_task([&, i] {
-            const auto path = regions_paths[i];
-            Signpost region_sp("TraceLogRegions",
-                               fmt::format("{:s} read", path.filename().string()));
-            region_sp.start();
-            CompressedFile<log_macho_region_hdr> region_fh{path, true};
-            sha256_t digest;
-            memcpy(digest.data(), region_fh.header().digest_sha256, digest.size());
-            regions_bytes_vec[i] = {digest, region_fh.read()};
-            region_sp.end();
-        });
-    }
-    xnutrace_pool.wait_for_tasks();
+    xnutrace_pool.wait_on_n_tasks(meta_hdr.num_regions, [&](const auto i) {
+        const auto path = regions_paths[i];
+        Signpost region_sp("TraceLogRegions", fmt::format("{:s} read", path.filename().string()));
+        region_sp.start();
+        CompressedFile<log_macho_region_hdr> region_fh{path, true};
+        sha256_t digest;
+        memcpy(digest.data(), region_fh.header().digest_sha256, digest.size());
+        regions_bytes_vec[i] = {digest, region_fh.read()};
+        region_sp.end();
+    });
 
     std::map<sha256_t, std::vector<uint8_t>> regions_bytes;
     for (const auto &[digest, bytes] : regions_bytes_vec) {
@@ -129,26 +125,23 @@ TraceLog::TraceLog(const std::string &log_dir_path) : m_log_dir_path{log_dir_pat
     }
 
     std::vector<std::pair<uint32_t, log_thread_buf>> parsed_logs_vec(thread_paths.size());
-    for (size_t i = 0; i < thread_paths.size(); ++i) {
-        xnutrace_pool.push_task([&, i] {
-            const auto path = thread_paths[i];
-            Signpost thread_read_sp("TraceLogThreads",
-                                    fmt::format("{:s} read", path.filename().string()));
-            thread_read_sp.start();
-            CompressedFile<log_thread_hdr> thread_fh{path, true};
-            auto thread_buf       = thread_fh.read();
-            const auto thread_hdr = thread_fh.header();
-            thread_read_sp.end();
+    xnutrace_pool.wait_on_n_tasks(thread_paths.size(), [&](const auto i) {
+        const auto path = thread_paths[i];
+        Signpost thread_read_sp("TraceLogThreads",
+                                fmt::format("{:s} read", path.filename().string()));
+        thread_read_sp.start();
+        CompressedFile<log_thread_hdr> thread_fh{path, true};
+        auto thread_buf       = thread_fh.read();
+        const auto thread_hdr = thread_fh.header();
+        thread_read_sp.end();
 
-            Signpost thread_parse_sp("TraceLogThreads",
-                                     fmt::format("{:s} parse", path.filename().string()));
-            thread_parse_sp.start();
-            parsed_logs_vec[i] = std::make_pair(
-                thread_hdr.thread_id, log_thread_buf(std::move(thread_buf), thread_hdr.num_inst));
-            thread_parse_sp.end();
-        });
-    }
-    xnutrace_pool.wait_for_tasks();
+        Signpost thread_parse_sp("TraceLogThreads",
+                                 fmt::format("{:s} parse", path.filename().string()));
+        thread_parse_sp.start();
+        parsed_logs_vec[i] = std::make_pair(
+            thread_hdr.thread_id, log_thread_buf(std::move(thread_buf), thread_hdr.num_inst));
+        thread_parse_sp.end();
+    });
 
     for (auto &[thread_id, log] : parsed_logs_vec) {
         m_num_inst += log.num_inst();
