@@ -339,8 +339,10 @@ std::vector<void *> chunk_into_bins_by_needle(uint32_t n, const void *haystack, 
             done.notify_all();
         });
     }
-    while (done != n) {
-        done.wait(done);
+    uint32_t cur = done;
+    while (cur != n) {
+        done.wait(cur);
+        cur = done;
     }
     return res;
 }
