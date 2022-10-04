@@ -4,6 +4,7 @@
 
 #include "ARM64InstrHistogram.h"
 #include "Atomic.h"
+#include "BitVector.h"
 #include "CompressedFile.h"
 #include "FridaStalker.h"
 #include "MachORegions.h"

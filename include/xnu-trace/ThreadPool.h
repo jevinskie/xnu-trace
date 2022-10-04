@@ -28,7 +28,7 @@ public:
                              const size_t num_blocks = 0) {
         BS::blocks blks(first_index, index_after_last,
                         num_blocks ? num_blocks : get_thread_count());
-        if (blks.get_total_size() <= 0) {
+        if (!blks.get_total_size()) {
             return;
         }
         const auto num_blks = blks.get_num_blocks();
