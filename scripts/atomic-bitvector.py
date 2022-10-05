@@ -9,7 +9,7 @@ import cairocffi as cairo
 from attrs import define
 
 bit_sz = 32
-num_rows = 5
+num_rows = 7
 num_bits = 32
 canvas_width, canvas_height = (num_bits + 2) * bit_sz, (num_rows + 2) * bit_sz
 
@@ -31,7 +31,8 @@ black = Color(0, 0, 0)
 white = Color(0, 0, 1)
 grey = white.darken(0.95)
 red = Color(0, 0.4, 1)
-blue = Color(225 / 369, 0.4, 1)
+blue = Color(225 / 360, 0.4, 1)
+green = Color(130 / 360, 0.4, 1)
 fg = black
 bg = white
 
@@ -74,10 +75,13 @@ for i in range(num_bits):
 for i in range(4):
     ctx.bitrect(i, 8, 2, str(i), blue)
 
+for i in range(2):
+    ctx.bitrect(i, 16, 4, str(i), green)
+
 for i in range(12):
-    ctx.bitrect(i + 8, 1, 4, str(i), red)
+    ctx.bitrect(i + 8, 1, 6, str(i), red)
 
 surface.finish()
 
-with open("test.svg", "wb") as svgout:
+with open("atomic-bits.svg", "wb") as svgout:
     svgout.write(svgio.getvalue())
