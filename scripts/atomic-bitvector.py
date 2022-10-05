@@ -9,8 +9,8 @@ import cairocffi as cairo
 from attrs import define
 
 bit_sz = 32
-num_rows = 7
-num_bits = 32
+num_rows = 11
+num_bits = 64
 canvas_width, canvas_height = (num_bits + 2) * bit_sz, (num_rows + 2) * bit_sz
 
 
@@ -33,6 +33,7 @@ grey = white.darken(0.95)
 red = Color(0, 0.4, 1)
 blue = Color(225 / 360, 0.4, 1)
 green = Color(130 / 360, 0.4, 1)
+violet = Color(300 / 360, 0.4, 1)
 fg = black
 bg = white
 
@@ -72,14 +73,23 @@ ctx = BitContext(surface, bit_sz)
 for i in range(num_bits):
     ctx.bitrect(i, 1, 0, str(i))
 
-for i in range(4):
+for i in range(8):
     ctx.bitrect(i, 8, 2, str(i), blue)
 
-for i in range(2):
+for i in range(4):
     ctx.bitrect(i, 16, 4, str(i), green)
 
-for i in range(12):
-    ctx.bitrect(i + 8, 1, 6, str(i), red)
+for i in range(2):
+    ctx.bitrect(i, 32, 6, str(i), violet)
+
+# for i in range(12):
+#     ctx.bitrect(i + 8, 1, 6, str(i), red)
+
+for i in range(15):
+    ctx.bitrect(i + 8, 1, 8, str(i), red)
+
+for i in range(15):
+    ctx.bitrect(i + 18, 1, 10, str(i), red)
 
 surface.finish()
 
