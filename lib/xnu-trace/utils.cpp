@@ -256,7 +256,7 @@ static char *twoway_memmem(const unsigned char *h, const unsigned char *z, const
     /* Periodic needle? */
     if (memcmp(n, n + p, ms + 1)) {
         mem0 = 0;
-        p    = MAX(ms, l - ms - 1) + 1;
+        p    = std::max(ms, l - ms - 1) + 1;
     } else
         mem0 = l - p;
     mem = 0;
@@ -284,7 +284,7 @@ static char *twoway_memmem(const unsigned char *h, const unsigned char *z, const
         }
 
         /* Compare right half */
-        for (k = MAX(ms + 1, mem); k < l && n[k] == h[k]; k++)
+        for (k = std::max(ms + 1, mem); k < l && n[k] == h[k]; k++)
             ;
         if (k < l) {
             h += k - ms;
