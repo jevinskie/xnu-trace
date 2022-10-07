@@ -6,6 +6,16 @@
 
 #include "common-c.h"
 
+#define static_assert_cond(cond) static_assert((cond), #cond)
+
+template <typename T> consteval size_t sizeofbits() {
+    return sizeof(T) * 8;
+}
+
+consteval size_t sizeofbits(const auto &o) {
+    return sizeof(o) * 8;
+}
+
 template <typename T>
 concept POD = std::is_trivial_v<T> && std::is_standard_layout_v<T>;
 
@@ -26,6 +36,8 @@ using uint_n = decltype([]() {
         return uint32_t{};
     } else if constexpr (NBits > 32 && NBits <= 64) {
         return uint64_t{};
+    } else if constexpr (NBits > 64 && NBits <= 128) {
+        return uint128_t{};
     } else {
         XNUTRACE_UNREACHABLE();
         return;
@@ -33,7 +45,7 @@ using uint_n = decltype([]() {
 }());
 
 template <size_t NBits>
-using int_n = decltype([]() {
+using sint_n = decltype([]() {
     if constexpr (NBits > 0 && NBits <= 8) {
         return int8_t{};
     } else if constexpr (NBits > 8 && NBits <= 16) {
@@ -42,8 +54,19 @@ using int_n = decltype([]() {
         return int32_t{};
     } else if constexpr (NBits > 32 && NBits <= 64) {
         return int64_t{};
+    } else if constexpr (NBits > 64 && NBits <= 128) {
+        return int128_t{};
     } else {
         XNUTRACE_UNREACHABLE();
         return;
     }
 }());
+
+template <size_t NBits, bool Signed>
+using int_n = decltype([]() {
+    if constexpr (Signed) {
+        return sint_n<NBits>{};
+    } else {
+        return uint_n<NBits>{};
+    }
+});
