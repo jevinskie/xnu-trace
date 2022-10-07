@@ -65,6 +65,7 @@ set(XNUTRACE_PUBLIC_LIBS
     absl::flat_hash_map
     thread-pool
     static_vector
+    icecream
 )
 
 set(XNUTRACE_PRIVATE_LIBS

@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include <array>
+#include <bit>
 #include <concepts>
 #include <filesystem>
 #include <span>
@@ -18,6 +19,10 @@ using sha256_t = std::array<uint8_t, 32>;
 
 template <typename T> size_t bytesizeof(const typename std::vector<T> &vec) {
     return sizeof(T) * vec.size();
+}
+
+template <typename T> constexpr bool is_pow2(T num) {
+    return std::popcount(num) == 1;
 }
 
 template <typename U>

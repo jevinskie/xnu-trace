@@ -69,3 +69,6 @@
 [submodule "3rdparty/Catch2"]
 	path = 3rdparty/Catch2
 	url = https://github.com/catchorg/Catch2
+[submodule "3rdparty/icecream-cpp"]
+	path = 3rdparty/icecream-cpp
+	url = https://github.com/renatoGarcia/icecream-cpp

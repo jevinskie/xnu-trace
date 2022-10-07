@@ -3,8 +3,11 @@
 #include "common.h"
 
 #include "Atomic.h"
+#include "utils.h"
 
 #include <type_traits>
+
+#include <icecream.hpp>
 
 template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false> class BitVector {
 public:
@@ -23,16 +26,23 @@ public:
     }
 
     static constexpr bool exact_fit(uint8_t nbits) {
-        return nbits % TBits == 0;
+        return nbits >= 8 && is_pow2(nbits);
     }
 
-    static constexpr size_t buf_size(uint8_t nbits, size_t sz) {
+    static size_t buf_size(uint8_t nbits, size_t sz) {
         if (exact_fit(nbits)) {
             return sz;
         }
         const auto total_packed_bits = nbits * sz;
         const auto write_bits        = AtomicWrite ? QBits : DBits;
-        return (total_packed_bits + write_bits - 1) / write_bits;
+        const auto write_total_bit_sz =
+            ((total_packed_bits + write_bits - 1) / write_bits) * write_bits;
+        const auto buf_sz = write_total_bit_sz / TBits;
+        IC(AtomicWrite, type_name<T>(), NBitsMax, TBits, nbits, sz, total_packed_bits, write_bits,
+           write_total_bit_sz, buf_sz);
+        // fmt::print("TBits: {:d} nbits: {:d} sz: {:d} total_packed_bits: {:d} write_bits:
+        // {:d}\n");
+        return buf_sz;
     }
 
 private:
