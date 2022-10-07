@@ -1,5 +1,5 @@
 set(XNUTRACE_UNIT_TEST_SRC
-    Bitvector.cpp
+    BitVector.cpp
     MinimalPerfectHash.cpp
     memmem-chunking.cpp
 )

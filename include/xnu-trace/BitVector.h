@@ -12,13 +12,28 @@
 
 template <uint8_t NBits, bool Signed = false> class ExactBitVector;
 
-template <uint8_t NBitsMax, bool Signed = false> class BitVectorBase {
+template <uint8_t NBitsMax, bool Signed = false> class XNUTRACE_EXPORT BitVectorBase {
 public:
     static_assert_cond(NBitsMax > 0 && NBitsMax <= 32);
     using T = int_n<NBitsMax, Signed>;
-    virtual T get(size_t idx);
-    virtual T set(size_t idx, T val);
+    virtual T get(size_t idx) const;
+    virtual void set(size_t idx, T val);
     virtual ~BitVectorBase() {}
+
+protected:
+    BitVectorBase(size_t byte_sz) : m_buf(byte_sz) {}
+    std::vector<uint8_t> &buf() {
+        return m_buf;
+    }
+    const std::vector<uint8_t> &buf() const {
+        return m_buf;
+    }
+    uint8_t *data() {
+        return m_buf.data();
+    }
+    const uint8_t *data() const {
+        return m_buf.data();
+    }
 
 private:
     std::vector<uint8_t> m_buf;
@@ -26,22 +41,36 @@ private:
 
 template <uint8_t NBits, bool Signed> class ExactBitVector : public BitVectorBase<NBits, Signed> {
 public:
+    using Base = BitVectorBase<NBits, Signed>;
+    using T    = typename Base::T;
     static_assert_cond(NBits >= 8 && is_pow2(NBits));
-
-private:
+    ExactBitVector(size_t sz) : Base(sz * NBits / 8) {}
+    T get(size_t idx) const final override {
+        return ((T *)Base::data())[idx];
+    }
+    void set(size_t idx, T val) final override {
+        ((T *)Base::data())[idx] = val;
+    }
 };
 
 template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false> class BitVector {
 public:
+    using T = int_n<NBitsMax, Signed>;
     static_assert_cond(NBitsMax > 0 && NBitsMax <= 32);
     BitVector(uint8_t nbits, size_t sz) {
         if (nbits >= 8 && is_pow2(nbits)) {
             m_bv = std::make_unique<ExactBitVector<NBitsMax, Signed>>(sz);
         }
     }
+    T get(size_t idx) const {
+        return m_bv->get(idx);
+    }
+    void set(size_t idx, T val) {
+        m_bv->set(idx, val);
+    }
 
 private:
-    std::unique_ptr<BitVectorBase<NBitsMax, Signed>> *m_bv;
+    std::unique_ptr<BitVectorBase<NBitsMax, Signed>> m_bv;
 };
 
 template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false> class BitVectorMega {

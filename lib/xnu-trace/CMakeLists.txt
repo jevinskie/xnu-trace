@@ -16,6 +16,7 @@ target_include_directories(xnu-trace-mach-exc
 
 set(INSTTRACE_SRC
     ARM64InstrHistogram.cpp
+    BitVector.cpp
     common-internal.h
     CompressedFile.cpp
     dyld.cpp
@@ -39,10 +40,10 @@ set(INSTTRACE_SRC
 
 set(INSTTRACE_HDR_STANDALONE
     Atomic.h
-    BitVector.h
     drcov.h
     xnu-trace.h
     xnu-trace-c.h
+    common.h
 )
 
 set(INSTTRACE_HDR)
