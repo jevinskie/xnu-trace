@@ -11,6 +11,13 @@ TEST_CASE("exact", TS) {
     REQUIRE(bv.get(3) == 243);
 }
 
+TEST_CASE("exact_vol_sz", TS) {
+    volatile uint8_t nbits = 16;
+    auto bv                = BitVector<32, false>{nbits, 4};
+    bv.set(3, 243);
+    REQUIRE(bv.get(3) == 243);
+}
+
 // TEST_CASE("exact_fit", TS) {
 //     const auto ebv = BitVectorMega<16, false>{16, 0};
 //     REQUIRE(ebv.exact_fit(16));

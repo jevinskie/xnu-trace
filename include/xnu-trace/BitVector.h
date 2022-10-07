@@ -12,12 +12,12 @@
 
 template <uint8_t NBits, bool Signed = false> class ExactBitVector;
 
-template <uint8_t NBitsMax, bool Signed = false> class XNUTRACE_EXPORT BitVectorBase {
+template <uint8_t NBitsMax, bool Signed = false> class BitVectorBase {
 public:
     static_assert_cond(NBitsMax > 0 && NBitsMax <= 32);
-    using T = int_n<NBitsMax, Signed>;
-    virtual T get(size_t idx) const;
-    virtual void set(size_t idx, T val);
+    using T                             = int_n<NBitsMax, Signed>;
+    virtual T get(size_t idx) const     = 0;
+    virtual void set(size_t idx, T val) = 0;
     virtual ~BitVectorBase() {}
 
 protected:
@@ -53,7 +53,8 @@ public:
     }
 };
 
-template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false> class BitVector {
+template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false>
+class XNUTRACE_EXPORT BitVector {
 public:
     using T = int_n<NBitsMax, Signed>;
     static_assert_cond(NBitsMax > 0 && NBitsMax <= 32);
