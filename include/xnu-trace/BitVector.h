@@ -101,6 +101,7 @@ public:
     }
 
     T get(size_t idx) const final override {
+        T res;
         const auto sw_idx = start_word_idx(idx);
         const auto ew_idx = end_word_idx(idx);
         if (sw_idx == ew_idx) {
@@ -113,9 +114,9 @@ public:
             const auto e_bidx        = end_bit_idx(idx) % TBits;
             const auto extracted_val = extract_bits(mixed_word, s_bidx, e_bidx);
             if constexpr (!Signed) {
-                return extracted_val;
+                res = extracted_val;
             } else {
-                return sign_extend(extracted_val, NBits);
+                res = sign_extend(extracted_val, NBits);
             }
         } else {
             const auto sdw_idx = sw_idx / 2;
@@ -128,11 +129,13 @@ public:
             const auto ed_bidx       = end_bit_idx(idx) % DTBits;
             const auto extracted_val = (T)extract_bits(mixed_dword, sd_bidx, ed_bidx);
             if constexpr (!Signed) {
-                return extracted_val;
+                res = extracted_val;
             } else {
-                return sign_extend(extracted_val, NBits);
+                res = sign_extend(extracted_val, NBits);
             }
         }
+        fmt::print("res: {:#010x}\n", res);
+        return res;
     }
 
     void set(size_t idx, T val) final override {
@@ -140,8 +143,8 @@ public:
         const auto ew_idx = end_word_idx(idx);
         if (sw_idx == ew_idx) {
             auto ptr = &((T *)Base::data())[sw_idx];
-            fmt::print("set idx: {:d} sw_idx: {:d} ew_idx: {:d} ptr: {:p}\n", idx, sw_idx, ew_idx,
-                       fmt::ptr(ptr));
+            fmt::print("set idx: {:d} sw_idx: {:d} ew_idx: {:d} ptr: {:p} val: {:#010x}\n", idx,
+                       sw_idx, ew_idx, fmt::ptr(ptr), val);
             // const T mixed_word       = ((T *)Base::data())[sw_idx];
             const T mixed_word     = *ptr;
             const auto s_bidx      = start_bit_idx(idx) % TBits;
@@ -151,8 +154,9 @@ public:
         } else {
             const auto sdw_idx = sw_idx / 2;
             const auto ptr     = &((DT *)Base::data())[sdw_idx];
-            fmt::print("set idx: {:d} sw_idx: {:d} ew_idx: {:d} sdw_idx: {:d} ptr: {:p}\n", idx,
-                       sw_idx, ew_idx, sdw_idx, fmt::ptr(ptr));
+            fmt::print(
+                "set idx: {:d} sw_idx: {:d} ew_idx: {:d} sdw_idx: {:d} ptr: {:p} val: {:#010x}\n",
+                idx, sw_idx, ew_idx, sdw_idx, fmt::ptr(ptr), val);
             // const DT mixed_dword     = ((DT *)Base::data())[sdw_idx];
             const DT mixed_dword     = *ptr;
             const auto sd_bidx       = start_bit_idx(idx) % DTBits;
