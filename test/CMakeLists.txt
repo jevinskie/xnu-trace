@@ -14,6 +14,9 @@ target_link_libraries(xnu-fast-timeout xnu-trace fmt)
 add_executable(xnu-trace-mph xnu-trace-mph.cpp)
 target_link_libraries(xnu-trace-mph xnu-trace fmt)
 
+add_executable(hana-101 hana-101.cpp)
+target_link_libraries(hana-101 fmt Boost::headers)
+
 install(TARGETS yield-loop-step-test xnu-trace-bench xnu-trace-nanobench xnu-fast-timeout xnu-trace-mph
     RUNTIME DESTINATION bin
 )

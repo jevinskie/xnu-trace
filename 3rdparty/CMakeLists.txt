@@ -44,6 +44,8 @@ target_include_directories(xxhash-xnu-trace INTERFACE xxhash-scoped-include)
 add_library(simde INTERFACE)
 target_include_directories(simde INTERFACE simde-scoped-include)
 
+find_package(Boost CONFIG REQUIRED headers)
+set_target_properties(Boost::headers PROPERTIES IMPORTED_GLOBAL ON)
 
 add_library(icecream INTERFACE)
 target_include_directories(icecream INTERFACE icecream-scoped-include)
@@ -67,4 +69,3 @@ FetchContent_GetProperties(frida-gum-prebuilt SOURCE_DIR FRIDA_GUM_SRC_DIR)
 add_library(frida-gum STATIC IMPORTED GLOBAL)
 set_target_properties(frida-gum PROPERTIES IMPORTED_LOCATION ${FRIDA_GUM_SRC_DIR}/libfrida-gum.a)
 target_include_directories(frida-gum INTERFACE ${FRIDA_GUM_SRC_DIR})
-
