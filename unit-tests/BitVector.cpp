@@ -13,14 +13,41 @@ static uint64_t hash_n(uint8_t nbits, uint64_t val) {
 }
 
 TEST_CASE("exact", TS) {
-    auto bv = ExactBitVector<32, false>{NUM_ELEM};
+    constexpr uint8_t nbits = 32;
+    auto bv                 = ExactBitVector<nbits, false>(NUM_ELEM);
     for (size_t i = 0; i < NUM_ELEM; ++i) {
-        bv.set(i, hash_n(NUM_BITS, i));
+        bv.set(i, hash_n(nbits, i));
     }
 
     for (size_t i = 0; i < NUM_ELEM; ++i) {
-        REQUIRE(bv.get(i) == hash_n(NUM_BITS, i));
+        REQUIRE(bv.get(i) == hash_n(nbits, i));
     }
+}
+
+TEST_CASE("non_atomic_smol", TS) {
+    constexpr uint8_t nbits = 31;
+    constexpr size_t sz     = 4;
+    auto bv                 = NonAtomicBitVector<nbits, false>(sz);
+    // for (size_t i = 0; i < NUM_ELEM; ++i) {
+    //     bv.set(i, hash_n(nbits, i));
+    // }
+
+    // for (size_t i = 0; i < NUM_ELEM; ++i) {
+    //     REQUIRE(bv.get(i) == hash_n(nbits, i));
+    // }
+}
+
+TEST_CASE("non_atomic_thicc", TS) {
+    constexpr uint8_t nbits = 31;
+    constexpr size_t sz     = 124;
+    auto bv                 = NonAtomicBitVector<nbits, false>(sz);
+    // for (size_t i = 0; i < NUM_ELEM; ++i) {
+    //     bv.set(i, hash_n(nbits, i));
+    // }
+
+    // for (size_t i = 0; i < NUM_ELEM; ++i) {
+    //     REQUIRE(bv.get(i) == hash_n(nbits, i));
+    // }
 }
 
 // TEST_CASE("exact_fit", TS) {
