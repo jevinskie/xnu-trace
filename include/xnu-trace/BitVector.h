@@ -8,6 +8,8 @@
 #include <memory>
 #include <type_traits>
 
+#include <boost/hana.hpp>
+namespace hana = boost::hana;
 #include <icecream.hpp>
 
 template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t eb) {
@@ -140,8 +142,33 @@ public:
     static constexpr size_t byte_sz(size_t sz) {
         const auto total_packed_bits  = NBits * sz;
         const auto write_total_bit_sz = ((total_packed_bits + DTBits - 1) / DTBits) * DTBits;
-        const auto num_bytes          = write_total_bit_sz / 8;
-        return num_bytes;
+        return write_total_bit_sz / 8;
+    }
+};
+
+template <uint8_t NBits, bool Signed> class AtomicBitVector : public BitVectorBase<NBits, Signed> {
+public:
+    using Base                      = BitVectorBase<NBits, Signed>;
+    using T                         = typename Base::T;
+    static constexpr size_t TBits   = Base::TBits;
+    using QT                        = std::atomic<uint_n<sizeofbits<T>() * 4>>;
+    static constexpr uint8_t QTBits = sizeofbits<QT>();
+    static_assert_cond(NBits != 8 && NBits != 16 && NBits != 32);
+
+    AtomicBitVector(size_t sz) : Base(byte_sz(sz)) {}
+
+    T get(size_t idx) const final override {
+        return 0;
+    }
+
+    void set(size_t idx, T val) final override {
+        return;
+    }
+
+    static constexpr size_t byte_sz(size_t sz) {
+        const auto total_packed_bits  = NBits * sz;
+        const auto write_total_bit_sz = ((total_packed_bits + QTBits - 1) / QTBits) * QTBits;
+        return write_total_bit_sz / 8;
     }
 };
 
@@ -152,7 +179,28 @@ public:
     static_assert_cond(NBitsMax > 0 && NBitsMax <= 32);
     BitVector(uint8_t nbits, size_t sz) {
         if (nbits >= 8 && is_pow2(nbits)) {
-            m_bv = std::make_unique<ExactBitVector<NBitsMax, Signed>>(sz);
+            if (nbits == 8) {
+                m_bv = std::make_unique<ExactBitVector<8, Signed>>(sz);
+            } else if (nbits == 16) {
+                m_bv = std::make_unique<ExactBitVector<16, Signed>>(sz);
+            } else if (nbits == 32) {
+                m_bv = std::make_unique<ExactBitVector<32, Signed>>(sz);
+            }
+        } else {
+            const auto bit_tuple = hana::to_tuple(hana::range_c<uint8_t, 1, 32>);
+            if constexpr (!AtomicWrite) {
+                hana::for_each(bit_tuple, [&](const auto n) {
+                    if (n.value == nbits) {
+                        m_bv = std::make_unique<NonAtomicBitVector<n.value, Signed>>(sz);
+                    }
+                });
+            } else {
+                hana::for_each(bit_tuple, [&](const auto n) {
+                    if (n.value == nbits) {
+                        m_bv = std::make_unique<AtomicBitVector<n.value, Signed>>(sz);
+                    }
+                });
+            }
         }
     }
     T get(size_t idx) const {
@@ -165,46 +213,3 @@ public:
 private:
     std::unique_ptr<BitVectorBase<NBitsMax, Signed>> m_bv;
 };
-
-template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false> class BitVectorMega {
-public:
-    static_assert_cond(NBitsMax > 0 && NBitsMax <= 32);
-    using T                        = int_n<NBitsMax, Signed>;
-    static constexpr uint8_t TBits = sizeofbits<T>();
-    using _DT                      = uint_n<sizeofbits<T>() * 2>;
-    using DT                       = std::conditional_t<AtomicWrite, void, _DT>;
-    static constexpr uint8_t DBits = AtomicWrite ? 0 : sizeofbits<_DT>();
-    using _QT                      = uint_n<sizeofbits<T>() * 4>;
-    using AQT                      = std::conditional_t<AtomicWrite, std::atomic<_QT>, void>;
-    static constexpr uint8_t QBits = AtomicWrite ? sizeofbits<_QT>() : 0;
-
-    BitVectorMega(uint8_t nbits, size_t sz) : m_nbits{nbits}, m_sz{sz} {
-        assert(nbits > 0 && nbits <= NBitsMax);
-    }
-
-    static constexpr bool exact_fit(uint8_t nbits) {
-        return nbits >= 8 && is_pow2(nbits);
-    }
-
-    static size_t buf_size(uint8_t nbits, size_t sz) {
-        if (exact_fit(nbits)) {
-            return sz;
-        }
-        const auto total_packed_bits = nbits * sz;
-        const auto write_bits        = AtomicWrite ? QBits : DBits;
-        const auto write_total_bit_sz =
-            ((total_packed_bits + write_bits - 1) / write_bits) * write_bits;
-        const auto buf_sz = write_total_bit_sz / TBits;
-        IC(AtomicWrite, type_name<T>(), NBitsMax, TBits, nbits, sz, total_packed_bits, write_bits,
-           write_total_bit_sz, buf_sz);
-        return buf_sz;
-    }
-
-private:
-    std::vector<T> m_buf;
-    size_t m_sz;
-    uint8_t m_nbits;
-};
-
-template <uint8_t NBitsMax, bool Signed>
-using AtomicBitVectorMega = BitVectorMega<NBitsMax, Signed, true>;

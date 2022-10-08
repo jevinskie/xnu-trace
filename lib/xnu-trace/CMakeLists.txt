@@ -16,7 +16,6 @@ target_include_directories(xnu-trace-mach-exc
 
 set(INSTTRACE_SRC
     ARM64InstrHistogram.cpp
-    BitVector.cpp
     common-internal.h
     CompressedFile.cpp
     dyld.cpp
@@ -67,6 +66,7 @@ set(XNUTRACE_PUBLIC_LIBS
     thread-pool
     static_vector
     icecream
+    Boost::headers
 )
 
 set(XNUTRACE_PRIVATE_LIBS
