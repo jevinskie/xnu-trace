@@ -1,11 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
 
 #include "common-c.h"
+
+using namespace std::string_literals;
 
 #define static_assert_cond(cond) static_assert((cond), #cond)
 

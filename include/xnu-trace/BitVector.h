@@ -13,14 +13,14 @@ namespace hana = boost::hana;
 #include <fmt/format.h>
 #include <icecream.hpp>
 
-template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t eb) {
-    return (val >> sb) & ((1 << (eb - sb)) - 1);
-}
-
 template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t eb) {
     const T high_mask = (1 << eb) - 1;
     const T low_mask  = (1 << sb) - 1;
     return high_mask ^ low_mask;
+}
+
+template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t eb) {
+    return (val & bit_mask<T>(sb, eb)) >> sb;
 }
 
 template <typename T>
@@ -106,8 +106,9 @@ public:
         const auto ew_idx  = end_word_idx(idx);
         const auto sdw_idx = sw_idx / 2;
         const auto ptr     = &((DT *)Base::data())[sdw_idx];
-        fmt::print("get idx: {:d} sw_idx: {:d} ew_idx: {:d} sdw_idx: {:d} ptr: {:p}\n", idx, sw_idx,
-                   ew_idx, sdw_idx, fmt::ptr(ptr));
+        // fmt::print("get idx: {:d} sw_idx: {:d} ew_idx: {:d} sdw_idx: {:d} ptr: {:p}\n", idx,
+        // sw_idx,
+        //            ew_idx, sdw_idx, fmt::ptr(ptr));
         // const DT mixed_dword     = ((DT *)Base::data())[sdw_idx];
         const DT mixed_dword     = *ptr;
         const auto sd_bidx       = start_bit_idx(idx) % DTBits;
@@ -118,7 +119,8 @@ public:
         } else {
             res = sign_extend(extracted_val, NBits);
         }
-        fmt::print("sd_bidx: {:d} ed_bidx: {:d} res: {:#010x}\n", sd_bidx, ed_bidx, res);
+        IC("get"s, idx, sw_idx, ew_idx, sdw_idx, ptr, sd_bidx, ed_bidx);
+        // fmt::print("sd_bidx: {:d} ed_bidx: {:d} res: {:#010x}\n", sd_bidx, ed_bidx, res);
         return res;
     }
 
@@ -127,15 +129,19 @@ public:
         const auto ew_idx  = end_word_idx(idx);
         const auto sdw_idx = sw_idx / 2;
         const auto ptr     = &((DT *)Base::data())[sdw_idx];
-        fmt::print(
-            "set idx: {:d} sw_idx: {:d} ew_idx: {:d} sdw_idx: {:d} ptr: {:p} val: {:#010x}\n", idx,
-            sw_idx, ew_idx, sdw_idx, fmt::ptr(ptr), val);
+        // fmt::print(
+        //     "set idx: {:d} sw_idx: {:d} ew_idx: {:d} sdw_idx: {:d} ptr: {:p} val: {:#010x}\n",
+        //     idx, sw_idx, ew_idx, sdw_idx, fmt::ptr(ptr), val);
         // const DT mixed_dword     = ((DT *)Base::data())[sdw_idx];
         const DT mixed_dword     = *ptr;
         const auto sd_bidx       = start_bit_idx(idx) % DTBits;
         const auto ed_bidx       = end_bit_idx(idx) % DTBits;
         const DT new_mixed_dword = insert_bits(mixed_dword, val, sd_bidx, NBits);
         *ptr                     = new_mixed_dword;
+        IC("set"s, idx, sw_idx, ew_idx, sdw_idx, ptr, sd_bidx, ed_bidx);
+        fmt::print("val:             {:#034b}\n", val);
+        fmt::print("mixed_dword:     {:#066b}\n", mixed_dword);
+        fmt::print("new_mixed_dword: {:#066b}\n", new_mixed_dword);
     }
 
     static constexpr size_t start_bit_idx(size_t idx) {
@@ -143,7 +149,7 @@ public:
     }
 
     static constexpr size_t end_bit_idx(size_t idx) {
-        return NBits * (idx + 1);
+        return NBits * (idx + 1) - 1;
     }
 
     static constexpr size_t start_word_idx(size_t idx) {

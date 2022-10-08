@@ -39,7 +39,7 @@ TEST_CASE("non_atomic_smol", TS) {
 
 TEST_CASE("non_atomic_thicc", TS) {
     constexpr uint8_t nbits = 31;
-    constexpr size_t sz     = 124;
+    constexpr size_t sz     = 17;
     auto bv                 = NonAtomicBitVector<nbits, false>(sz);
     for (size_t i = 0; i < sz; ++i) {
         bv.set(i, hash_n(nbits, i));
