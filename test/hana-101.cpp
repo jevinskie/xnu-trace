@@ -47,6 +47,16 @@ int main(int argc, const char **argv) {
     int n = atoi(argv[1]);
 
     const auto rng = hana::range_c<int, 0, 64>;
+    fmt::print("rng type: {:s}\n", type_name<decltype(rng)>());
+    const auto rng_tup = hana::to_tuple(rng);
+    fmt::print("rng_tup type: {:s}\n", type_name<decltype(rng_tup)>());
+    // for (int i = 0; i < 64; ++i) {
+    //     fmt::print("i: {:d} {:s}\n", i, hana::at(rng_tup, hana::value(i)));
+    // }
+
+    hana::for_each(rng_tup, [&](auto x) {
+        fmt::print("x ty: {:s}\n", type_name<decltype(x)>());
+    });
 
     const auto res = hana::transform(hana::to_tuple(rng), to_string);
 
