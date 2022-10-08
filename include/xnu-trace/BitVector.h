@@ -53,6 +53,26 @@ public:
     }
 };
 
+template <uint8_t NBits, bool Signed>
+class NonAtomicBitVector : public BitVectorBase<NBits, Signed> {
+public:
+    using Base                     = BitVectorBase<NBits, Signed>;
+    using T                        = typename Base::T;
+    using DT                       = uint_n<sizeofbits<T>() * 2>;
+    static constexpr uint8_t DBits = sizeofbits<DT>();
+    NonAtomicBitVector(size_t sz) : Base(sz * NBits / 8) {}
+    T get(size_t idx) const final override {
+        return ((T *)Base::data())[idx];
+    }
+    void set(size_t idx, T val) final override {
+        ((T *)Base::data())[idx] = val;
+    }
+
+    static constexpr size_t byte_sz() {
+        return 0;
+    }
+};
+
 template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false>
 class XNUTRACE_EXPORT BitVector {
 public:

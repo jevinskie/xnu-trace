@@ -5,17 +5,22 @@
 
 #define TS "[BitVector]"
 
-TEST_CASE("exact", TS) {
-    auto bv = BitVector<32, false>{16, 4};
-    bv.set(3, 243);
-    REQUIRE(bv.get(3) == 243);
+static constexpr size_t NUM_ELEM  = 4 * 64 * 1024;
+static constexpr uint8_t NUM_BITS = 18;
+
+static uint64_t hash_n(uint8_t nbits, uint64_t val) {
+    return xxhash3_64::hash(val) & ((nbits << 1) - 1);
 }
 
-TEST_CASE("exact_vol_sz", TS) {
-    volatile uint8_t nbits = 16;
-    auto bv                = BitVector<32, false>{nbits, 4};
-    bv.set(3, 243);
-    REQUIRE(bv.get(3) == 243);
+TEST_CASE("exact", TS) {
+    auto bv = ExactBitVector<32, false>{NUM_ELEM};
+    for (size_t i = 0; i < NUM_ELEM; ++i) {
+        bv.set(i, hash_n(NUM_BITS, i));
+    }
+
+    for (size_t i = 0; i < NUM_ELEM; ++i) {
+        REQUIRE(bv.get(i) == hash_n(NUM_BITS, i));
+    }
 }
 
 // TEST_CASE("exact_fit", TS) {
