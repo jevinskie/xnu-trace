@@ -32,7 +32,7 @@ template <typename T> constexpr auto type_name() {
 
 template <int Num> struct Number {
     void print() {
-        fmt::print("{:d}\n", Num);
+        fmt::print("Number is {:d}\n", Num);
     }
 };
 
@@ -56,7 +56,11 @@ int main(int argc, const char **argv) {
 
     hana::for_each(rng_tup, [&](auto x) {
         fmt::print("x ty: {:s}\n", type_name<decltype(x)>());
+        const auto num = Number<x.value>();
+        fmt::print("num ty: {:s}\n", type_name<decltype(num)>());
     });
+
+    const auto foo = hana::at_c<0>(rng_tup);
 
     const auto res = hana::transform(hana::to_tuple(rng), to_string);
 
