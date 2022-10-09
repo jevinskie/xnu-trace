@@ -25,7 +25,7 @@ TEST_CASE("exact", TS) {
 }
 
 TEST_CASE("non_atomic_smol", TS) {
-    constexpr uint8_t nbits = 31;
+    constexpr uint8_t nbits = 15;
     constexpr size_t sz     = 4;
     auto bv                 = NonAtomicBitVector<nbits, false>(sz);
     for (size_t i = 0; i < sz; ++i) {
@@ -38,7 +38,7 @@ TEST_CASE("non_atomic_smol", TS) {
 }
 
 TEST_CASE("non_atomic_thicc", TS) {
-    constexpr uint8_t nbits = 31;
+    constexpr uint8_t nbits = 15;
     constexpr size_t sz     = 17;
     auto bv                 = NonAtomicBitVector<nbits, false>(sz);
     for (size_t i = 0; i < sz; ++i) {

@@ -9,8 +9,8 @@ import cairocffi as cairo
 from attrs import define
 
 bit_sz = 32
-num_rows = 15
-num_bits = 64
+num_rows = 10
+num_bits = 128
 canvas_width, canvas_height = (num_bits + 2) * bit_sz, (num_rows + 2) * bit_sz
 
 
@@ -31,6 +31,7 @@ black = Color(0, 0, 0)
 white = Color(0, 0, 1)
 grey = white.darken(0.95)
 red = Color(0, 0.4, 1)
+orange = Color(40 / 360, 0.4, 1)
 blue = Color(225 / 360, 0.4, 1)
 green = Color(130 / 360, 0.4, 1)
 violet = Color(300 / 360, 0.4, 1)
@@ -43,7 +44,7 @@ class BitContext(cairo.Context):
         super().__init__(surface)
         self.bs = bit_sz
         self.select_font_face("Monaco", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        self.set_font_size(self.bs / 2)
+        self.set_font_size(self.bs / 2.5)
         self.rectangle(0, 0, canvas_width, canvas_height)
         self.set_source_rgb(*bg.rgb())
         self.fill()
@@ -76,24 +77,18 @@ ctx = BitContext(surface, bit_sz)
 for i in range(num_bits):
     ctx.bitrect(i, 1, 0, str(i))
 
-for i in range(8):
-    ctx.bitrect(i, 8, 2, str(i), blue)
+for i, wi in enumerate(((8, orange), (16, blue), (32, green), (64, violet))):
+    wb, wc = wi[0], wi[1]
+    nw = num_bits // wb
+    for j in range(nw):
+        ctx.bitrect(j, wb, i + 1, str(j), wc)
 
-for i in range(4):
-    ctx.bitrect(i, 16, 4, str(i), green)
-
-for i in range(2):
-    ctx.bitrect(i, 32, 6, str(i), violet)
-
-# for i in range(12):
-#     ctx.bitrect(i + 8, 1, 6, str(i), red)
-
-word_bits = 15
-num_words = 4
+word_bits = 31
+num_words = num_bits // word_bits
 
 for word_idx in range(num_words):
     for i in range(word_bits):
-        ctx.bitrect(i + word_idx * word_bits, 1, 8 + 2 * word_idx, str(i), red)
+        ctx.bitrect(i + word_idx * word_bits, 1, 6 + word_idx, str(i), red)
 
 surface.finish()
 

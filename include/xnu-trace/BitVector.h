@@ -125,6 +125,8 @@ public:
     }
 
     void set(size_t idx, T val) final override {
+        const auto sb_idx  = start_bit_idx(idx);
+        const auto eb_idx  = end_bit_idx(idx);
         const auto sw_idx  = start_word_idx(idx);
         const auto ew_idx  = end_word_idx(idx);
         const auto sdw_idx = sw_idx / 2;
@@ -138,7 +140,7 @@ public:
         const auto ed_bidx       = end_bit_idx(idx) % DTBits;
         const DT new_mixed_dword = insert_bits(mixed_dword, val, sd_bidx, NBits);
         *ptr                     = new_mixed_dword;
-        IC("set"s, idx, sw_idx, ew_idx, sdw_idx, ptr, sd_bidx, ed_bidx);
+        IC("set"s, idx, sb_idx, eb_idx, sw_idx, ew_idx, sdw_idx, ptr, sd_bidx, ed_bidx);
         fmt::print("val:             {:#034b}\n", val);
         fmt::print("mixed_dword:     {:#066b}\n", mixed_dword);
         fmt::print("new_mixed_dword: {:#066b}\n", new_mixed_dword);
