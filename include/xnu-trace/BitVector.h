@@ -16,13 +16,18 @@ namespace hana = boost::hana;
 namespace xnutrace::BitVector {
 
 template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t eb) {
-    const T high_mask = (((T)1) << eb) - 1;
-    const T low_mask  = (((T)1) << sb) - 1;
-    return high_mask ^ low_mask;
+    const T high_mask = (T{1} << eb) - 1;
+    const T low_mask  = (T{1} << sb) - 1;
+    const T mask      = high_mask ^ low_mask;
+    // fmt::print("bm({:d}, {:d}) = {:#018b}\n", sb, eb, mask);
+    // return high_mask ^ low_mask;
+    return mask;
 }
 
 template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t eb) {
-    return (val & bit_mask<T>(sb, eb)) >> sb;
+    const T res = (val & bit_mask<T>(sb, eb)) >> sb;
+    // fmt::print("eb({:d}, {:d}) = {:#018b}\n", sb, eb, res);
+    return res;
 }
 
 template <typename T>
@@ -155,7 +160,7 @@ public:
     }
 
     static constexpr size_t end_bit_idx(size_t idx) {
-        return NBits * (idx + 1) - 1;
+        return NBits * (idx + 1);
     }
 
     static constexpr size_t start_word_idx(size_t idx) {
