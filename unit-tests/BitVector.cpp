@@ -8,12 +8,15 @@
 static constexpr size_t NUM_ELEM  = 4 * 64 * 1024;
 static constexpr uint8_t NUM_BITS = 18;
 
-static uint64_t bit_mask(uint8_t nbits) {
-    return (1 << nbits) - 1;
-}
+namespace BV = xnutrace::BitVector;
 
 static uint64_t hash_n(uint8_t nbits, uint64_t val) {
-    return xxhash3_64::hash(val) & bit_mask(nbits);
+    return xxhash3_64::hash(val) & BV::bit_mask<uint64_t>(0, nbits);
+}
+
+TEST_CASE("bit_mask", TS) {
+    REQUIRE(BV::bit_mask<uint32_t>(0, 1) == 0b1);
+    REQUIRE(BV::bit_mask<uint32_t>(4, 8) == 0b1111'0000);
 }
 
 TEST_CASE("exact", TS) {
@@ -33,11 +36,11 @@ TEST_CASE("non_atomic_smol_all_ones", TS) {
     constexpr size_t sz     = 4;
     auto bv                 = NonAtomicBitVector<nbits, false>(sz);
     for (size_t i = 0; i < sz; ++i) {
-        bv.set(i, bit_mask(nbits));
+        bv.set(i, BV::bit_mask<uint32_t>(0, nbits));
     }
 
     for (size_t i = 0; i < sz; ++i) {
-        REQUIRE(bv.get(i) == bit_mask(nbits));
+        REQUIRE(bv.get(i) == BV::bit_mask<uint32_t>(0, nbits));
     }
 }
 

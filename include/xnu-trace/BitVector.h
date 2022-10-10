@@ -13,9 +13,11 @@ namespace hana = boost::hana;
 #include <fmt/format.h>
 #include <icecream.hpp>
 
+namespace xnutrace::BitVector {
+
 template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t eb) {
-    const T high_mask = (1 << eb) - 1;
-    const T low_mask  = (1 << sb) - 1;
+    const T high_mask = (((T)1) << eb) - 1;
+    const T low_mask  = (((T)1) << sb) - 1;
     return high_mask ^ low_mask;
 }
 
@@ -246,3 +248,20 @@ public:
 private:
     std::unique_ptr<BitVectorBase<NBitsMax, Signed>> m_bv;
 };
+
+} // namespace xnutrace::BitVector
+
+template <uint8_t NBits, bool Signed = false>
+using BitVectorBase = xnutrace::BitVector::BitVectorBase<NBits, Signed>;
+
+template <uint8_t NBits, bool Signed = false>
+using ExactBitVector = xnutrace::BitVector::ExactBitVector<NBits, Signed>;
+
+template <uint8_t NBits, bool Signed = false>
+using NonAtomicBitVector = xnutrace::BitVector::NonAtomicBitVector<NBits, Signed>;
+
+template <uint8_t NBits, bool Signed = false>
+using AtomicBitVector = xnutrace::BitVector::AtomicBitVector<NBits, Signed>;
+
+template <uint8_t NBits, bool Signed = false>
+using BitVector = xnutrace::BitVector::BitVector<NBits, Signed>;
