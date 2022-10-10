@@ -50,6 +50,16 @@ TEST_CASE("extract_bits", TS) {
     REQUIRE(BV::extract_bits<uint32_t>(0b1'0101'0000, 4, 9) == 0b1'0101);
 }
 
+TEST_CASE("insert_bits", TS) {
+    REQUIRE(BV::insert_bits<uint32_t>(0, 0b1, 0, 1) == 0b1);
+    REQUIRE(BV::insert_bits<uint32_t>(0, 0b10, 1, 2) == 0b100);
+    REQUIRE(BV::insert_bits<uint32_t>(0, 0b1000'0000, 1, 8) == 0b1'0000'0000);
+
+    REQUIRE(BV::insert_bits<uint32_t>(1, 0b11, 1, 2) == 0b111);
+    REQUIRE(BV::insert_bits<uint32_t>(1, 0b110, 1, 3) == 0b1101);
+    REQUIRE(BV::insert_bits<uint32_t>(1, 0b1'1000'0000, 1, 9) == 0b1'1000'00001);
+}
+
 TEST_CASE("exact", TS) {
     constexpr uint8_t nbits = 16;
     constexpr size_t sz     = 16;
@@ -64,7 +74,7 @@ TEST_CASE("exact", TS) {
 }
 
 TEST_CASE("non_atomic_smol_all_ones", TS) {
-    constexpr uint8_t nbits = 31;
+    constexpr uint8_t nbits = 15;
     constexpr size_t sz     = 4;
     auto bv                 = NonAtomicBitVector<nbits, false>(sz);
     for (size_t i = 0; i < sz; ++i) {
