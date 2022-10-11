@@ -144,8 +144,10 @@ public:
         //     idx, sw_idx, ew_idx, sdw_idx, fmt::ptr(ptr), val);
         // const DT mixed_dword     = ((DT *)Base::data())[sdw_idx];
         const DT mixed_dword     = *(DT *)dwptr;
-        const auto sd_bidx       = start_bit_idx(idx) % DTBits;
-        const auto ed_bidx       = end_bit_idx(idx) % DTBits;
+        const auto sd_bidx_uo    = start_bit_idx(idx) % DTBits;
+        const auto ed_bidx_uo    = end_bit_idx(idx) % DTBits;
+        const auto sd_bidx       = std::min(sd_bidx_uo, ed_bidx_uo);
+        const auto ed_bidx       = std::max(sd_bidx_uo, ed_bidx_uo);
         const DT new_mixed_dword = insert_bits(mixed_dword, val, sd_bidx, NBits);
         *dwptr                   = new_mixed_dword;
         IC("set"s, idx, sb_idx, eb_idx, sw_idx, ew_idx, wptr, sd_bidx, ed_bidx);

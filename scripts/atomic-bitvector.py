@@ -9,7 +9,7 @@ import cairocffi as cairo
 from attrs import define
 
 bit_sz = 32
-num_rows = 10
+num_rows = 14
 num_bits = 128
 canvas_width, canvas_height = (num_bits + 2) * bit_sz, (num_rows + 2) * bit_sz
 
@@ -75,20 +75,41 @@ surface.set_document_unit(cairo.SVG_UNIT_USER)
 ctx = BitContext(surface, bit_sz)
 
 for i in range(num_bits):
-    ctx.bitrect(i, 1, 0, str(i))
+    ctx.bitrect(i, 1, 0, str(i % 32))
 
-for i, wi in enumerate(((8, orange), (16, blue), (32, green), (64, violet))):
+for i, wi in enumerate(((8, orange), (16, blue), (32, green))):
     wb, wc = wi[0], wi[1]
     nw = num_bits // wb
     for j in range(nw):
         ctx.bitrect(j, wb, i + 1, str(j), wc)
 
-word_bits = 31
+word_bits = 15
 num_words = num_bits // word_bits
 
 for word_idx in range(num_words):
     for i in range(word_bits):
-        ctx.bitrect(i + word_idx * word_bits, 1, 6 + word_idx, str(i), red)
+        idx = i + word_idx * word_bits
+        ctx.bitrect(idx, 1, 4 + word_idx, str(idx % 32), red)
+
+for word_idx in range(num_words):
+    for i in range(word_bits):
+        idx = i + word_idx * word_bits
+        ctx.bitrect(idx, 1, 5 + word_idx, str((idx + 16) % 32), violet)
+
+for word_idx in range(num_words):
+    for i in range(word_bits):
+        idx = i + word_idx * word_bits
+        wsbidx = idx // word_bits * word_bits
+        eidx = idx % 32
+        oidx = (idx + 16) % 32
+        dwidx = idx // 32
+        edwidx = (idx + word_bits) // 32
+        if dwidx == edwidx:
+            bidx = eidx
+        else:
+            bidx = oidx
+        s = str(wsbidx)
+        ctx.bitrect(idx, 1, 6 + word_idx, s, orange)
 
 surface.finish()
 
