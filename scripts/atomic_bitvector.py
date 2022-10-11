@@ -32,3 +32,24 @@ def bitarray_access_info(idx, word_bits, t_bits):
     wswidx = inner_word_idx(wsbidx, t_bits)
     sb_idx = bit_idx(bidx, word_bits, t_bits)
     return (wswidx, sb_idx)
+
+
+def atomic_inner_bit_idx(bit_idx, word_bits):
+    return bit_idx // word_bits * word_bits
+
+
+def atomic_inner_word_idx(inner_bit_idx, t_bits):
+    return inner_bit_idx // t_bits
+
+
+def atomic_bit_idx(idx, word_bits, t_bits):
+    wsbidx = atomic_inner_bit_idx(idx, word_bits)
+    wswidx = atomic_inner_word_idx(wsbidx, t_bits)
+    return wsbidx
+
+
+def atomic_bitarray_access_info(idx, word_bits, t_bits):
+    bidx = idx * word_bits
+    sb_idx = atomic_inner_bit_idx(idx, word_bits)
+    wswidx = atomic_inner_word_idx(sb_idx, t_bits)
+    return (wswidx, sb_idx)

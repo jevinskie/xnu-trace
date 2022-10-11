@@ -10,7 +10,7 @@ from atomic_bitvector import *
 from attrs import define
 
 bit_sz = 32
-num_rows = 15
+num_rows = 20
 num_bits = 128
 canvas_width, canvas_height = (num_bits + 2) * bit_sz, (num_rows + 2) * bit_sz
 
@@ -75,33 +75,50 @@ surface = cairo.SVGSurface(svgio, canvas_width, canvas_height)
 surface.set_document_unit(cairo.SVG_UNIT_USER)
 ctx = BitContext(surface, bit_sz)
 
-for i in range(num_bits):
-    ctx.bitrect(i, 1, 0, str(i % 32))
+word_bits = 14
+t_bits = 16
+num_words = num_bits // word_bits
 
-for i, wi in enumerate(((8, orange), (16, blue), (32, green))):
+for i in range(num_bits):
+    # non-atomic
+    # ctx.bitrect(i, 1, 0, str(i % (2 * t_bits)))
+    # atomic
+    ctx.bitrect(i, 1, 0, str(i % (4 * t_bits)))
+
+# non atomic
+# for i, wi in enumerate(((8, orange), (16, blue), (32, green))):
+# atomic
+for i, wi in enumerate(((8, orange), (16, blue), (32, green), (64, violet))):
     wb, wc = wi[0], wi[1]
     nw = num_bits // wb
     for j in range(nw):
         ctx.bitrect(j, wb, i + 1, str(j), wc)
 
-word_bits = 15
-t_bits = 16
-num_words = num_bits // word_bits
+# NonAtomicBitVector
+# for word_idx in range(num_words):
+#     for i in range(word_bits):
+#         idx = i + word_idx * word_bits
+#         ctx.bitrect(idx, 1, 4 + word_idx, str(idx % 32), red)
 
+# for word_idx in range(num_words):
+#     for i in range(word_bits):
+#         idx = i + word_idx * word_bits
+#         ctx.bitrect(idx, 1, 5 + word_idx, str((idx + 16) % 32), violet)
+
+# for word_idx in range(num_words):
+#     for i in range(word_bits):
+#         idx = i + word_idx * word_bits
+#         bidx = bit_idx(idx, word_bits, t_bits)
+#         ctx.bitrect(idx, 1, 6 + word_idx, str(bidx), orange)
+#     widx, bidx = bitarray_access_info(word_idx, word_bits, t_bits)
+#     desc = f"[{widx} {bidx}:{bidx + word_bits - 1}]"
+#     ctx.bitrect(word_idx, word_bits, 7 + word_idx, desc, blue)
+
+# AtomicBitVector
 for word_idx in range(num_words):
     for i in range(word_bits):
         idx = i + word_idx * word_bits
-        ctx.bitrect(idx, 1, 4 + word_idx, str(idx % 32), red)
-
-for word_idx in range(num_words):
-    for i in range(word_bits):
-        idx = i + word_idx * word_bits
-        ctx.bitrect(idx, 1, 5 + word_idx, str((idx + 16) % 32), violet)
-
-for word_idx in range(num_words):
-    for i in range(word_bits):
-        idx = i + word_idx * word_bits
-        bidx = bit_idx(idx, word_bits, t_bits)
+        bidx = atomic_bit_idx(idx, word_bits, t_bits) + i
         ctx.bitrect(idx, 1, 6 + word_idx, str(bidx), orange)
     widx, bidx = bitarray_access_info(word_idx, word_bits, t_bits)
     desc = f"[{widx} {bidx}:{bidx + word_bits - 1}]"

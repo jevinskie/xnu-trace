@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from z3 import *
+from cvc5 import *
 
 
 def inner_bit_idx(bit_idx, word_bits):

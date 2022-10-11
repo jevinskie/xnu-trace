@@ -18,16 +18,11 @@ namespace xnutrace::BitVector {
 template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t eb) {
     const T high_mask = (T{1} << eb) - 1;
     const T low_mask  = (T{1} << sb) - 1;
-    const T mask      = high_mask ^ low_mask;
-    // fmt::print("bm({:d}, {:d}) = {:#018b}\n", sb, eb, mask);
-    // return high_mask ^ low_mask;
-    return mask;
+    return high_mask ^ low_mask;
 }
 
 template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t eb) {
-    const T res = (val & bit_mask<T>(sb, eb)) >> sb;
-    // fmt::print("eb({:d}, {:d}) = {:#018b}\n", sb, eb, res);
-    return res;
+    return (val & bit_mask<T>(sb, eb)) >> sb;
 }
 
 template <typename T>
@@ -71,13 +66,14 @@ private:
     std::vector<uint8_t> m_buf;
 };
 
-template <uint8_t NBits, bool Signed> class ExactBitVector : public BitVectorBase<NBits, Signed> {
+template <uint8_t NBits, bool Signed>
+class ExactBitVectorImpl : public BitVectorBase<NBits, Signed> {
 public:
     using Base = BitVectorBase<NBits, Signed>;
     using T    = typename Base::T;
     static_assert_cond(NBits >= 8 && is_pow2(NBits));
 
-    ExactBitVector(size_t sz) : Base(byte_sz(sz)) {}
+    ExactBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
     T get(size_t idx) const final override {
         return ((T *)Base::data())[idx];
@@ -93,7 +89,7 @@ public:
 };
 
 template <uint8_t NBits, bool Signed>
-class NonAtomicBitVector : public BitVectorBase<NBits, Signed> {
+class NonAtomicBitVectorImpl : public BitVectorBase<NBits, Signed> {
 public:
     using Base                      = BitVectorBase<NBits, Signed>;
     using T                         = typename Base::T;
@@ -102,7 +98,7 @@ public:
     static constexpr uint8_t DTBits = sizeofbits<DT>();
     static_assert_cond(NBits != 8 && NBits != 16 && NBits != 32);
 
-    NonAtomicBitVector(size_t sz) : Base(byte_sz(sz)) {}
+    NonAtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
     T get(size_t idx) const final override {
         T res;
@@ -159,7 +155,8 @@ public:
     }
 };
 
-template <uint8_t NBits, bool Signed> class AtomicBitVector : public BitVectorBase<NBits, Signed> {
+template <uint8_t NBits, bool Signed>
+class AtomicBitVectorImpl : public BitVectorBase<NBits, Signed> {
 public:
     using Base                      = BitVectorBase<NBits, Signed>;
     using T                         = typename Base::T;
@@ -168,7 +165,7 @@ public:
     static constexpr uint8_t QTBits = sizeofbits<QT>();
     static_assert_cond(NBits != 8 && NBits != 16 && NBits != 32);
 
-    AtomicBitVector(size_t sz) : Base(byte_sz(sz)) {}
+    AtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
     T get(size_t idx) const final override {
         return 0;
@@ -193,24 +190,24 @@ public:
     BitVector(uint8_t nbits, size_t sz) {
         if (nbits >= 8 && is_pow2(nbits)) {
             if (nbits == 8) {
-                m_bv = std::make_unique<ExactBitVector<8, Signed>>(sz);
+                m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
             } else if (nbits == 16) {
-                m_bv = std::make_unique<ExactBitVector<16, Signed>>(sz);
+                m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
             } else if (nbits == 32) {
-                m_bv = std::make_unique<ExactBitVector<32, Signed>>(sz);
+                m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
             }
         } else {
             const auto bit_tuple = hana::to_tuple(hana::range_c<uint8_t, 1, 32>);
             if constexpr (!AtomicWrite) {
                 hana::for_each(bit_tuple, [&](const auto n) {
                     if (n.value == nbits) {
-                        m_bv = std::make_unique<NonAtomicBitVector<n.value, Signed>>(sz);
+                        m_bv = std::make_unique<NonAtomicBitVectorImpl<NBitsMax, Signed>>(sz);
                     }
                 });
             } else {
                 hana::for_each(bit_tuple, [&](const auto n) {
                     if (n.value == nbits) {
-                        m_bv = std::make_unique<AtomicBitVector<n.value, Signed>>(sz);
+                        m_bv = std::make_unique<AtomicBitVectorImpl<NBitsMax, Signed>>(sz);
                     }
                 });
             }
@@ -233,13 +230,16 @@ template <uint8_t NBits, bool Signed = false>
 using BitVectorBase = xnutrace::BitVector::BitVectorBase<NBits, Signed>;
 
 template <uint8_t NBits, bool Signed = false>
-using ExactBitVector = xnutrace::BitVector::ExactBitVector<NBits, Signed>;
+using ExactBitVectorImpl = xnutrace::BitVector::ExactBitVectorImpl<NBits, Signed>;
 
 template <uint8_t NBits, bool Signed = false>
-using NonAtomicBitVector = xnutrace::BitVector::NonAtomicBitVector<NBits, Signed>;
+using NonAtomicBitVectorImpl = xnutrace::BitVector::NonAtomicBitVectorImpl<NBits, Signed>;
 
 template <uint8_t NBits, bool Signed = false>
-using AtomicBitVector = xnutrace::BitVector::AtomicBitVector<NBits, Signed>;
+using AtomicBitVectorImpl = xnutrace::BitVector::AtomicBitVectorImpl<NBits, Signed>;
 
 template <uint8_t NBits, bool Signed = false>
-using BitVector = xnutrace::BitVector::BitVector<NBits, Signed>;
+using BitVector = xnutrace::BitVector::BitVector<NBits, Signed, false>;
+
+template <uint8_t NBits, bool Signed = false>
+using AtomicBitVector = xnutrace::BitVector::BitVector<NBits, Signed, true>;
