@@ -100,15 +100,14 @@ for word_idx in range(num_words):
     for i in range(word_bits):
         idx = i + word_idx * word_bits
         wsbidx = idx // word_bits * word_bits
+        wswidx = wsbidx // 16
         eidx = idx % 32
         oidx = (idx + 16) % 32
-        dwidx = idx // 32
-        edwidx = (idx + word_bits) // 32
-        if dwidx == edwidx:
+        if wswidx % 2 == 0:
             bidx = eidx
         else:
             bidx = oidx
-        s = str(wsbidx)
+        s = str(bidx)
         ctx.bitrect(idx, 1, 6 + word_idx, s, orange)
 
 surface.finish()
