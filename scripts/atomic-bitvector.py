@@ -9,7 +9,7 @@ import cairocffi as cairo
 from attrs import define
 
 bit_sz = 32
-num_rows = 14
+num_rows = 15
 num_bits = 128
 canvas_width, canvas_height = (num_bits + 2) * bit_sz, (num_rows + 2) * bit_sz
 
@@ -84,6 +84,7 @@ for i, wi in enumerate(((8, orange), (16, blue), (32, green))):
         ctx.bitrect(j, wb, i + 1, str(j), wc)
 
 word_bits = 15
+t_bits = 16
 num_words = num_bits // word_bits
 
 for word_idx in range(num_words):
@@ -96,19 +97,28 @@ for word_idx in range(num_words):
         idx = i + word_idx * word_bits
         ctx.bitrect(idx, 1, 5 + word_idx, str((idx + 16) % 32), violet)
 
+
+def bit_idx(idx, word_bits, t_bits):
+    wsbidx = idx // word_bits * word_bits
+    wswidx = wsbidx // t_bits
+    eidx = idx % (2 * t_bits)
+    oidx = (idx + t_bits) % (2 * t_bits)
+    if wswidx % 2 == 0:
+        bidx = eidx
+    else:
+        bidx = oidx
+    return bidx
+
+
 for word_idx in range(num_words):
     for i in range(word_bits):
         idx = i + word_idx * word_bits
-        wsbidx = idx // word_bits * word_bits
-        wswidx = wsbidx // 16
-        eidx = idx % 32
-        oidx = (idx + 16) % 32
-        if wswidx % 2 == 0:
-            bidx = eidx
-        else:
-            bidx = oidx
-        s = str(bidx)
-        ctx.bitrect(idx, 1, 6 + word_idx, s, orange)
+        bidx = bit_idx(idx, word_bits, 16)
+        ctx.bitrect(idx, 1, 6 + word_idx, str(bidx), orange)
+    sb_idx = word_idx * word_bits
+    eb_idx = (word_idx + 1) * word_bits
+    print(f"lol sb_idx: {sb_idx} row: {7 + word_idx}")
+    ctx.bitrect(word_idx, word_bits, 7 + word_idx, "LOL", blue)
 
 surface.finish()
 
