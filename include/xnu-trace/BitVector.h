@@ -102,82 +102,54 @@ public:
     static constexpr uint8_t DTBits = sizeofbits<DT>();
     static_assert_cond(NBits != 8 && NBits != 16 && NBits != 32);
 
-    NonAtomicBitVector(size_t sz) : Base(byte_sz(sz)) {
-        fmt::print("NonAtomicBitVector NBits: {:d} sz: {:d} data: {:p}\n", NBits, sz,
-                   fmt::ptr(Base::data()));
-    }
+    NonAtomicBitVector(size_t sz) : Base(byte_sz(sz)) {}
 
     T get(size_t idx) const final override {
         T res;
-        const auto sw_idx  = start_word_idx(idx);
-        const auto ew_idx  = end_word_idx(idx);
-        const auto sdw_idx = sw_idx / 2;
-        const auto wptr    = &((T *)Base::data())[sw_idx];
-        const auto dwptr   = (DT *)wptr;
-        fmt::print("get idx: {:d} sw_idx: {:d} ew_idx: {:d} sdw_idx: {:d} wptr: {:p}\n", idx,
-                   sw_idx, ew_idx, sdw_idx, fmt::ptr(wptr));
-        // const DT mixed_dword     = ((DT *)Base::data())[sdw_idx];
-        const DT mixed_dword     = *dwptr;
-        const auto sd_bidx       = start_bit_idx(idx) % DTBits;
-        const auto ed_bidx       = end_bit_idx(idx) % DTBits;
-        const auto extracted_val = (T)extract_bits(mixed_dword, sd_bidx, ed_bidx);
+        const auto widx       = word_idx(idx);
+        const auto bidx       = inner_bit_idx(idx);
+        const auto wptr       = &((T *)Base::data())[widx];
+        const DT mixed_dword  = *(DT *)wptr;
+        const T extracted_val = (T)extract_bits(mixed_dword, bidx, bidx + NBits);
         if constexpr (!Signed) {
             res = extracted_val;
         } else {
             res = sign_extend(extracted_val, NBits);
         }
-        IC("get"s, idx, sw_idx, ew_idx, sdw_idx, wptr, sd_bidx, ed_bidx);
-        // fmt::print("sd_bidx: {:d} ed_bidx: {:d} res: {:#010x}\n", sd_bidx, ed_bidx, res);
-        fmt::print("get({:d}) = {:#018b}\n", idx, res);
         return res;
     }
 
     void set(size_t idx, T val) final override {
-        const auto sb_idx = start_bit_idx(idx);
-        const auto eb_idx = end_bit_idx(idx);
-        const auto sw_idx = start_word_idx(idx);
-        const auto ew_idx = end_word_idx(idx);
-        const auto wptr   = &((T *)Base::data())[sw_idx];
-        const auto dwptr  = (DT *)wptr;
-        // fmt::print(
-        //     "set idx: {:d} sw_idx: {:d} ew_idx: {:d} sdw_idx: {:d} ptr: {:p} val: {:#010x}\n",
-        //     idx, sw_idx, ew_idx, sdw_idx, fmt::ptr(ptr), val);
-        // const DT mixed_dword     = ((DT *)Base::data())[sdw_idx];
-        const DT mixed_dword     = *(DT *)dwptr;
-        const auto sd_bidx_uo    = start_bit_idx(idx) % DTBits;
-        const auto ed_bidx_uo    = end_bit_idx(idx) % DTBits;
-        const auto sd_bidx       = std::min(sd_bidx_uo, ed_bidx_uo);
-        const auto ed_bidx       = std::max(sd_bidx_uo, ed_bidx_uo);
-        const DT new_mixed_dword = insert_bits(mixed_dword, val, sd_bidx, NBits);
-        *dwptr                   = new_mixed_dword;
-        IC("set"s, idx, sb_idx, eb_idx, sw_idx, ew_idx, wptr, sd_bidx, ed_bidx);
-        fmt::print("val:             {:#018b}\n", val);
-        fmt::print("mixed_dword:     {:#034b}\n", mixed_dword);
-        fmt::print("new_mixed_dword: {:#034b}\n", new_mixed_dword);
+        const auto widx          = word_idx(idx);
+        const auto bidx          = inner_bit_idx(idx);
+        const auto wptr          = &((T *)Base::data())[widx];
+        const DT mixed_dword     = *(DT *)wptr;
+        const DT new_mixed_dword = insert_bits(mixed_dword, val, bidx, NBits);
+        *(DT *)wptr              = new_mixed_dword;
     }
 
-    static constexpr size_t start_bit_idx(size_t idx) {
+    static constexpr size_t bit_idx(size_t idx) {
         return NBits * idx;
     }
 
-    static constexpr size_t end_bit_idx(size_t idx) {
-        return NBits * (idx + 1);
+    static constexpr size_t word_idx(size_t idx) {
+        return bit_idx(idx) / TBits;
     }
 
-    static constexpr size_t start_word_idx(size_t idx) {
-        return start_bit_idx(idx) / TBits;
+    static constexpr size_t even_inner_bit_idx(size_t idx) {
+        return bit_idx(idx) % (2 * TBits);
     }
 
-    static constexpr size_t end_word_idx(size_t idx) {
-        return end_bit_idx(idx) / TBits;
+    static constexpr size_t odd_inner_bit_idx(size_t idx) {
+        return (bit_idx(idx) + TBits) % (2 * TBits);
     }
 
-    static constexpr size_t start_dword_idx(size_t idx) {
-        return start_bit_idx(idx) / DTBits;
-    }
-
-    static constexpr size_t end_dword_idx(size_t idx) {
-        return end_bit_idx(idx) / DTBits;
+    static constexpr size_t inner_bit_idx(size_t idx) {
+        if (word_idx(idx) % 2 == 0) {
+            return even_inner_bit_idx(idx);
+        } else {
+            return odd_inner_bit_idx(idx);
+        }
     }
 
     static constexpr size_t byte_sz(size_t sz) {
