@@ -6,6 +6,7 @@ import colorsys
 import io
 
 import cairocffi as cairo
+from atomic_bitvector import *
 from attrs import define
 
 bit_sz = 32
@@ -97,47 +98,13 @@ for word_idx in range(num_words):
         idx = i + word_idx * word_bits
         ctx.bitrect(idx, 1, 5 + word_idx, str((idx + 16) % 32), violet)
 
-
-def inner_bit_idx(bit_idx, word_bits):
-    return bit_idx // word_bits * word_bits
-
-
-def inner_word_idx(inner_bit_idx, t_bits):
-    return inner_bit_idx // t_bits
-
-
-def even_bit_idx(idx, t_bits):
-    return idx % (2 * t_bits)
-
-
-def odd_bit_idx(idx, t_bits):
-    return (idx + t_bits) % (2 * t_bits)
-
-
-def bit_idx(idx, word_bits, t_bits):
-    wsbidx = inner_bit_idx(idx, word_bits)
-    wswidx = inner_word_idx(wsbidx, t_bits)
-    eidx = even_bit_idx(idx, t_bits)
-    oidx = odd_bit_idx(idx, t_bits)
-    if wswidx % 2 == 0:
-        bidx = eidx
-    else:
-        bidx = oidx
-    return bidx
-
-
 for word_idx in range(num_words):
     for i in range(word_bits):
         idx = i + word_idx * word_bits
         bidx = bit_idx(idx, word_bits, t_bits)
         ctx.bitrect(idx, 1, 6 + word_idx, str(bidx), orange)
-    sb_idx = word_idx * word_bits
-    wsbidx = inner_bit_idx(sb_idx, word_bits)
-    wswidx = inner_word_idx(wsbidx, t_bits)
-    eb_idx = (word_idx + 1) * word_bits - 1
-    sb_idx = bit_idx(sb_idx, word_bits, t_bits)
-    eb_idx = sb_idx + word_bits - 1
-    desc = f"[{wswidx} {sb_idx}:{eb_idx}]"
+    widx, bidx = bitarray_access_info(word_idx, word_bits, t_bits)
+    desc = f"[{widx} {bidx}:{bidx + word_bits - 1}]"
     ctx.bitrect(word_idx, word_bits, 7 + word_idx, desc, blue)
 
 surface.finish()
