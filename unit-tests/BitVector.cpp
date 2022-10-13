@@ -86,10 +86,23 @@ TEST_CASE("non_atomic_smol_all_ones", TS) {
     }
 }
 
-TEST_CASE("non_atomic_mid_all_ones", TS) {
-    constexpr uint8_t nbits = 15;
+TEST_CASE("non_atomic_mid_all_ones_impl", TS) {
+    constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 4;
-    auto bv                 = BitVector<32, false>(nbits, sz);
+    auto bv                 = NonAtomicBitVectorImpl<nbits, false>(sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, BV::bit_mask<uint32_t>(0, nbits));
+    }
+
+    for (size_t i = 0; i < sz; ++i) {
+        REQUIRE(bv.get(i) == BV::bit_mask<uint32_t>(0, nbits));
+    }
+}
+
+TEST_CASE("non_atomic_mid_all_ones", TS) {
+    constexpr uint8_t nbits = 31;
+    constexpr size_t sz     = 4;
+    auto bv                 = BitVector<nbits, false>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
         bv.set(i, BV::bit_mask<uint32_t>(0, nbits));
     }

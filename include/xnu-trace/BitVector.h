@@ -189,13 +189,13 @@ public:
     static_assert_cond(NBitsMax > 0 && NBitsMax <= 32);
     BitVector(uint8_t nbits, size_t sz) {
         if (nbits >= 8 && is_pow2(nbits)) {
-            if (nbits == 8) {
-                m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
-            } else if (nbits == 16) {
-                m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
-            } else if (nbits == 32) {
-                m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
-            }
+            // if (nbits == 8) {
+            //     m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
+            // } else if (nbits == 16) {
+            //     m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
+            // } else if (nbits == 32) {
+            //     m_bv = std::make_unique<ExactBitVectorImpl<NBitsMax, Signed>>(sz);
+            // }
         } else {
             const auto bit_tuple = hana::to_tuple(hana::range_c<uint8_t, 1, 32>);
             if constexpr (!AtomicWrite) {
