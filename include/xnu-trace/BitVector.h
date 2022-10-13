@@ -25,10 +25,10 @@ template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t
     return (val & bit_mask<T>(sb, eb)) >> sb;
 }
 
-template <typename T>
-static constexpr T insert_bits(T orig_val, auto insert_val, uint8_t sb, uint8_t nbits) {
+template <typename T, typename IT>
+static constexpr T insert_bits(T orig_val, IT insert_val, uint8_t sb, uint8_t nbits) {
     const T orig_val_cleared = orig_val & ~bit_mask<T>(sb, sb + nbits);
-    return orig_val_cleared | (insert_val << sb);
+    return orig_val_cleared | (T{insert_val} << sb);
 }
 
 template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {

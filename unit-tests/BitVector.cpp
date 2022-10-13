@@ -51,13 +51,13 @@ TEST_CASE("extract_bits", TS) {
 }
 
 TEST_CASE("insert_bits", TS) {
-    REQUIRE(BV::insert_bits<uint32_t>(0, 0b1, 0, 1) == 0b1);
-    REQUIRE(BV::insert_bits<uint32_t>(0, 0b10, 1, 2) == 0b100);
-    REQUIRE(BV::insert_bits<uint32_t>(0, 0b1000'0000, 1, 8) == 0b1'0000'0000);
+    REQUIRE(BV::insert_bits<uint32_t>(0, 0b1u, 0, 1) == 0b1);
+    REQUIRE(BV::insert_bits<uint32_t>(0, 0b10u, 1, 2) == 0b100);
+    REQUIRE(BV::insert_bits<uint32_t>(0, 0b1000'0000u, 1, 8) == 0b1'0000'0000);
 
-    REQUIRE(BV::insert_bits<uint32_t>(1, 0b11, 1, 2) == 0b111);
-    REQUIRE(BV::insert_bits<uint32_t>(1, 0b110, 1, 3) == 0b1101);
-    REQUIRE(BV::insert_bits<uint32_t>(1, 0b1'1000'0000, 1, 9) == 0b1'1000'00001);
+    REQUIRE(BV::insert_bits<uint32_t>(1, 0b11u, 1, 2) == 0b111);
+    REQUIRE(BV::insert_bits<uint32_t>(1, 0b110u, 1, 3) == 0b1101);
+    REQUIRE(BV::insert_bits<uint32_t>(1, 0b1'1000'0000u, 1, 9) == 0b1'1000'00001);
 }
 
 TEST_CASE("exact", TS) {
