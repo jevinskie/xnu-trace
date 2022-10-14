@@ -62,7 +62,7 @@ TEST_CASE("insert_bits", TS) {
 
 TEST_CASE("exact_impl", TS) {
     constexpr uint8_t nbits = 16;
-    constexpr size_t sz     = 16;
+    constexpr size_t sz     = 8;
     auto bv                 = ExactBitVectorImpl<nbits, false>(sz);
     for (size_t i = 0; i < sz; ++i) {
         bv.set(i, hash_n(nbits, i));
@@ -75,7 +75,7 @@ TEST_CASE("exact_impl", TS) {
 
 TEST_CASE("exact", TS) {
     constexpr uint8_t nbits = 16;
-    constexpr size_t sz     = 16;
+    constexpr size_t sz     = 8;
     auto bv                 = BitVector<nbits, false>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
         bv.set(i, hash_n(nbits, i));
@@ -83,6 +83,19 @@ TEST_CASE("exact", TS) {
 
     for (size_t i = 0; i < sz; ++i) {
         REQUIRE(bv.get(i) == hash_n(nbits, i));
+    }
+}
+
+TEST_CASE("exact_signed", TS) {
+    constexpr uint8_t nbits = 32;
+    constexpr size_t sz     = 8;
+    auto bv                 = BitVector<32, true>(nbits, sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, make_signed_v(i) - (sz / 2));
+    }
+
+    for (size_t i = 0; i < sz; ++i) {
+        REQUIRE(bv.get(i) == make_signed_v(i) - (sz / 2));
     }
 }
 
@@ -122,6 +135,19 @@ TEST_CASE("non_atomic_mid_all_ones", TS) {
 
     for (size_t i = 0; i < sz; ++i) {
         REQUIRE(bv.get(i) == BV::bit_mask<uint32_t>(0, nbits));
+    }
+}
+
+TEST_CASE("non_atomic_mid_signed", TS) {
+    constexpr uint8_t nbits = 31;
+    constexpr size_t sz     = 8;
+    auto bv                 = BitVector<nbits, true>(nbits, sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, make_signed_v(i) - (sz / 2));
+    }
+
+    for (size_t i = 0; i < sz; ++i) {
+        REQUIRE(bv.get(i) == make_signed_v(i) - (sz / 2));
     }
 }
 

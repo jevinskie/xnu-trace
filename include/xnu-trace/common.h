@@ -10,8 +10,6 @@
 
 using namespace std::string_literals;
 
-#define static_assert_cond(cond) static_assert((cond), #cond)
-
 template <typename T> consteval size_t sizeofbits() {
     return sizeof(T) * 8;
 }
@@ -72,3 +70,7 @@ using sint_n = std::conditional_t<
 
 template <size_t NBits, bool Signed>
 using int_n = std::conditional_t<Signed, sint_n<NBits>, uint_n<NBits>>;
+
+constexpr auto make_signed_v(auto val) {
+    return std::make_signed_t<decltype(val)>(val);
+}

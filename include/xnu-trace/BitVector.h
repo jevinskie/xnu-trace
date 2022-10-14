@@ -28,7 +28,7 @@ template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t
 template <typename T, typename IT>
 static constexpr T insert_bits(T orig_val, IT insert_val, uint8_t sb, uint8_t nbits) {
     const T orig_val_cleared = orig_val & ~bit_mask<T>(sb, sb + nbits);
-    return orig_val_cleared | (T{insert_val} << sb);
+    return orig_val_cleared | (T(insert_val) << sb);
 }
 
 template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {
@@ -38,12 +38,13 @@ template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {
 
 template <bool Signed = false, uint8_t RTBits_ = 32> class BitVectorBase {
 public:
-    static_assert_cond(RTBits_ >= 8 && RTBits_ <= 64 && is_pow2(RTBits_));
-    using RT                             = int_n<RTBits_, Signed>;
-    static constexpr size_t RTBits       = sizeofbits<RT>();
+    static_assert(RTBits_ >= 8 && RTBits_ <= 64 && is_pow2(RTBits_));
+    using RT                       = int_n<RTBits_, Signed>;
+    static constexpr size_t RTBits = sizeofbits<RT>();
+
+    virtual ~BitVectorBase() {}
     virtual RT get(size_t idx) const     = 0;
     virtual void set(size_t idx, RT val) = 0;
-    virtual ~BitVectorBase() {}
 
 protected:
     BitVectorBase(size_t byte_sz) : m_buf(byte_sz) {}
@@ -72,16 +73,16 @@ public:
     using RT   = typename Base::RT;
     using T    = int_n<NBits, Signed>;
     static_assert(NBits <= Base::RTBits);
-    static_assert_cond(NBits >= 8 && is_pow2(NBits));
+    static_assert(NBits >= 8 && is_pow2(NBits));
 
     ExactBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
     RT get(size_t idx) const final override {
-        return (RT)((T *)Base::data())[idx];
+        return ((T *)Base::data())[idx];
     }
 
     void set(size_t idx, RT val) final override {
-        ((T *)Base::data())[idx] = (T)val;
+        ((T *)Base::data())[idx] = T(val);
     }
 
     static constexpr size_t byte_sz(size_t sz) {
@@ -97,8 +98,8 @@ public:
     static constexpr size_t TBits   = sizeofbits<T>();
     using DT                        = uint_n<sizeofbits<T>() * 2>;
     static constexpr uint8_t DTBits = sizeofbits<DT>();
-    static_assert_cond(NBits <= Base::RTBits);
-    static_assert_cond(NBits != 8 && NBits != 16 && NBits != 32);
+    static_assert(NBits <= Base::RTBits);
+    static_assert(NBits != 8 && NBits != 16 && NBits != 32);
 
     NonAtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
@@ -114,7 +115,7 @@ public:
         } else {
             res = sign_extend(extracted_val, NBits);
         }
-        return (RT)res;
+        return res;
     }
 
     void set(size_t idx, RT val) final override {
@@ -122,7 +123,7 @@ public:
         const auto bidx          = inner_bit_idx(idx);
         const auto wptr          = &((T *)Base::data())[widx];
         const DT mixed_dword     = *(DT *)wptr;
-        const DT new_mixed_dword = insert_bits(mixed_dword, (T)val, bidx, NBits);
+        const DT new_mixed_dword = insert_bits(mixed_dword, T(val), bidx, NBits);
         *(DT *)wptr              = new_mixed_dword;
     }
 
@@ -165,16 +166,18 @@ public:
     static constexpr size_t TBits   = sizeofbits<T>();
     using QT                        = std::atomic<uint_n<sizeofbits<T>() * 4>>;
     static constexpr uint8_t QTBits = sizeofbits<QT>();
-    static_assert_cond(NBits <= Base::RTBits);
-    static_assert_cond(NBits != 8 && NBits != 16 && NBits != 32);
+    static_assert(NBits <= Base::RTBits);
+    static_assert(NBits != 8 && NBits != 16 && NBits != 32);
 
     AtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
     RT get(size_t idx) const final override {
+        assert(!"AtomicBitVectorImpl::get() not implemented");
         return 0;
     }
 
     void set(size_t idx, RT val) final override {
+        assert(!"AtomicBitVectorImpl::set() not implemented");
         return;
     }
 
@@ -189,7 +192,7 @@ template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false>
 class XNUTRACE_EXPORT BitVector {
 public:
     using T = int_n<NBitsMax, Signed>;
-    static_assert_cond(NBitsMax > 0 && NBitsMax <= 32);
+    static_assert(NBitsMax > 0 && NBitsMax <= 32);
     BitVector(uint8_t nbits, size_t sz) {
         assert(nbits > 0 && nbits <= NBitsMax);
         if (nbits >= 8 && nbits <= 32 && is_pow2(nbits)) {
