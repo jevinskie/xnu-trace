@@ -35,7 +35,7 @@ public:
         using pointer           = const log_msg *;
         using reference         = const log_msg &;
 
-        iterator(pointer ptr) : m_ptr(ptr) {}
+        iterator(pointer ptr, pointer end) : m_ptr(ptr), m_end(end) {}
 
         reference operator*() const {
             return *m_ptr;
@@ -45,7 +45,7 @@ public:
         }
         iterator &operator++() {
             m_ptr = (pointer)((uintptr_t)m_ptr + m_ptr->size());
-            if (m_ptr->is_sync_frame()) {
+            if (XNUTRACE_LIKELY(m_ptr != m_end) && XNUTRACE_UNLIKELY(m_ptr->is_sync_frame())) {
                 // sync frame guaranteed to be followed by non-sync
                 m_ptr = (pointer)((uintptr_t)m_ptr + m_ptr->size());
             }
@@ -65,11 +65,13 @@ public:
 
     private:
         pointer m_ptr{};
+        pointer m_end{};
     };
 
     class ctx_iterator : public iterator {
     public:
-        ctx_iterator(pointer ptr, const log_arm64_cpu_context *ctx) : iterator(ptr) {
+        ctx_iterator(pointer ptr, pointer end, const log_arm64_cpu_context *ctx)
+            : iterator(ptr, end) {
             if (ctx) {
                 memcpy(&m_ctx, &ctx, sizeof(m_ctx));
             }
@@ -94,7 +96,7 @@ public:
 
     class pc_iterator : public iterator {
     public:
-        pc_iterator(pointer ptr, uint64_t pc) : iterator(ptr), m_pc{pc} {}
+        pc_iterator(pointer ptr, pointer end, uint64_t pc) : iterator(ptr, end), m_pc{pc} {}
         pc_iterator(iterator it, uint64_t pc) : iterator(it), m_pc{pc} {}
         iterator &operator++() {
             auto &res = iterator::operator++();
@@ -130,25 +132,32 @@ public:
         return res;
     }
 
+    log_msg *pointer_begin() const {
+        return (log_msg *)m_buf.data();
+    }
+    log_msg *pointer_end() const {
+        return (log_msg *)(m_buf.data() + m_buf.size());
+    }
+
     iterator begin() const {
-        return iterator((log_msg *)m_buf.data());
+        return iterator(pointer_begin(), pointer_end());
     }
     iterator end() const {
-        return iterator((log_msg *)(m_buf.data() + m_buf.size()));
+        return iterator(pointer_end(), pointer_end());
     }
 
     ctx_iterator ctx_begin() const {
-        return ctx_iterator((log_msg *)m_buf.data(), front().sync_ctx());
+        return ctx_iterator(pointer_begin(), pointer_end(), front().sync_ctx());
     }
     ctx_iterator ctx_end() const {
-        return ctx_iterator((log_msg *)(m_buf.data() + m_buf.size()), nullptr);
+        return ctx_iterator(pointer_end(), pointer_end(), nullptr);
     }
 
     pc_iterator pcs_begin() const {
-        return pc_iterator((log_msg *)m_buf.data(), front().sync_ctx()->pc);
+        return pc_iterator(pointer_begin(), pointer_end(), front().sync_ctx()->pc);
     }
     pc_iterator pcs_end() const {
-        return pc_iterator((log_msg *)(m_buf.data() + m_buf.size()), 0);
+        return pc_iterator(pointer_end(), pointer_end(), 0);
     }
 
     std::vector<iterator> chunk_into_bins(uint32_t n) {

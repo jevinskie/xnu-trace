@@ -186,6 +186,6 @@ static void BM_NonAtomicBitVector(benchmark::State &state) {
     }
 }
 
-BENCHMARK(BM_NonAtomicBitVectorImpl);
+BENCHMARK(BM_NonAtomicBitVector);
 
 BENCHMARK_MAIN();
