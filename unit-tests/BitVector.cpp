@@ -60,7 +60,7 @@ TEST_CASE("insert_bits", TS) {
     REQUIRE(BV::insert_bits<uint32_t>(1, 0b1'1000'0000u, 1, 9) == 0b1'1000'00001);
 }
 
-TEST_CASE("exact", TS) {
+TEST_CASE("exact_impl", TS) {
     constexpr uint8_t nbits = 16;
     constexpr size_t sz     = 16;
     auto bv                 = ExactBitVectorImpl<nbits, false>(sz);
@@ -73,7 +73,20 @@ TEST_CASE("exact", TS) {
     }
 }
 
-TEST_CASE("non_atomic_smol_all_ones", TS) {
+TEST_CASE("exact", TS) {
+    constexpr uint8_t nbits = 16;
+    constexpr size_t sz     = 16;
+    auto bv                 = BitVector<nbits, false>(nbits, sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, hash_n(nbits, i));
+    }
+
+    for (size_t i = 0; i < sz; ++i) {
+        REQUIRE(bv.get(i) == hash_n(nbits, i));
+    }
+}
+
+TEST_CASE("non_atomic_smol_all_ones_impl", TS) {
     constexpr uint8_t nbits = 15;
     constexpr size_t sz     = 4;
     auto bv                 = NonAtomicBitVectorImpl<nbits, false>(sz);
