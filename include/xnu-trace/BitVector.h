@@ -172,11 +172,14 @@ public:
     AtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
     RT get(size_t idx) const final override {
+        (void)idx;
         assert(!"AtomicBitVectorImpl::get() not implemented");
         return 0;
     }
 
     void set(size_t idx, RT val) final override {
+        (void)idx;
+        (void)val;
         assert(!"AtomicBitVectorImpl::set() not implemented");
         return;
     }

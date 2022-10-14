@@ -150,4 +150,42 @@ static void BM_mach_approximate_time(benchmark::State &state) {
 
 BENCHMARK(BM_mach_approximate_time);
 
+static uint64_t hash_n(uint8_t nbits, uint64_t val) {
+    return xxhash3_64::hash(val) & xnutrace::BitVector::bit_mask<uint64_t>(0, nbits);
+}
+
+static void BM_NonAtomicBitVectorImpl(benchmark::State &state) {
+    constexpr uint8_t nbits = 31;
+    constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
+    auto bv                 = NonAtomicBitVectorImpl<nbits, false>(sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, hash_n(i, nbits));
+    }
+
+    size_t i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(bv.get(i % sz));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_NonAtomicBitVectorImpl);
+
+static void BM_NonAtomicBitVector(benchmark::State &state) {
+    constexpr uint8_t nbits = 31;
+    constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
+    auto bv                 = BitVector<nbits, false>(nbits, sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, hash_n(i, nbits));
+    }
+
+    size_t i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(bv.get(i % sz));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_NonAtomicBitVectorImpl);
+
 BENCHMARK_MAIN();
