@@ -8,7 +8,7 @@ static std::map<std::string, os_log_t> s_log_categories;
 static void post(os_log_t log, os_signpost_type_t type, os_signpost_id_t id, const char *name,
                  const char *msg) {
     uint8_t __attribute__((uninitialized, aligned(16)))
-    os_fmt_buf[__builtin_os_log_format_buffer_size("%s")];
+    os_fmt_buf[__builtin_os_log_format_buffer_size("%s", msg)];
     _os_signpost_emit_with_name_impl(&__dso_handle, log, type, id, name, "%s",
                                      (uint8_t *)__builtin_os_log_format(os_fmt_buf, "%s", msg),
                                      sizeof(os_fmt_buf));
