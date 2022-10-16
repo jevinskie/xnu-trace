@@ -76,26 +76,26 @@ TEST_CASE("exact_impl", TS) {
 TEST_CASE("exact", TS) {
     constexpr uint8_t nbits = 16;
     constexpr size_t sz     = 8;
-    auto bv                 = BitVector<nbits, false>(nbits, sz);
+    auto bv                 = BitVectorFactory<nbits, false>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
-        bv.set(i, hash_n(nbits, i));
+        bv->set(i, hash_n(nbits, i));
     }
 
     for (size_t i = 0; i < sz; ++i) {
-        REQUIRE(bv.get(i) == hash_n(nbits, i));
+        REQUIRE(bv->get(i) == hash_n(nbits, i));
     }
 }
 
 TEST_CASE("exact_signed", TS) {
     constexpr uint8_t nbits = 32;
     constexpr size_t sz     = 8;
-    auto bv                 = BitVector<32, true>(nbits, sz);
+    auto bv                 = BitVectorFactory<32, true>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
-        bv.set(i, make_signed_v(i) - (sz / 2));
+        bv->set(i, make_signed_v(i) - (sz / 2));
     }
 
     for (size_t i = 0; i < sz; ++i) {
-        REQUIRE(bv.get(i) == make_signed_v(i) - (sz / 2));
+        REQUIRE(bv->get(i) == make_signed_v(i) - (sz / 2));
     }
 }
 
@@ -128,26 +128,26 @@ TEST_CASE("non_atomic_mid_all_ones_impl", TS) {
 TEST_CASE("non_atomic_mid_all_ones", TS) {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 4;
-    auto bv                 = BitVector<nbits, false>(nbits, sz);
+    auto bv                 = BitVectorFactory<nbits, false>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
-        bv.set(i, BV::bit_mask<uint32_t>(0, nbits));
+        bv->set(i, BV::bit_mask<uint32_t>(0, nbits));
     }
 
     for (size_t i = 0; i < sz; ++i) {
-        REQUIRE(bv.get(i) == BV::bit_mask<uint32_t>(0, nbits));
+        REQUIRE(bv->get(i) == BV::bit_mask<uint32_t>(0, nbits));
     }
 }
 
 TEST_CASE("non_atomic_mid_signed", TS) {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 8;
-    auto bv                 = BitVector<nbits, true>(nbits, sz);
+    auto bv                 = BitVectorFactory<nbits, true>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
-        bv.set(i, make_signed_v(i) - (sz / 2));
+        bv->set(i, make_signed_v(i) - (sz / 2));
     }
 
     for (size_t i = 0; i < sz; ++i) {
-        REQUIRE(bv.get(i) == make_signed_v(i) - (sz / 2));
+        REQUIRE(bv->get(i) == make_signed_v(i) - (sz / 2));
     }
 }
 

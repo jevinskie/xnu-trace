@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <set>
+#include <type_traits>
 
 #include <mach/mach_time.h>
 
@@ -174,14 +175,16 @@ BENCHMARK(BM_NonAtomicBitVectorImpl);
 static void BM_NonAtomicBitVector(benchmark::State &state) {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
-    auto bv                 = BitVector<nbits, false>(nbits, sz);
+    auto bv                 = BitVectorFactory<nbits, false>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
-        bv.set(i, hash_n(i, nbits));
+        bv->set(i, hash_n(i, nbits));
     }
 
-    size_t i = 0;
+    const auto cbv = std::add_const_t<decltype(bv.get())>(bv.get());
+    size_t i       = 0;
     for (auto _ : state) {
-        benchmark::DoNotOptimize(bv.get(i % sz));
+        benchmark::DoNotOptimize(cbv->get(i % sz));       // loads fptr from vtable
+        benchmark::DoNotOptimize(cbv->get((i + 1) % sz)); // reuses loaded fptr
         ++i;
     }
 }
