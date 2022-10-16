@@ -14,30 +14,28 @@ template <int Num> struct NumberDerived : NumberBase {
     }
 };
 
-struct Number {
-    Number(int num) {
-        assert(num >= 0 && num < 4);
-        switch (num) {
-        case 0:
-            m_bv = std::make_unique<NumberDerived<0>>();
-            break;
-        case 1:
-            m_bv = std::make_unique<NumberDerived<1>>();
-            break;
-        case 2:
-            m_bv = std::make_unique<NumberDerived<2>>();
-            break;
-        case 3:
-            m_bv = std::make_unique<NumberDerived<3>>();
-            break;
-        default:
-            __builtin_unreachable();
-        }
+std::unique_ptr<NumberBase> NumberFactory(int num) {
+    assert(num >= 0 && num < 4);
+    switch (num) {
+    case 0:
+        return std::make_unique<NumberDerived<0>>();
+    case 1:
+        return std::make_unique<NumberDerived<1>>();
+    case 2:
+        return std::make_unique<NumberDerived<2>>();
+    case 3:
+        return std::make_unique<NumberDerived<3>>();
+    default:
+        return {};
     }
-    void print(int addend) const {
+}
+
+struct Number {
+    Number(int num) : m_bv(NumberFactory(num)) {}
+    __attribute__((always_inline)) void print(int addend) const {
         m_bv->print(addend);
     }
-    std::unique_ptr<NumberBase> m_bv;
+    const std::unique_ptr<NumberBase> m_bv;
 };
 
 __attribute__((noinline)) void call_print_bad(const Number &number) {
