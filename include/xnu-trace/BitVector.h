@@ -36,18 +36,18 @@ template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {
     return (val ^ msb) - msb;
 }
 
-template <bool Signed = false, uint8_t RTBits_ = 32> class BitVector {
+template <bool Signed = false, uint8_t RTBits_ = 32> class BitVectorBase {
 public:
     static_assert(RTBits_ >= 8 && RTBits_ <= 64 && is_pow2(RTBits_));
     using RT                       = int_n<RTBits_, Signed>;
     static constexpr size_t RTBits = sizeofbits<RT>();
 
-    virtual ~BitVector() {}
-    virtual RT get(size_t idx) const     = 0;
-    virtual void set(size_t idx, RT val) = 0;
+    virtual ~BitVectorBase() {}
+    virtual RT get(size_t idx) const noexcept     = 0;
+    virtual void set(size_t idx, RT val) noexcept = 0;
 
 protected:
-    BitVector(size_t byte_sz) : m_buf(byte_sz) {}
+    BitVectorBase(size_t byte_sz) : m_buf(byte_sz) {}
 
     std::vector<uint8_t> &buf() {
         return m_buf;
@@ -67,9 +67,9 @@ private:
     std::vector<uint8_t> m_buf;
 };
 
-template <uint8_t NBits, bool Signed> class ExactBitVectorImpl : public BitVector<Signed> {
+template <uint8_t NBits, bool Signed> class ExactBitVectorImpl : public BitVectorBase<Signed> {
 public:
-    using Base = BitVector<Signed>;
+    using Base = BitVectorBase<Signed>;
     using RT   = typename Base::RT;
     using T    = int_n<NBits, Signed>;
     static_assert(NBits <= Base::RTBits);
@@ -77,11 +77,11 @@ public:
 
     ExactBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
-    RT get(size_t idx) const final override {
+    RT get(size_t idx) const noexcept final override {
         return ((T *)Base::data())[idx];
     }
 
-    void set(size_t idx, RT val) final override {
+    void set(size_t idx, RT val) noexcept final override {
         ((T *)Base::data())[idx] = T(val);
     }
 
@@ -90,9 +90,9 @@ public:
     }
 };
 
-template <uint8_t NBits, bool Signed> class NonAtomicBitVectorImpl : public BitVector<Signed> {
+template <uint8_t NBits, bool Signed> class NonAtomicBitVectorImpl : public BitVectorBase<Signed> {
 public:
-    using Base                      = BitVector<Signed>;
+    using Base                      = BitVectorBase<Signed>;
     using RT                        = typename Base::RT;
     using T                         = int_n<NBits, Signed>;
     static constexpr size_t TBits   = sizeofbits<T>();
@@ -103,7 +103,7 @@ public:
 
     NonAtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
-    RT get(size_t idx) const final override {
+    RT get(size_t idx) const noexcept final override {
         T res;
         const auto widx       = word_idx(idx);
         const auto bidx       = inner_bit_idx(idx);
@@ -118,7 +118,7 @@ public:
         return res;
     }
 
-    void set(size_t idx, RT val) final override {
+    void set(size_t idx, RT val) noexcept final override {
         const auto widx          = word_idx(idx);
         const auto bidx          = inner_bit_idx(idx);
         const auto wptr          = &((T *)Base::data())[widx];
@@ -158,9 +158,9 @@ public:
     }
 };
 
-template <uint8_t NBits, bool Signed> class AtomicBitVectorImpl : public BitVector<Signed> {
+template <uint8_t NBits, bool Signed> class AtomicBitVectorImpl : public BitVectorBase<Signed> {
 public:
-    using Base                      = BitVector<Signed>;
+    using Base                      = BitVectorBase<Signed>;
     using RT                        = typename Base::RT;
     using T                         = int_n<NBits, Signed>;
     static constexpr size_t TBits   = sizeofbits<T>();
@@ -171,13 +171,13 @@ public:
 
     AtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
 
-    RT get(size_t idx) const final override {
+    RT get(size_t idx) const noexcept final override {
         (void)idx;
         assert(!"AtomicBitVectorImpl::get() not implemented");
         return 0;
     }
 
-    void set(size_t idx, RT val) final override {
+    void set(size_t idx, RT val) noexcept final override {
         (void)idx;
         (void)val;
         assert(!"AtomicBitVectorImpl::set() not implemented");
@@ -192,10 +192,10 @@ public:
 };
 
 template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false>
-std::unique_ptr<BitVector<Signed>> BitVectorFactory(uint8_t nbits, size_t sz) {
+std::unique_ptr<BitVectorBase<Signed>> BitVectorFactory(uint8_t nbits, size_t sz) {
     static_assert(NBitsMax > 0 && NBitsMax <= 32);
     assert(nbits > 0 && nbits <= NBitsMax);
-    std::unique_ptr<BitVector<Signed>> res;
+    std::unique_ptr<BitVectorBase<Signed>> res;
     if (nbits >= 8 && nbits <= 32 && is_pow2(nbits)) {
         if (nbits == 8) {
             res = std::make_unique<ExactBitVectorImpl<8, Signed>>(sz);
@@ -229,7 +229,7 @@ std::unique_ptr<BitVector<Signed>> BitVectorFactory(uint8_t nbits, size_t sz) {
 
 } // namespace xnutrace::BitVector
 
-template <bool Signed = false> using BitVector = xnutrace::BitVector::BitVector<Signed>;
+template <bool Signed = false> using BitVector = xnutrace::BitVector::BitVectorBase<Signed>;
 
 template <uint8_t NBits, bool Signed = false>
 using ExactBitVectorImpl = xnutrace::BitVector::ExactBitVectorImpl<NBits, Signed>;

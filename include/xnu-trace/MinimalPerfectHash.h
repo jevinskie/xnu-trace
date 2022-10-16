@@ -7,32 +7,32 @@
 
 struct xxhash_64 {
     using type = uint64_t;
-    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0);
+    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0) noexcept;
 };
 
 struct xxhash_32 {
     using type = uint32_t;
-    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0);
+    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0) noexcept;
 };
 
 struct xxhash3_64 {
     using type = uint64_t;
-    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0);
+    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0) noexcept;
 };
 
 struct xxhash3_32 {
     using type = uint32_t;
-    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0);
+    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0) noexcept;
 };
 
 struct jevhash_64 {
     using type = uint64_t;
-    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0);
+    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0) noexcept;
 };
 
 struct jevhash_32 {
     using type = uint32_t;
-    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0);
+    XNUTRACE_INLINE static type hash(uint64_t val, uint64_t seed = 0) noexcept;
 };
 
 template <typename KeyT, typename Hasher = jevhash_32> class XNUTRACE_EXPORT MinimalPerfectHash {

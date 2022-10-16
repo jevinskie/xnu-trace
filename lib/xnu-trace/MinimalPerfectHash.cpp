@@ -12,23 +12,23 @@
 #define XXH_NAMESPACE xnu_trace_mph_
 #include <xxhash-xnu-trace/xxhash.h>
 
-xxhash_64::type xxhash_64::hash(uint64_t val, uint64_t seed) {
+xxhash_64::type xxhash_64::hash(uint64_t val, uint64_t seed) noexcept {
     return XXH64(reinterpret_cast<char const *>(&val), sizeof(val), seed);
 }
 
-xxhash_32::type xxhash_32::hash(uint64_t val, uint64_t seed) {
+xxhash_32::type xxhash_32::hash(uint64_t val, uint64_t seed) noexcept {
     return XXH64(reinterpret_cast<char const *>(&val), sizeof(val), seed);
 }
 
-xxhash3_64::type xxhash3_64::hash(uint64_t val, uint64_t seed) {
+xxhash3_64::type xxhash3_64::hash(uint64_t val, uint64_t seed) noexcept {
     return XXH3_64bits_withSeed(reinterpret_cast<char const *>(&val), sizeof(val), seed);
 }
 
-xxhash3_32::type xxhash3_32::hash(uint64_t val, uint64_t seed) {
+xxhash3_32::type xxhash3_32::hash(uint64_t val, uint64_t seed) noexcept {
     return XXH3_64bits_withSeed(reinterpret_cast<char const *>(&val), sizeof(val), seed);
 }
 
-jevhash_64::type jevhash_64::hash(uint64_t val, uint64_t seed) {
+jevhash_64::type jevhash_64::hash(uint64_t val, uint64_t seed) noexcept {
     uint64_t acc = seed + 1;
     acc *= XXH_PRIME64_2;
     acc ^= val;
@@ -37,7 +37,7 @@ jevhash_64::type jevhash_64::hash(uint64_t val, uint64_t seed) {
     return acc;
 }
 
-jevhash_32::type jevhash_32::hash(uint64_t val, uint64_t seed) {
+jevhash_32::type jevhash_32::hash(uint64_t val, uint64_t seed) noexcept {
     uint32_t acc = seed + 1;
     acc *= XXH_PRIME32_2;
     acc ^= (val >> 32);
