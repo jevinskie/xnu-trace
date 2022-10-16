@@ -172,7 +172,7 @@ static void BM_NonAtomicBitVectorImpl(benchmark::State &state) {
 
 BENCHMARK(BM_NonAtomicBitVectorImpl);
 
-static void BM_NonAtomicBitVector(benchmark::State &state) {
+static void BM_NonAtomicBitVector_no_hoist(benchmark::State &state) {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
     auto bv                 = BitVectorFactory<nbits, false>(nbits, sz);
@@ -183,8 +183,27 @@ static void BM_NonAtomicBitVector(benchmark::State &state) {
     const auto cbv = std::add_const_t<decltype(bv.get())>(bv.get());
     size_t i       = 0;
     for (auto _ : state) {
-        benchmark::DoNotOptimize(cbv->get(i % sz));       // loads fptr from vtable
-        benchmark::DoNotOptimize(cbv->get((i + 1) % sz)); // reuses loaded fptr
+        benchmark::DoNotOptimize(cbv->get(i % sz)); // loads fptr from vtable
+        ++i;
+    }
+}
+
+BENCHMARK(BM_NonAtomicBitVector_no_hoist);
+
+static void BM_NonAtomicBitVector(benchmark::State &state) {
+    constexpr uint8_t nbits = 31;
+    constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
+    auto bv                 = BitVectorFactory<nbits, false>(nbits, sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv->set(i, hash_n(i, nbits));
+    }
+
+    const auto cbv = std::add_const_t<decltype(bv.get())>(bv.get());
+    size_t i       = 0;
+    benchmark::DoNotOptimize(cbv->get(
+        0)); // this dummy call allows the fptr load from vtable to be hoisted out of the loop
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(cbv->get(i % sz)); // doesn't load fptr from vtable
         ++i;
     }
 }
