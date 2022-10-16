@@ -1,43 +1,65 @@
 #include <cassert>
+#include <cstdio>
 #include <cstdlib>
-
-#include <boost/hana.hpp>
-namespace hana = boost::hana;
-
-#include <fmt/format.h>
+#include <memory>
 
 struct NumberBase {
     virtual ~NumberBase() {}
-    virtual void print() const = 0;
+    virtual void print(int addend) const = 0;
 };
 
 template <int Num> struct NumberDerived : NumberBase {
-    void print() const final override {
-        fmt::print("NumberDerived is {:d}\n", Num);
+    void print(int addend) const final override {
+        printf("NumberDerived is %d\n", Num + addend);
     }
 };
 
 struct Number {
     Number(int num) {
-        assert(num >= 0 && num < 64);
-        hana::for_each(hana::to_tuple(hana::range_c<int, 0, 64>), [&](auto x) {
-            if (x.value == num) {
-                m_bv = std::make_unique<NumberDerived<x.value>>();
-            }
-        });
+        assert(num >= 0 && num < 4);
+        switch (num) {
+        case 0:
+            m_bv = std::make_unique<NumberDerived<0>>();
+            break;
+        case 1:
+            m_bv = std::make_unique<NumberDerived<1>>();
+            break;
+        case 2:
+            m_bv = std::make_unique<NumberDerived<2>>();
+            break;
+        case 3:
+            m_bv = std::make_unique<NumberDerived<3>>();
+            break;
+        default:
+            __builtin_unreachable();
+        }
     }
-    void print() const {
-        m_bv->print();
+    void print(int addend) const {
+        m_bv->print(addend);
     }
     std::unique_ptr<NumberBase> m_bv;
 };
+
+__attribute__((noinline)) void call_print_bad(const Number &number) {
+    for (int i = 0; i < 4; ++i) {
+        number.print(i);
+    }
+}
+
+__attribute__((noinline)) void call_print_good(const Number &number) {
+    const auto bv_impl = number.m_bv.get();
+    for (int i = 0; i < 4; ++i) {
+        bv_impl->print(i);
+    }
+}
 
 int main(int argc, const char **argv) {
     assert(argc == 2);
     int n = atoi(argv[1]);
 
     const auto num = Number(n);
-    num.print();
+    call_print_bad(num);
+    call_print_good(num);
 
     return 0;
 }
