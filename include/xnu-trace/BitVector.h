@@ -37,24 +37,29 @@ template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {
 template <typename T, bool Signed = false> class GetSetIdxBase {
 public:
     using type = T;
+    GetSetIdxBase(size_t sz) : m_sz(sz) {}
     virtual ~GetSetIdxBase() {}
     virtual T get(size_t idx) const noexcept     = 0;
     virtual void set(size_t idx, T val) noexcept = 0;
+
+    size_t size() const noexcept {
+        return m_sz;
+    }
+
+private:
+    const size_t m_sz;
 };
 
 template <uint8_t NBitsMax, bool Signed = false>
 class BitVectorBase : public GetSetIdxBase<int_n<NBitsMax, Signed>> {
 public:
     static_assert(NBitsMax > 0 && NBitsMax <= 64);
-    using RT                       = int_n<NBitsMax, Signed>;
+    using Base                     = GetSetIdxBase<int_n<NBitsMax, Signed>>;
+    using RT                       = typename Base::type;
     static constexpr size_t RTBits = sizeofbits<RT>();
 
-    size_t size() const noexcept {
-        return m_sz;
-    }
-
 protected:
-    BitVectorBase(size_t sz, size_t byte_sz) : m_buf(byte_sz), m_sz(sz) {}
+    BitVectorBase(size_t sz, size_t byte_sz) : Base(sz), m_buf(byte_sz) {}
 
     std::vector<uint8_t> &buf() {
         return m_buf;
@@ -72,7 +77,6 @@ protected:
 
 private:
     std::vector<uint8_t> m_buf;
-    const size_t m_sz;
 };
 
 template <uint8_t NBitsMax, uint8_t NBits, bool Signed>
