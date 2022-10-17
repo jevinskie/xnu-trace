@@ -12,6 +12,17 @@
 
 namespace fs = std::filesystem;
 
+void dump_stats(const TraceLog &trace) {
+    for (const auto &[tid, log] : trace.parsed_logs()) {
+        const auto bytes_per_inst = (double)log.num_bytes() / log.num_inst();
+        fmt::print("{:s}\n", fmt::format(std::locale("en_US.UTF-8"),
+                                         "tid: {:d} # inst: {:Ld} # bytes: {:Ld} bytes / inst: "
+                                         "{:0.2f} ctx bytes / inst: {:0.2f}\n",
+                                         tid, log.num_inst(), log.num_bytes(), bytes_per_inst,
+                                         bytes_per_inst - 8));
+    }
+}
+
 void dump_log(const TraceLog &trace, bool symbolicate = false) {
     trace.macho_regions().dump();
 
@@ -21,18 +32,6 @@ void dump_log(const TraceLog &trace, bool symbolicate = false) {
                        sym.name, fs::path{sym.path}.filename().string());
         }
     }
-
-#if 1
-    for (const auto &[tid, log] : trace.parsed_logs()) {
-        fmt::print("{:s}\n", fmt::format(std::locale("en_US.UTF-8"),
-                                         "tid: {:d} # inst: {:Ld} # bytes {:Ld}\n", tid,
-                                         log.num_inst(), log.num_bytes()));
-        const auto bbs = extract_bbs_from_pc_trace(extract_pcs_from_trace(log));
-        for (const auto &bb : bbs) {
-            fmt::print("BB: {:#018x} [{:d}]\n", bb.pc, bb.sz);
-        }
-    }
-#endif
 }
 
 void dump_bb(const TraceLog &trace) {
@@ -212,6 +211,10 @@ int main(int argc, const char **argv) {
         .scan<'i', int>()
         .default_value(-1)
         .help("print top N most frequent instructions");
+    parser.add_argument("-s", "--stats")
+        .default_value(false)
+        .implicit_value(true)
+        .help("dump trace log stats to console");
 
     try {
         parser.parse_args(argc, argv);
@@ -230,6 +233,10 @@ int main(int argc, const char **argv) {
 
     if (const auto path = parser.present("--lighthouse-file")) {
         write_lighthouse_coverage(*path, trace, symbolicate);
+    }
+
+    if (parser.get<bool>("--stats")) {
+        dump_stats(trace);
     }
 
     if (parser.get<bool>("--dump")) {
