@@ -13,10 +13,10 @@ public:
 
     template <typename IT>
     EliasFanoSequence(std::span<const IT> sorted_seq)
-        : m_n{sorted_seq.size()}, m_m{sorted_seq[sorted_seq.size() - 1]}, m_cln(ceil(log2(m_n))),
+        : m_n(sorted_seq.size()), m_m{sorted_seq[sorted_seq.size() - 1]}, m_cln(ceil(log2(m_n))),
           m_clm(ceil(log2(m_m))), m_clmdn(ceil(log2(m_m) - log2(m_n))) {
         static_assert(sizeof(IT) <= sizeof(T));
-        // m_lo = BitVectorFactory<
+        m_lo = BitVectorFactory<NBitsMax>(m_clmdn, m_n);
     }
 
     T size() const noexcept {
@@ -32,6 +32,5 @@ private:
     const uint8_t m_cln;
     const uint8_t m_clm;
     const uint8_t m_clmdn;
-    // std::unique_ptr<BitVector<>> m_lo;
-    // std::unique_ptr<BitVector<>> m_hi;
+    std::unique_ptr<BitVector<NBitsMax>> m_lo;
 };
