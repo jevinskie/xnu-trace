@@ -34,7 +34,7 @@ template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {
     return (val ^ msb) - msb;
 }
 
-template <bool Signed = false, uint8_t RTBits_ = 32> class BitVectorBase {
+template <bool Signed = false, uint8_t RTBits_ = 64> class BitVectorBase {
 public:
     static_assert(RTBits_ >= 8 && RTBits_ <= 64 && is_pow2(RTBits_));
     using RT                       = int_n<RTBits_, Signed>;
@@ -101,7 +101,7 @@ public:
     using DT                        = uint_n<sizeofbits<T>() * 2>;
     static constexpr uint8_t DTBits = sizeofbits<DT>();
     static_assert(NBits <= Base::RTBits);
-    static_assert(NBits != 8 && NBits != 16 && NBits != 32);
+    static_assert(NBits != 8 && NBits != 16 && NBits != 32 && NBits != 64);
 
     NonAtomicBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
 
@@ -166,10 +166,10 @@ public:
     using RT                        = typename Base::RT;
     using T                         = int_n<NBits, Signed>;
     static constexpr size_t TBits   = sizeofbits<T>();
-    using QT                        = std::atomic<uint_n<sizeofbits<T>() * 4>>;
-    static constexpr uint8_t QTBits = sizeofbits<QT>();
+    using DT                        = std::atomic<uint_n<sizeofbits<T>() * 2>>;
+    static constexpr uint8_t DTBits = sizeofbits<DT>();
     static_assert(NBits <= Base::RTBits);
-    static_assert(NBits != 8 && NBits != 16 && NBits != 32);
+    static_assert(NBits != 8 && NBits != 16 && NBits != 32 && NBits != 64);
 
     AtomicBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
 
@@ -188,29 +188,31 @@ public:
 
     static constexpr size_t byte_sz(size_t sz) {
         const auto total_packed_bits  = NBits * sz;
-        const auto write_total_bit_sz = ((total_packed_bits + QTBits - 1) / QTBits) * QTBits;
+        const auto write_total_bit_sz = ((total_packed_bits + DTBits - 1) / DTBits) * DTBits;
         return write_total_bit_sz / 8;
     }
 };
 
 template <uint8_t NBitsMax, bool Signed = false, bool AtomicWrite = false>
 std::unique_ptr<BitVectorBase<Signed>> BitVectorFactory(uint8_t nbits, size_t sz) {
-    static_assert(NBitsMax > 0 && NBitsMax <= 32);
+    static_assert(NBitsMax > 0 && NBitsMax <= 64);
     assert(nbits > 0 && nbits <= NBitsMax);
     std::unique_ptr<BitVectorBase<Signed>> res;
-    if (nbits >= 8 && nbits <= 32 && is_pow2(nbits)) {
+    if (nbits >= 8 && nbits <= 64 && is_pow2(nbits)) {
         if (nbits == 8) {
             res = std::make_unique<ExactBitVectorImpl<8, Signed>>(sz);
         } else if (nbits == 16) {
             res = std::make_unique<ExactBitVectorImpl<16, Signed>>(sz);
         } else if (nbits == 32) {
             res = std::make_unique<ExactBitVectorImpl<32, Signed>>(sz);
+        } else if (nbits == 64) {
+            res = std::make_unique<ExactBitVectorImpl<64, Signed>>(sz);
         }
     } else {
-        const auto bit_tuple = hana::to_tuple(hana::range_c<uint8_t, 1, 32>);
+        const auto bit_tuple = hana::to_tuple(hana::range_c<uint8_t, 1, 64>);
         if constexpr (!AtomicWrite) {
             hana::for_each(bit_tuple, [&](const auto n) {
-                if constexpr (!(n.value >= 8 && n.value <= 32 && is_pow2(n.value))) {
+                if constexpr (!(n.value >= 8 && n.value <= 64 && is_pow2(n.value))) {
                     if (n.value == nbits) {
                         res = std::make_unique<NonAtomicBitVectorImpl<n.value, Signed>>(sz);
                     }
@@ -218,7 +220,7 @@ std::unique_ptr<BitVectorBase<Signed>> BitVectorFactory(uint8_t nbits, size_t sz
             });
         } else {
             hana::for_each(bit_tuple, [&](const auto n) {
-                if constexpr (!(n.value >= 8 && n.value <= 32 && is_pow2(n.value))) {
+                if constexpr (!(n.value >= 8 && n.value <= 64 && is_pow2(n.value))) {
                     if (n.value == nbits) {
                         res = std::make_unique<AtomicBitVectorImpl<n.value, Signed>>(sz);
                     }
