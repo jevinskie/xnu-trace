@@ -101,3 +101,14 @@ template <typename T> std::vector<T> get_random_scalars(size_t n) {
     }
     return res;
 }
+
+template <typename T>
+std::vector<T> get_random_sorted_unique_scalars(size_t min_sz, size_t max_sz) {
+    std::vector<T> res;
+    do {
+        res = std::move(get_random_scalars<T>(max_sz));
+        std::sort(res.begin(), res.end());
+        res.erase(std::unique(res.begin(), res.end()), res.end());
+    } while (res.size() < min_sz);
+    return res;
+}

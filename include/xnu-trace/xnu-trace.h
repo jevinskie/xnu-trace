@@ -6,6 +6,7 @@
 #include "Atomic.h"
 #include "BitVector.h"
 #include "CompressedFile.h"
+#include "EliasFano.h"
 #include "FridaStalker.h"
 #include "MachORegions.h"
 #include "MinimalPerfectHash.h"
