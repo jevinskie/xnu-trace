@@ -43,9 +43,12 @@ public:
     virtual ~BitVectorBase() {}
     virtual RT get(size_t idx) const noexcept     = 0;
     virtual void set(size_t idx, RT val) noexcept = 0;
+    size_t size() const noexcept {
+        return m_sz;
+    }
 
 protected:
-    BitVectorBase(size_t byte_sz) : m_buf(byte_sz) {}
+    BitVectorBase(size_t sz, size_t byte_sz) : m_buf(byte_sz), m_sz(sz) {}
 
     std::vector<uint8_t> &buf() {
         return m_buf;
@@ -63,6 +66,7 @@ protected:
 
 private:
     std::vector<uint8_t> m_buf;
+    const size_t m_sz;
 };
 
 template <uint8_t NBits, bool Signed> class ExactBitVectorImpl : public BitVectorBase<Signed> {
@@ -73,7 +77,7 @@ public:
     static_assert(NBits <= Base::RTBits);
     static_assert(NBits >= 8 && is_pow2(NBits));
 
-    ExactBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
+    ExactBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
 
     RT get(size_t idx) const noexcept final override {
         return ((T *)Base::data())[idx];
@@ -99,7 +103,7 @@ public:
     static_assert(NBits <= Base::RTBits);
     static_assert(NBits != 8 && NBits != 16 && NBits != 32);
 
-    NonAtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
+    NonAtomicBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
 
     RT get(size_t idx) const noexcept final override {
         T res;
@@ -167,7 +171,7 @@ public:
     static_assert(NBits <= Base::RTBits);
     static_assert(NBits != 8 && NBits != 16 && NBits != 32);
 
-    AtomicBitVectorImpl(size_t sz) : Base(byte_sz(sz)) {}
+    AtomicBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
 
     RT get(size_t idx) const noexcept final override {
         (void)idx;
