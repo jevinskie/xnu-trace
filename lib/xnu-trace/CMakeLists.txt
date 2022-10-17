@@ -19,6 +19,7 @@ set(INSTTRACE_SRC
     common-internal.h
     CompressedFile.cpp
     dyld.cpp
+    EliasFano.cpp
     exception_handlers.cpp
     FridaStalker.cpp
     log_structs.cpp
@@ -39,6 +40,7 @@ set(INSTTRACE_SRC
 
 set(INSTTRACE_HDR_STANDALONE
     Atomic.h
+    BitVector.h
     drcov.h
     xnu-trace.h
     xnu-trace-c.h

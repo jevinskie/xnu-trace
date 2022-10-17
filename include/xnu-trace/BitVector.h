@@ -2,16 +2,14 @@
 
 #include "common.h"
 
-#include "Atomic.h"
 #include "utils.h"
 
+#undef NDEBUG
+#include <cassert>
 #include <memory>
-#include <type_traits>
 
 #include <boost/hana.hpp>
 namespace hana = boost::hana;
-#include <fmt/format.h>
-#include <icecream.hpp>
 
 namespace xnutrace::BitVector {
 
