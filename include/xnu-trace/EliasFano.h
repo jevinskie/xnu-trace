@@ -4,27 +4,34 @@
 
 #include "BitVector.h"
 
+#include <cmath>
 #include <span>
 
-class EliasFanoSequence {
+template <uint8_t NBitsMax> class XNUTRACE_EXPORT EliasFanoSequence {
 public:
-    using T = BitVector<>::RT;
+    using T = typename BitVector<NBitsMax>::RT;
 
     template <typename IT>
     EliasFanoSequence(std::span<const IT> sorted_seq)
-        : m_sz{sorted_seq.size()}, m_max{sorted_seq[sorted_seq.size() - 1]} {
+        : m_n{sorted_seq.size()}, m_m{sorted_seq[sorted_seq.size() - 1]}, m_cln(ceil(log2(m_n))),
+          m_clm(ceil(log2(m_m))), m_clmdn(ceil(log2(m_m) - log2(m_n))) {
         static_assert(sizeof(IT) <= sizeof(T));
+        // m_lo = BitVectorFactory<
     }
 
     T size() const noexcept {
-        return m_sz;
+        return m_n;
     }
-
     T max() const noexcept {
-        return m_max;
+        return m_m;
     }
 
 private:
-    const T m_sz;
-    const T m_max;
+    const T m_n;
+    const T m_m;
+    const uint8_t m_cln;
+    const uint8_t m_clm;
+    const uint8_t m_clmdn;
+    // std::unique_ptr<BitVector<>> m_lo;
+    // std::unique_ptr<BitVector<>> m_hi;
 };

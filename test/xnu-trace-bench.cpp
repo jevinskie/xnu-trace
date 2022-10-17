@@ -158,7 +158,7 @@ static uint64_t hash_n(uint8_t nbits, uint64_t val) {
 static void BM_NonAtomicBitVectorImpl(benchmark::State &state) {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
-    auto bv                 = NonAtomicBitVectorImpl<nbits, false>(sz);
+    auto bv                 = NonAtomicBitVectorImpl<nbits, nbits, false>(sz);
     for (size_t i = 0; i < sz; ++i) {
         bv.set(i, hash_n(i, nbits));
     }
