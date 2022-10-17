@@ -34,15 +34,21 @@ template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {
     return (val ^ msb) - msb;
 }
 
-template <uint8_t NBitsMax, bool Signed = false> class BitVectorBase {
+template <typename T, bool Signed = false> class GetSetIdxBase {
+public:
+    using type = T;
+    virtual ~GetSetIdxBase() {}
+    virtual T get(size_t idx) const noexcept     = 0;
+    virtual void set(size_t idx, T val) noexcept = 0;
+};
+
+template <uint8_t NBitsMax, bool Signed = false>
+class BitVectorBase : public GetSetIdxBase<int_n<NBitsMax, Signed>> {
 public:
     static_assert(NBitsMax > 0 && NBitsMax <= 64);
     using RT                       = int_n<NBitsMax, Signed>;
     static constexpr size_t RTBits = sizeofbits<RT>();
 
-    virtual ~BitVectorBase() {}
-    virtual RT get(size_t idx) const noexcept     = 0;
-    virtual void set(size_t idx, RT val) noexcept = 0;
     size_t size() const noexcept {
         return m_sz;
     }
