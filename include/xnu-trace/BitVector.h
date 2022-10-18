@@ -36,7 +36,45 @@ template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {
 
 template <typename T, bool Signed = false> class GetSetIdxBase {
 public:
-    using type = T;
+    using value_type = T;
+
+    class iterator {
+    public:
+        using iterator_category = std::random_access_iterator_tag;
+        using difference_type   = ssize_t;
+        using value_type        = T;
+        using pointer           = T *;
+        using reference         = T &;
+
+        iterator(const GetSetIdxBase<T, Signed> *tbl, size_t idx) : m_tbl{tbl}, m_idx{idx} {}
+
+        iterator operator*() const {
+            return this;
+        }
+        pointer operator->() {
+            return nullptr;
+        }
+        iterator &operator++() {
+            ++m_idx;
+            return *this;
+        }
+        iterator operator++(int) {
+            iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+        friend bool operator==(const iterator &a, const iterator &b) {
+            return a.m_tbl == b.m_tbl && a.m_idx == b.m_idx;
+        };
+        friend bool operator!=(const iterator &a, const iterator &b) {
+            return a.m_tbl != b.m_tbl || a.m_idx != b.m_idx;
+        };
+
+    private:
+        const GetSetIdxBase<T, Signed> *m_tbl{};
+        size_t m_idx;
+    };
+
     GetSetIdxBase(size_t sz) : m_sz(sz) {}
     virtual ~GetSetIdxBase() {}
     virtual T get(size_t idx) const noexcept     = 0;
@@ -55,7 +93,7 @@ class BitVectorBase : public GetSetIdxBase<int_n<NBitsMax, Signed>> {
 public:
     static_assert(NBitsMax > 0 && NBitsMax <= 64);
     using Base                     = GetSetIdxBase<int_n<NBitsMax, Signed>>;
-    using RT                       = typename Base::type;
+    using RT                       = typename Base::value_type;
     static constexpr size_t RTBits = sizeofbits<RT>();
 
 protected:
