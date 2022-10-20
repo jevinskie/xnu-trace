@@ -208,7 +208,9 @@ public:
         const auto widx = word_idx(idx);
         const auto bidx = inner_bit_idx(idx);
         const auto wptr = (AT *)&Base::data()[widx];
-        insert_bits_atomic(*wptr, T(val), bidx, NBits);
+        if (get(idx) != val) {
+            wptr->fetch_xor(bit_mask<T>(bidx, bidx + NBits));
+        }
     }
 
     static constexpr size_t word_idx(size_t idx) {
