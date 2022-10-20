@@ -158,7 +158,7 @@ static uint64_t hash_n(uint8_t nbits, uint64_t val) {
 static void BM_NonAtomicBitVectorImpl(benchmark::State &state) {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
-    auto bv                 = NonAtomicBitVectorImpl<nbits, nbits, false>(sz);
+    auto bv                 = NonAtomicBitVectorImpl<nbits>(sz);
     for (size_t i = 0; i < sz; ++i) {
         bv.set(i, hash_n(i, nbits));
     }
@@ -175,7 +175,7 @@ BENCHMARK(BM_NonAtomicBitVectorImpl);
 static void BM_NonAtomicBitVector_no_hoist(benchmark::State &state) {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
-    auto bv                 = BitVectorFactory<nbits, false>(nbits, sz);
+    auto bv                 = BitVectorFactory<>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
         bv->set(i, hash_n(i, nbits));
     }
@@ -193,7 +193,7 @@ BENCHMARK(BM_NonAtomicBitVector_no_hoist);
 static void BM_NonAtomicBitVector(benchmark::State &state) {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
-    auto bv                 = BitVectorFactory<nbits, false>(nbits, sz);
+    auto bv                 = BitVectorFactory<>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
         bv->set(i, hash_n(i, nbits));
     }

@@ -9,7 +9,7 @@ static uint64_t hash_n(uint8_t nbits, uint64_t val) {
 }
 
 __attribute__((noinline)) static uint64_t
-test_non_atomic_bitvector(const std::unique_ptr<BitVector<32>> &bv, size_t sz) {
+test_non_atomic_bitvector(const std::unique_ptr<BitVector<>> &bv, size_t sz) {
     size_t i     = 0;
     uint64_t res = 0;
     for (size_t i = 0; i < 512 * 1024 * 1024; ++i) {
@@ -21,7 +21,7 @@ test_non_atomic_bitvector(const std::unique_ptr<BitVector<32>> &bv, size_t sz) {
 int main() {
     constexpr uint8_t nbits = 31;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint32_t);
-    auto bv                 = BitVectorFactory<32>(nbits, sz);
+    auto bv                 = BitVectorFactory<>(nbits, sz);
     for (size_t i = 0; i < sz; ++i) {
         bv->set(i, hash_n(i, nbits));
     }
