@@ -56,10 +56,10 @@ public:
         std::conditional_t<Const, const GetSetIdxBase<T>, GetSetIdxBase<T>> *m_tbl{};
         size_t m_idx{};
 
-        T read() const noexcept {
+        value_type read() const noexcept {
             return m_tbl->get(m_idx);
         }
-        void write(T val) const noexcept {
+        void write(value_type val) const noexcept {
             m_tbl->set(m_idx, val);
         }
         bool equal(RangeProxyCursor<Const> other) const noexcept {
@@ -108,17 +108,6 @@ public:
     }
     const_iterator cend() const {
         return const_iterator(RangeProxyCursor<true>{&std::as_const(*this), size()});
-    }
-
-    using reference       = typename iterator::reference;
-    using const_reference = std::add_const_t<typename iterator::reference>;
-    reference operator[](size_t idx) {
-        fmt::print("BV[{:d}]\n", idx);
-        return reference(RangeProxyCursor<false>{this, idx});
-    }
-    const_reference operator[](size_t idx) const {
-        fmt::print("BV[{:d}] const\n", idx);
-        return const_reference(RangeProxyCursor<true>{&std::as_const(*this), idx});
     }
 
 private:
@@ -285,7 +274,6 @@ public:
     }
 
     void set(size_t idx, RT val) noexcept final override {
-        fmt::print("set({:d}, {:d})\n", idx, val);
         const auto widx          = word_idx(idx);
         const auto bidx          = inner_bit_idx(idx);
         const auto wptr          = &((T *)Base::data())[widx];
@@ -321,7 +309,7 @@ public:
     static constexpr size_t byte_sz(size_t sz) {
         const auto total_packed_bits  = NBits * sz;
         const auto write_total_bit_sz = ((total_packed_bits + DTBits - 1) / DTBits) * DTBits;
-        return (write_total_bit_sz + DTBits) / 8;
+        return write_total_bit_sz / 8;
     }
 };
 
