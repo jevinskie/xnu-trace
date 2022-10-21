@@ -10,6 +10,7 @@
 #include "FridaStalker.h"
 #include "MachORegions.h"
 #include "MinimalPerfectHash.h"
+#include "RankSelect.h"
 #include "Signpost.h"
 #include "Symbols.h"
 #include "ThreadPool.h"

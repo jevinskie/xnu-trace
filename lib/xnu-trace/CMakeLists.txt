@@ -41,6 +41,7 @@ set(INSTTRACE_HDR_STANDALONE
     Atomic.h
     BitVector.h
     EliasFano.h
+    RankSelect.h
     drcov.h
     xnu-trace.h
     xnu-trace-c.h
