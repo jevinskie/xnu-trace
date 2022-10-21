@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <set>
 #include <type_traits>
+#include <utility>
 
 #include <mach/mach_time.h>
 
@@ -198,7 +199,7 @@ static void BM_NonAtomicBitVector(benchmark::State &state) {
         bv->set(i, hash_n(i, nbits));
     }
 
-    const auto cbv = std::add_const_t<decltype(bv.get())>(bv.get());
+    const auto cbv = &std::as_const(*bv.get());
     size_t i       = 0;
     benchmark::DoNotOptimize(cbv->get(
         0)); // this dummy call allows the fptr load from vtable to be hoisted out of the loop

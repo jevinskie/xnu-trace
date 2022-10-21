@@ -151,6 +151,62 @@ TEST_CASE("non_atomic_mid_signed", TS) {
     }
 }
 
+TEST_CASE("non_atomic_iterator", TS) {
+    constexpr uint8_t nbits = 12;
+    constexpr size_t sz     = 8;
+    auto bv                 = BitVectorFactory<>(nbits, sz);
+    fmt::print("byte_sz: {:d}\n", NonAtomicBitVectorImpl<12, false>::byte_sz(sz));
+
+    for (size_t i = 0; i < sz; ++i) {
+        bv->set(i, hash_n(nbits, i));
+    }
+
+    size_t i = 0;
+    for (const auto &val : *bv) {
+        REQUIRE(val == hash_n(nbits, i));
+        ++i;
+    }
+
+    i = 0;
+    for (const auto &val : std::as_const(*bv)) {
+        REQUIRE(val == hash_n(nbits, i));
+        ++i;
+    }
+
+    i = 0;
+    for (const auto val : std::as_const(*bv)) {
+        REQUIRE(val == hash_n(nbits, i));
+        ++i;
+    }
+
+    i = 0;
+    for (auto val : *bv) {
+        REQUIRE(val == hash_n(nbits, i));
+        ++i;
+    }
+
+    fmt::print("step A\n");
+    for (auto val : *bv) {
+        val = 0;
+    }
+
+    fmt::print("step B\n");
+    for (const auto &val : *bv) {
+        // REQUIRE(val == decltype(bv)::element_type::RT(0));
+        REQUIRE(val == uint64_t{0});
+    }
+
+    fmt::print("step C\n");
+    for (size_t i = 0; i < sz; ++i) {
+        REQUIRE((*bv)[i] == uint64_t{0});
+    }
+
+    fmt::print("step D\n");
+    for (size_t i = 0; i < sz; ++i) {
+        (*bv)[i] = uint64_t{i};
+    }
+}
+
 // TEST_CASE("non_atomic_smol", TS) {
 //     constexpr uint8_t nbits = 31;
 //     constexpr size_t sz     = 4;

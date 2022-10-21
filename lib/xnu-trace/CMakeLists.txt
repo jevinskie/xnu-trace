@@ -69,6 +69,7 @@ set(XNUTRACE_PUBLIC_LIBS
     static_vector
     icecream
     Boost::headers
+    range-v3
 )
 
 set(XNUTRACE_PRIVATE_LIBS
@@ -80,7 +81,6 @@ set(XNUTRACE_PRIVATE_LIBS
     xxhash-xnu-trace
     xnu-trace-mach-exc
     fastmod
-    range-v3
     simde
 )
 

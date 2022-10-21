@@ -7,9 +7,12 @@
 #undef NDEBUG
 #include <cassert>
 #include <memory>
+#include <utility>
 
 #include <boost/hana.hpp>
 namespace hana = boost::hana;
+#include <fmt/format.h>
+#include <range/v3/iterator/basic_iterator.hpp>
 
 namespace xnutrace::BitVector {
 
@@ -42,45 +45,39 @@ template <typename T> static constexpr T sign_extend(T val, uint8_t nbits) {
     return (val ^ msb) - msb;
 }
 
-template <typename T, bool Signed = false> class GetSetIdxBase {
+template <typename T> class GetSetIdxBase {
 public:
     using value_type = T;
 
-    class iterator {
-    public:
-        using iterator_category = std::random_access_iterator_tag;
-        using difference_type   = ssize_t;
-        using value_type        = T;
-        using pointer           = T *;
-        using reference         = T &;
+    template <bool Const> struct RangeProxyCursor {
+        using difference_type = ssize_t;
+        using value_type      = T;
 
-        iterator(const GetSetIdxBase<T, Signed> *tbl, size_t idx) : m_tbl{tbl}, m_idx{idx} {}
+        std::conditional_t<Const, const GetSetIdxBase<T>, GetSetIdxBase<T>> *m_tbl{};
+        size_t m_idx{};
 
-        iterator operator*() const {
-            return this;
+        T read() const noexcept {
+            return m_tbl->get(m_idx);
         }
-        pointer operator->() {
-            return nullptr;
+        void write(T val) const noexcept {
+            m_tbl->set(m_idx, val);
         }
-        iterator &operator++() {
+        bool equal(RangeProxyCursor<Const> other) const noexcept {
+            assert(m_tbl == other.m_tbl);
+            return m_idx == other.m_idx;
+        }
+        void next() noexcept {
             ++m_idx;
-            return *this;
         }
-        iterator operator++(int) {
-            iterator tmp = *this;
-            ++(*this);
-            return tmp;
+        void prev() noexcept {
+            --m_idx;
         }
-        friend bool operator==(const iterator &a, const iterator &b) {
-            return a.m_tbl == b.m_tbl && a.m_idx == b.m_idx;
-        };
-        friend bool operator!=(const iterator &a, const iterator &b) {
-            return a.m_tbl != b.m_tbl || a.m_idx != b.m_idx;
-        };
-
-    private:
-        const GetSetIdxBase<T, Signed> *m_tbl{};
-        size_t m_idx;
+        void advance(ssize_t i) noexcept {
+            m_idx += i;
+        }
+        ssize_t distance_to(RangeProxyCursor<Const> other) const noexcept {
+            return other.m_idx - m_idx;
+        }
     };
 
     GetSetIdxBase(size_t sz) : m_sz(sz) {}
@@ -90,6 +87,38 @@ public:
 
     size_t size() const noexcept {
         return m_sz;
+    }
+
+    using iterator       = ranges::basic_iterator<RangeProxyCursor<false>>;
+    using const_iterator = ranges::basic_iterator<RangeProxyCursor<true>>;
+    iterator begin() {
+        return iterator(RangeProxyCursor<false>{this, 0});
+    }
+    iterator end() {
+        return iterator(RangeProxyCursor<false>{this, size()});
+    }
+    const_iterator begin() const {
+        return cbegin();
+    }
+    const_iterator end() const {
+        return cend();
+    }
+    const_iterator cbegin() const {
+        return const_iterator(RangeProxyCursor<true>{&std::as_const(*this), 0});
+    }
+    const_iterator cend() const {
+        return const_iterator(RangeProxyCursor<true>{&std::as_const(*this), size()});
+    }
+
+    using reference       = typename iterator::reference;
+    using const_reference = std::add_const_t<typename iterator::reference>;
+    reference operator[](size_t idx) {
+        fmt::print("BV[{:d}]\n", idx);
+        return reference(RangeProxyCursor<false>{this, idx});
+    }
+    const_reference operator[](size_t idx) const {
+        fmt::print("BV[{:d}] const\n", idx);
+        return const_reference(RangeProxyCursor<true>{&std::as_const(*this), idx});
     }
 
 private:
@@ -256,6 +285,7 @@ public:
     }
 
     void set(size_t idx, RT val) noexcept final override {
+        fmt::print("set({:d}, {:d})\n", idx, val);
         const auto widx          = word_idx(idx);
         const auto bidx          = inner_bit_idx(idx);
         const auto wptr          = &((T *)Base::data())[widx];
@@ -291,7 +321,7 @@ public:
     static constexpr size_t byte_sz(size_t sz) {
         const auto total_packed_bits  = NBits * sz;
         const auto write_total_bit_sz = ((total_packed_bits + DTBits - 1) / DTBits) * DTBits;
-        return write_total_bit_sz / 8;
+        return (write_total_bit_sz + DTBits) / 8;
     }
 };
 
