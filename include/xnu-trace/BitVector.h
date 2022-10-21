@@ -334,14 +334,19 @@ std::unique_ptr<BitVectorBase<Signed, NBitsMax>> BitVectorFactory(uint8_t nbits,
     static_assert(NBitsMax > 0 && NBitsMax <= 64);
     assert(nbits > 0 && nbits <= NBitsMax);
     std::unique_ptr<BitVectorBase<Signed, NBitsMax>> res;
-    if (nbits >= 8 && nbits <= 64 && is_pow2(nbits)) {
+    if (nbits == 1) {
+        if constexpr (!AtomicWrite) {
+            res = std::make_unique<NonAtomicSingleBitVectorImpl<Signed, NBitsMax>>(sz);
+        } else {
+            res = std::make_unique<AtomicSingleBitVectorImpl<Signed, NBitsMax>>(sz);
+        }
+    } else if (nbits >= 8 && nbits <= 64 && is_pow2(nbits)) {
         if (nbits == 8) {
             if constexpr (NBitsMax >= 8) {
                 res = std::make_unique<ExactBitVectorImpl<8, Signed, NBitsMax>>(sz);
             }
         } else if (nbits == 16) {
             if constexpr (NBitsMax >= 16) {
-
                 res = std::make_unique<ExactBitVectorImpl<16, Signed, NBitsMax>>(sz);
             }
         } else if (nbits == 32) {
@@ -354,37 +359,26 @@ std::unique_ptr<BitVectorBase<Signed, NBitsMax>> BitVectorFactory(uint8_t nbits,
             }
         }
     } else {
-        if (nbits == 1) {
-            if constexpr (!AtomicWrite) {
-                res = std::make_unique<NonAtomicSingleBitVectorImpl<Signed, NBitsMax>>(sz);
-            } else {
-                res = std::make_unique<AtomicSingleBitVectorImpl<Signed, NBitsMax>>(sz);
-            }
+        const auto bit_tuple = hana::to_tuple(hana::range_c<uint8_t, 2, 64>);
+        if constexpr (!AtomicWrite) {
+            hana::for_each(bit_tuple, [&](const auto n) {
+                if constexpr (NBitsMax >= n.value &&
+                              !(n.value >= 8 && n.value <= 64 && is_pow2(n.value))) {
+                    if (n.value == nbits) {
+                        res =
+                            std::make_unique<NonAtomicBitVectorImpl<n.value, Signed, NBitsMax>>(sz);
+                    }
+                }
+            });
         } else {
-            const auto bit_tuple = hana::to_tuple(hana::range_c<uint8_t, 2, 64>);
-            if constexpr (!AtomicWrite) {
-                hana::for_each(bit_tuple, [&](const auto n) {
-                    if constexpr (!(n.value >= 8 && n.value <= 64 && is_pow2(n.value))) {
-                        if (n.value == nbits) {
-                            if constexpr (NBitsMax >= n.value) {
-                                res = std::make_unique<
-                                    NonAtomicBitVectorImpl<n.value, Signed, NBitsMax>>(sz);
-                            }
-                        }
+            hana::for_each(bit_tuple, [&](const auto n) {
+                if constexpr (NBitsMax >= n.value &&
+                              !(n.value >= 8 && n.value <= 64 && is_pow2(n.value))) {
+                    if (n.value == nbits) {
+                        res = std::make_unique<AtomicBitVectorImpl<n.value, Signed, NBitsMax>>(sz);
                     }
-                });
-            } else {
-                hana::for_each(bit_tuple, [&](const auto n) {
-                    if constexpr (!(n.value >= 8 && n.value <= 64 && is_pow2(n.value))) {
-                        if (n.value == nbits) {
-                            if constexpr (NBitsMax >= n.value) {
-                                res = std::make_unique<
-                                    AtomicBitVectorImpl<n.value, Signed, NBitsMax>>(sz);
-                            }
-                        }
-                    }
-                });
-            }
+                }
+            });
         }
     }
     return res;
