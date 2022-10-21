@@ -155,7 +155,6 @@ TEST_CASE("non_atomic_iterator", TS) {
     constexpr uint8_t nbits = 12;
     constexpr size_t sz     = 8;
     auto bv                 = BitVectorFactory<>(nbits, sz);
-    fmt::print("byte_sz: {:d}\n", NonAtomicBitVectorImpl<12, false>::byte_sz(sz));
 
     for (size_t i = 0; i < sz; ++i) {
         bv->set(i, hash_n(nbits, i));

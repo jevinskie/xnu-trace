@@ -307,8 +307,9 @@ public:
     }
 
     static constexpr size_t byte_sz(size_t sz) {
-        const auto total_packed_bits  = NBits * sz;
-        const auto write_total_bit_sz = ((total_packed_bits + DTBits - 1) / DTBits) * DTBits;
+        const auto total_packed_bits = NBits * sz;
+        const auto write_total_bit_sz =
+            ((total_packed_bits + TBits + DTBits - 1) / DTBits) * DTBits;
         return write_total_bit_sz / 8;
     }
 };
@@ -341,8 +342,9 @@ public:
     }
 
     static constexpr size_t byte_sz(size_t sz) {
-        const auto total_packed_bits  = NBits * sz;
-        const auto write_total_bit_sz = ((total_packed_bits + DTBits - 1) / DTBits) * DTBits;
+        const auto total_packed_bits = NBits * sz;
+        const auto write_total_bit_sz =
+            ((total_packed_bits + TBits + DTBits - 1) / DTBits) * DTBits;
         return write_total_bit_sz / 8;
     }
 };
