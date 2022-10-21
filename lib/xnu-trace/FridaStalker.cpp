@@ -19,8 +19,9 @@ FridaStalker::FridaStalker(const std::string &log_dir_path, bool symbolicate, in
     m_stalker = gum_stalker_new();
     assert(m_stalker);
     gum_stalker_set_trust_threshold(m_stalker, 0);
+    cb_ctx.logger = &logger();
     m_transformer = gum_stalker_transformer_make_from_callback(
-        (GumStalkerTransformerCallback)transform_cb, (void *)this, nullptr);
+        (GumStalkerTransformerCallback)transform_cb, (void *)&cb_ctx, nullptr);
     assert(m_transformer);
     if (symbolicate) {
         m_symbols = std::make_unique<Symbols>(mach_task_self());
@@ -63,8 +64,11 @@ TraceLog &FridaStalker::logger() {
 
 void FridaStalker::transform_cb(void *iterator, void *output, void *user_data) {
     (void)output;
-    auto *it = (GumStalkerIterator *)iterator;
-    while (gum_stalker_iterator_next(it, nullptr)) {
+    auto *it    = (GumStalkerIterator *)iterator;
+    auto cb_ctx = (CBCtx *)user_data;
+    cs_insn *insn;
+    while (gum_stalker_iterator_next(it, (const cs_insn **)&insn)) {
+        cb_ctx->insn = (void *)insn;
         gum_stalker_iterator_put_callout(it, (GumStalkerCallout)instruction_cb, user_data, nullptr);
         gum_stalker_iterator_keep(it);
     }
@@ -73,14 +77,14 @@ void FridaStalker::transform_cb(void *iterator, void *output, void *user_data) {
 #if 0
 void FridaStalker::instruction_cb(void *context, void *user_data) {
     auto ctx  = (GumCpuContext *)context;
-    auto thiz = (FridaStalker *)user_data;
-    thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), ctx->pc);
+    auto cb_ctx = (CBCtx *)user_data;
+    cb_ctx->logger->log((uint32_t)gum_process_get_current_thread_id(), ctx->pc);
 }
 #else
 void FridaStalker::instruction_cb(void *context, void *user_data) {
     const auto ctx = (log_arm64_cpu_context *)context;
-    auto thiz      = (FridaStalker *)user_data;
-    thiz->logger().log((uint32_t)gum_process_get_current_thread_id(), ctx);
+    auto cb_ctx    = (CBCtx *)user_data;
+    cb_ctx->logger->log((uint32_t)gum_process_get_current_thread_id(), ctx, cb_ctx->insn);
 }
 #endif
 

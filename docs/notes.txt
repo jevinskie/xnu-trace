@@ -10,3 +10,8 @@ thread_vic[0x100]: add x0, #42
 thread_vic[0x104]: add x0, #7
 
 // whoops, runaway thread. how to trap again after instruction finishes?
+
+
+TODO:
+
+include instruction number in sync frame

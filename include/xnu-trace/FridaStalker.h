@@ -27,6 +27,11 @@ public:
     XNUTRACE_INLINE TraceLog &logger();
 
 private:
+    struct CBCtx {
+        TraceLog *logger;
+        void *insn;
+    };
+
     void write_trace();
     static void transform_cb(void *iterator, void *output, void *user_data);
     static void instruction_cb(void *context, void *user_data);
@@ -37,4 +42,5 @@ private:
     MachORegions m_macho_regions;
     VMRegions m_vm_regions;
     std::unique_ptr<Symbols> m_symbols;
+    CBCtx cb_ctx;
 };
