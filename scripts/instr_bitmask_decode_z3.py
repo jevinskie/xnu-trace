@@ -25,7 +25,7 @@ def inst_match(
     inst: BitVecVal, eq_bm: BitVecVal, eq_bp: BitVecVal, ne_bm: BitVecVal, ne_bp: BitVecVal
 ) -> BitVecVal:
     pos_good = (inst & eq_bm) == eq_bp
-    neg_good = (ne_bm == z32) or ((inst & ne_bm) != ne_bp)
+    neg_good = Or(ne_bm == z32, (inst & ne_bm) != ne_bp)
     return pos_good, neg_good, pos_good and neg_good
 
 
@@ -44,7 +44,7 @@ ldrp_pg, ldrp_ng, ldrp_m = inst_match(inst_sym, ldrp_eq_bm, ldrp_eq_bp, ldrp_ne_
 ldr_pg, ldr_ng, ldr_m = inst_match(inst_sym, ldr_eq_bm, ldr_eq_bp, ldr_ne_bm, ldr_ne_bm)
 ldrp_m = simplify(ldrp_m)
 ldr_m = simplify(ldr_m)
-ldrp_or_ldr_m = ldrp_m or ldr_m
+ldrp_or_ldr_m = Or(ldrp_m, ldr_m)
 ldrp_or_ldr_m = simplify(ldrp_or_ldr_m)
 
 print(f"ldrp_m: {ldrp_m}")
