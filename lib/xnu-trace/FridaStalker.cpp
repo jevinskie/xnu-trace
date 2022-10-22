@@ -68,7 +68,7 @@ void FridaStalker::transform_cb(void *iterator, void *output, void *user_data) {
     auto cb_ctx = (CBCtx *)user_data;
     cs_insn *insn;
     while (gum_stalker_iterator_next(it, (const cs_insn **)&insn)) {
-        cb_ctx->insn = (void *)insn;
+        cb_ctx->insn = insn;
         gum_stalker_iterator_put_callout(it, (GumStalkerCallout)instruction_cb, user_data, nullptr);
         gum_stalker_iterator_keep(it);
     }

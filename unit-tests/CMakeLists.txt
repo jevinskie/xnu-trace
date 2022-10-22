@@ -1,4 +1,5 @@
 set(XNUTRACE_UNIT_TEST_SRC
+    ARM64Disassembler.cpp
     BitVector.cpp
     EliasFano.cpp
     MinimalPerfectHash.cpp

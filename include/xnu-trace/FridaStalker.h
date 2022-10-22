@@ -15,6 +15,8 @@ typedef _GumStalker GumStalker;
 struct _GumStalkerTransformer;
 typedef _GumStalkerTransformer GumStalkerTransformer;
 
+struct cs_insn;
+
 class XNUTRACE_EXPORT FridaStalker {
 public:
     FridaStalker(const std::string &log_dir_path, bool symbolicate, int compression_level,
@@ -29,7 +31,7 @@ public:
 private:
     struct CBCtx {
         TraceLog *logger;
-        void *insn;
+        cs_insn *insn;
     };
 
     void write_trace();

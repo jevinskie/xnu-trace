@@ -19,6 +19,8 @@
 
 #include <absl/container/flat_hash_map.h>
 
+struct cs_insn;
+
 struct bb_t {
     uint64_t pc;
     uint32_t sz;
@@ -188,7 +190,7 @@ public:
     TraceLog(const std::string &log_dir_path, int compression_level, bool stream);
     TraceLog(const std::string &log_dir_path);
     XNUTRACE_INLINE void log(thread_t thread, uint64_t pc);
-    XNUTRACE_INLINE void log(thread_t thread, const log_arm64_cpu_context *context, void *insn);
+    XNUTRACE_INLINE void log(thread_t thread, const log_arm64_cpu_context *context, cs_insn *insn);
     void write(const MachORegions &macho_regions, const Symbols *symbols = nullptr);
     uint64_t num_inst() const;
     size_t num_bytes() const;
@@ -204,7 +206,7 @@ private:
         XNUTRACE_ALIGNED(16) log_arm64_cpu_context last_cpu_ctx;
         uint64_t num_inst{};
         uint32_t sz_since_last_sync{sync_every + 1};
-        XNUTRACE_INLINE void write_log_msg(const log_arm64_cpu_context *ctx, void *insn);
+        XNUTRACE_INLINE void write_log_msg(const log_arm64_cpu_context *ctx, cs_insn *insn);
         XNUTRACE_INLINE void write_log_msg(uint64_t pc);
         void write_sync();
     };

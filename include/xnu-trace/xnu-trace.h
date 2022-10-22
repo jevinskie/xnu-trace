@@ -2,6 +2,7 @@
 
 #include "xnu-trace-c.h"
 
+#include "ARM64Disassembler.h"
 #include "ARM64InstrHistogram.h"
 #include "Atomic.h"
 #include "BitVector.h"

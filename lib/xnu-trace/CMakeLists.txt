@@ -15,6 +15,7 @@ target_include_directories(xnu-trace-mach-exc
 
 
 set(INSTTRACE_SRC
+    ARM64Disassembler.cpp
     ARM64InstrHistogram.cpp
     common-internal.h
     CompressedFile.cpp

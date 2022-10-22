@@ -189,11 +189,13 @@ static uint64x2_t interleave_uint64x2_with_zeros_16bit(uint64x2_t input) {
     return word;
 }
 
-void TraceLog::thread_ctx::write_log_msg(const log_arm64_cpu_context *ctx, void *insn) {
+void TraceLog::thread_ctx::write_log_msg(const log_arm64_cpu_context *ctx, cs_insn *insn) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wvla-extension"
     uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::size_full_ctx];
 #pragma clang diagnostic pop
+
+    (void)insn;
 
     if (sz_since_last_sync >= sync_every) {
         write_sync();
@@ -319,7 +321,7 @@ void TraceLog::thread_ctx::write_sync() {
     sz_since_last_sync = 0;
 }
 
-void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context, void *insn) {
+void TraceLog::log(thread_t thread, const log_arm64_cpu_context *context, cs_insn *insn) {
     thread_ctx *tctx;
     if (!m_thread_ctxs.contains(thread)) {
         std::unique_ptr<CompressedFile<log_thread_hdr>> log_stream;
