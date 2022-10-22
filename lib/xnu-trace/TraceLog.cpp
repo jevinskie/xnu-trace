@@ -189,7 +189,9 @@ static uint64x2_t interleave_uint64x2_with_zeros_16bit(uint64x2_t input) {
     return word;
 }
 
+// XNUTRACE_NOINLINE
 void TraceLog::thread_ctx::write_log_msg(const log_arm64_cpu_context *ctx, cs_insn *insn) {
+    // MCA_BEGIN("write_log_msg");
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wvla-extension"
     uint8_t __attribute__((uninitialized, aligned(16))) msg_buf[log_msg::size_full_ctx];
@@ -282,6 +284,7 @@ void TraceLog::thread_ctx::write_log_msg(const log_arm64_cpu_context *ctx, cs_in
 
     memcpy(&last_cpu_ctx, ctx, sizeof(last_cpu_ctx));
     ++num_inst;
+    // MCA_END();
 }
 
 void TraceLog::thread_ctx::write_log_msg(uint64_t pc) {

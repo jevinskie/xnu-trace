@@ -13,6 +13,15 @@
 #include <mach/machine/kern_return.h>
 #include <mach/vm_prot.h>
 
+#define MCA_BEGIN(name)                                                                            \
+    do {                                                                                           \
+        __asm volatile("# LLVM-MCA-BEGIN " #name ::: "memory");                                    \
+    } while (0)
+#define MCA_END()                                                                                  \
+    do {                                                                                           \
+        __asm volatile("# LLVM-MCA-END" ::: "memory");                                             \
+    } while (0)
+
 struct mbedtls_sha256_context;
 
 using sha256_t = std::array<uint8_t, 32>;
