@@ -34,6 +34,7 @@ int main() {
             cs_arm64_op *op = &arm64->operands[i];
             if (op->type == ARM64_OP_MEM) {
                 is_mem = true;
+                break;
             }
         }
         cs_free(cs_instr, count);
