@@ -1,0 +1,19 @@
+{"reg":[
+    { "name": "sz0", "bits": 3},
+    { "name": "sz1", "bits": 3},
+    { "name": "sz2", "bits": 3},
+    { "name": "sz3", "bits": 3},
+    { "name": "sz4", "bits": 3},
+    { "name": "r0",  "bits": 1},
+    { "name": "r1",  "bits": 1},
+    { "name": "r2",  "bits": 1},
+    { "name": "r3",  "bits": 1},
+    { "name": "r4",  "bits": 1},
+    { "name": "w0",  "bits": 1},
+    { "name": "w1",  "bits": 1},
+    { "name": "w2",  "bits": 1},
+    { "name": "w3",  "bits": 1},
+    { "name": "w4",  "bits": 1},
+    {                "bits": 4},
+    { "name": "nma", "bits": 3}
+]}

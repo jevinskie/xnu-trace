@@ -166,8 +166,8 @@ public:
         Signpost chunk_sp("log_thread_buf", "chunk_into_bins");
         chunk_sp.start();
         const auto raw_bins =
-            chunk_into_bins_by_needle(n, m_buf.data(), m_buf.size(), log_msg::sync_frame_buf,
-                                      sizeof(log_msg::sync_frame_buf));
+            chunk_into_bins_by_needle(n, m_buf.data(), m_buf.size(), log_msg::sync_frame_buf_hdr,
+                                      sizeof(log_msg::sync_frame_buf_hdr));
         chunk_sp.end();
         return {};
     }

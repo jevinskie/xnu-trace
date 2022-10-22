@@ -309,13 +309,17 @@ void TraceLog::thread_ctx::write_log_msg(uint64_t pc) {
 
 void TraceLog::thread_ctx::write_sync() {
     if (!log_stream) {
-        std::copy((uint8_t *)&log_msg::sync_frame_buf,
-                  (uint8_t *)&log_msg::sync_frame_buf + sizeof(log_msg::sync_frame_buf),
+        std::copy((uint8_t *)&log_msg::sync_frame_buf_hdr,
+                  (uint8_t *)&log_msg::sync_frame_buf_hdr + sizeof(log_msg::sync_frame_buf_hdr),
+                  std::back_inserter(log_buf));
+        std::copy((uint8_t *)&num_inst, (uint8_t *)&num_inst + sizeof(num_inst),
                   std::back_inserter(log_buf));
         std::copy((uint8_t *)&last_cpu_ctx, (uint8_t *)&last_cpu_ctx + sizeof(last_cpu_ctx),
                   std::back_inserter(log_buf));
     } else {
-        log_stream->write((uint8_t *)&log_msg::sync_frame_buf, sizeof(log_msg::sync_frame_buf));
+        log_stream->write((uint8_t *)&log_msg::sync_frame_buf_hdr,
+                          sizeof(log_msg::sync_frame_buf_hdr));
+        log_stream->write((uint8_t *)&num_inst, sizeof(num_inst));
         log_stream->write((uint8_t *)&last_cpu_ctx, sizeof(last_cpu_ctx));
     }
     sz_since_last_sync = 0;

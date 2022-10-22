@@ -13,5 +13,3 @@ thread_vic[0x104]: add x0, #7
 
 
 TODO:
-
-include instruction number in sync frame

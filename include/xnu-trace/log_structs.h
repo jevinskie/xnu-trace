@@ -96,8 +96,8 @@ constexpr uint32_t rpc_set_reg_idx(uint32_t reg_packed_changes, uint32_t changed
 
 constexpr uint32_t mpc_set_mem_access_sz(uint32_t mem_packed_changes, uint32_t changed_idx,
                                          uint32_t mem_access_sz) {
-    unsigned int log2 = __builtin_ctz(mem_access_size);
-    return mem_packed_changes | (log2 << 3 * changed_idx));
+    unsigned int log2 = __builtin_ctz(mem_access_sz);
+    return mem_packed_changes | (log2 << (3 * changed_idx));
 }
 
 constexpr uint32_t rpc_set_num_changed(uint32_t reg_packed_changes, uint32_t num_changed) {
@@ -207,44 +207,50 @@ struct log_msg {
         return res;
     }
     bool is_sync_frame() const {
-        return rpc_sync(gpr_changed) && !memcmp(sync_frame_buf, this, sizeof(sync_frame_buf));
+        return rpc_sync(gpr_changed) &&
+               !memcmp(sync_frame_buf_hdr, this, sizeof(sync_frame_buf_hdr));
     }
 
     static constexpr size_t size_max = 2 * sizeof(uint32_t) /* hdr */ +
                                        2 * sizeof(uint64_t) /* pc/sp */ +
                                        rpc_num_changed_max * sizeof(uint64_t) /* gpr */ +
-                                       rpc_num_changed_max * sizeof(uint128_t) /* vec */;
-    static constexpr uint64_t sync_frame_buf[] = {((uint64_t)0 << 32) | rpc_set_sync(0),
-                                                  0x1b30'aabd'434e'5953ULL /* SYNC */,
-                                                  0x7699'0430'4a1b'4410ULL,
-                                                  0x9c62'5989'63b9'7672ULL,
-                                                  0x43d5'3630'a5ea'edd9ULL,
-                                                  0x6dc3'de59'4553'5e98ULL,
-                                                  0x6089'461f'fc1f'b52bULL,
-                                                  0xa4e0'a6f1'2861'b739ULL,
-                                                  0x3404'3c2d'70ca'6e6fULL,
-                                                  0xd6e1'dba5'098c'd02aULL,
-                                                  0xf2e6'b552'4519'baccULL,
-                                                  0xfd91'ff9d'e376'3e78ULL,
-                                                  0x77f0'f681'59e4'e2e8ULL,
-                                                  0x3d5d'2cff'136d'f711ULL,
-                                                  0xfee4'c678'6443'd6b8ULL,
-                                                  0xf46d'78eb'e3ae'77ddULL,
-                                                  0xb135'4b20'367b'48a2ULL,
-                                                  0x9ba2'c577'f87b'0c83ULL};
-    static constexpr size_t size_full_ctx =
-        sizeof(sync_frame_buf) /* hdr/magic */ + sizeof(log_arm64_cpu_context) /* ctx */;
+                                       rpc_num_changed_max * sizeof(uint128_t) /* vec */; // sz 18
+    static constexpr uint64_t sync_frame_buf_hdr[] = {((uint64_t)0 << 32) |
+                                                          rpc_set_sync(0),       // 0 / hdr
+                                                      0x1b30'aabd'434e'5953ULL,  // 1 / SYNC
+                                                      0x7699'0430'4a1b'4410ULL,  // 2
+                                                      0x9c62'5989'63b9'7672ULL,  // 3
+                                                      0x43d5'3630'a5ea'edd9ULL,  // 4
+                                                      0x6dc3'de59'4553'5e98ULL,  // 5
+                                                      0x6089'461f'fc1f'b52bULL,  // 6
+                                                      0xa4e0'a6f1'2861'b739ULL,  // 7
+                                                      0x3404'3c2d'70ca'6e6fULL,  // 8
+                                                      0xd6e1'dba5'098c'd02aULL,  // 9
+                                                      0xf2e6'b552'4519'baccULL,  // 10
+                                                      0xfd91'ff9d'e376'3e78ULL,  // 11
+                                                      0x77f0'f681'59e4'e2e8ULL,  // 12
+                                                      0x3d5d'2cff'136d'f711ULL,  // 13
+                                                      0xfee4'c678'6443'd6b8ULL,  // 14
+                                                      0xf46d'78eb'e3ae'77ddULL,  // 15
+                                                      0xb135'4b20'367b'48a2ULL}; // 16
+    static constexpr size_t sync_frame_sz =
+        sizeof(sync_frame_buf_hdr) /* hdr/magic */ + sizeof(uint64_t) /* num_inst */;
+    static constexpr size_t size_full_ctx = sync_frame_sz + sizeof(log_arm64_cpu_context) /* ctx */;
 
     const log_arm64_cpu_context *sync_ctx() const {
-        return is_sync_frame() ? (log_arm64_cpu_context *)((uintptr_t)this + sizeof(sync_frame_buf))
+        return is_sync_frame() ? (log_arm64_cpu_context *)((uintptr_t)this + sync_frame_sz)
                                : nullptr;
+    }
+    uint64_t sync_num_inst() const {
+        return is_sync_frame() ? *(uint64_t *)((uintptr_t)this + sizeof(sync_frame_buf_hdr))
+                               : UINT64_MAX;
     }
 } __attribute__((packed, aligned(8)));
 
 static_assert(sizeof(log_msg) == 2 * sizeof(uint32_t), "log_msg header is not 8 bytes");
 static_assert(sizeof(log_msg) % sizeof(uint64_t) == 0, "log_msg not 8 byte aligned");
-static_assert(sizeof(log_msg::sync_frame_buf) == log_msg::size_max,
-              "log_msg::sync_frame_buf not max_size");
+static_assert(log_msg::sync_frame_sz == log_msg::size_max,
+              "log_msg::sync_frame_buf_hdr and num_inst not max_size");
 
 struct log_region {
     uint64_t base;
