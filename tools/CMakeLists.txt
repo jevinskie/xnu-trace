@@ -1,3 +1,4 @@
+add_subdirectory(capstone-arm64-enumerate-mem-insn)
 add_subdirectory(spawn-no-aslr)
 add_subdirectory(xnu-trace-log-util)
 add_subdirectory(xnu-trace-single-step-runner)

@@ -31,8 +31,8 @@ add_compile_options(-ggdb3)
 add_compile_options(-Og)
 add_link_options(-Og)
 
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
 
 # add_compile_options(-fsanitize=memory)
 # add_link_options(-fsanitize=memory)
