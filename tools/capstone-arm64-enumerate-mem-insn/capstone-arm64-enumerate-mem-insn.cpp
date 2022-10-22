@@ -13,8 +13,8 @@ int main() {
     assert(cs_open(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN, &cs_handle) == CS_ERR_OK);
     cs_option(cs_handle, CS_OPT_DETAIL, CS_OPT_ON);
     std::set<std::string> mem_opc;
-    for (uint32_t shifted_instr = 0; shifted_instr <= 1 << 22; ++shifted_instr) {
-        uint32_t instr = shifted_instr << 10;
+    for (uint64_t instr64 = 0; instr64 <= UINT32_MAX; ++instr64) {
+        uint32_t instr = (uint32_t)instr64;
         Instruction inst_repr;
         if (aarch64_decompose(instr, &inst_repr, 0) != DECODE_STATUS_OK) {
             continue;
