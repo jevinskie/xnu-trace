@@ -40,10 +40,20 @@ constexpr uint8_t gpr_idx_sz = (uint8_t)gpr_idx::sp + 1; // sz = 32
 // │ ngc │ |c|s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
 // └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 
+// 31  292827262524      2019      1514      10 9       5 4       0
+// ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+// │ nma │ | | │ │   sz4   │   sz3   │   sz2   │   sz1   │   sz0   │
+// └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+
 constexpr int8_t rpc_num_changed_max = 5;
+constexpr int8_t mpc_num_changed_max = 5;
 
 constexpr uint32_t rpc_num_changed(uint32_t reg_packed_changes) {
     return reg_packed_changes >> 29;
+}
+
+constexpr uint32_t mpc_num_changed(uint32_t mem_packed_changes) {
+    return mem_packed_changes >> 29;
 }
 
 constexpr uint32_t rpc_num_fixed_changed(uint32_t reg_packed_changes) {
@@ -66,13 +76,27 @@ constexpr uint32_t rpc_reg_idx(uint32_t reg_packed_changes, uint32_t changed_idx
     return (reg_packed_changes >> (5 * changed_idx)) & 0b1'1111;
 }
 
+constexpr uint32_t mpc_mem_access_sz(uint32_t mem_packed_changes, uint32_t changed_idx) {
+    return (mem_packed_changes >> (5 * changed_idx)) & 0b1'1111;
+}
+
 constexpr uint32_t rpc_set_reg_idx(uint32_t reg_packed_changes, uint32_t changed_idx,
                                    uint32_t reg_idx) {
     return reg_packed_changes | (reg_idx << (5 * changed_idx));
 }
 
+constexpr uint32_t mpc_set_mem_access_sz(uint32_t mem_packed_changes, uint32_t changed_idx,
+                                         uint32_t mem_access_sz) {
+    return mem_packed_changes | (mem_access_sz << (5 * changed_idx));
+}
+
 constexpr uint32_t rpc_set_num_changed(uint32_t reg_packed_changes, uint32_t num_changed) {
     return reg_packed_changes | (num_changed << 29);
+}
+
+constexpr uint32_t mpc_set_num_mem_accesses(uint32_t mem_packed_changes,
+                                            uint32_t num_mem_accesses) {
+    return mem_packed_changes | (num_mem_accesses << 29);
 }
 
 constexpr uint32_t rpc_set_pc_branched(uint32_t reg_packed_changes) {
