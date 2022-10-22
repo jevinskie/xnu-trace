@@ -40,9 +40,10 @@ constexpr uint8_t gpr_idx_sz = (uint8_t)gpr_idx::sp + 1; // sz = 32
 // │ ngc │ |c|s│b│   gc4   │   gc3   │   gc2   │   gc1   │   gc0   │
 // └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 
-// 31  292827262524      2019      1514      10 9       5 4       0
+// 31  2928    252423222120191817161514  1211   9 8   6 5   3 2   0
 // ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
-// │ nma │ | | │ │   sz4   │   sz3   │   sz2   │   sz1   │   sz0   │
+// │ nma │       │w│w│w│w│w│r│r│r│r│r│ sz4 │ sz3 │ sz2 │ sz1 │ sz0 │
+// │     │       │4│3│2│1│0│4│3│2│1│0│     │     │     │     │     │
 // └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
 
 constexpr int8_t rpc_num_changed_max = 5;
@@ -72,12 +73,20 @@ constexpr bool rpc_sync(uint32_t reg_packed_changes) {
     return reg_packed_changes & (1 << 27);
 }
 
+constexpr bool mpc_read(uint32_t mem_packed_changes, uint32_t changed_idx) {
+    return mem_packed_changes & (1 << (changed_idx + 15));
+}
+
+constexpr bool mpc_write(uint32_t mem_packed_changes, uint32_t changed_idx) {
+    return mem_packed_changes & (1 << (changed_idx + 20));
+}
+
 constexpr uint32_t rpc_reg_idx(uint32_t reg_packed_changes, uint32_t changed_idx) {
     return (reg_packed_changes >> (5 * changed_idx)) & 0b1'1111;
 }
 
 constexpr uint32_t mpc_mem_access_sz(uint32_t mem_packed_changes, uint32_t changed_idx) {
-    return (mem_packed_changes >> (5 * changed_idx)) & 0b1'1111;
+    return 1 << ((mem_packed_changes >> (3 * changed_idx)) & 0b111);
 }
 
 constexpr uint32_t rpc_set_reg_idx(uint32_t reg_packed_changes, uint32_t changed_idx,
@@ -87,7 +96,8 @@ constexpr uint32_t rpc_set_reg_idx(uint32_t reg_packed_changes, uint32_t changed
 
 constexpr uint32_t mpc_set_mem_access_sz(uint32_t mem_packed_changes, uint32_t changed_idx,
                                          uint32_t mem_access_sz) {
-    return mem_packed_changes | (mem_access_sz << (5 * changed_idx));
+    unsigned int log2 = __builtin_ctz(mem_access_size);
+    return mem_packed_changes | (log2 << 3 * changed_idx));
 }
 
 constexpr uint32_t rpc_set_num_changed(uint32_t reg_packed_changes, uint32_t num_changed) {
@@ -97,6 +107,14 @@ constexpr uint32_t rpc_set_num_changed(uint32_t reg_packed_changes, uint32_t num
 constexpr uint32_t mpc_set_num_mem_accesses(uint32_t mem_packed_changes,
                                             uint32_t num_mem_accesses) {
     return mem_packed_changes | (num_mem_accesses << 29);
+}
+
+constexpr uint32_t mpc_set_read(uint32_t mem_packed_changes, uint32_t changed_idx) {
+    return mem_packed_changes | (1 << (changed_idx + 15));
+}
+
+constexpr uint32_t mpc_set_write(uint32_t mem_packed_changes, uint32_t changed_idx) {
+    return mem_packed_changes | (1 << (changed_idx + 20));
 }
 
 constexpr uint32_t rpc_set_pc_branched(uint32_t reg_packed_changes) {

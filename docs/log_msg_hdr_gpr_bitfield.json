@@ -4,7 +4,9 @@
     { "name": "gc2", "bits": 5},
     { "name": "gc3", "bits": 5},
     { "name": "gc4", "bits": 5},
-    { "name": "br",  "bits": 1},
-    {                "bits": 3},
+    { "name": "b",   "bits": 1},
+    { "name": "s",   "bits": 1},
+    { "name": "c",   "bits": 1},
+    {                "bits": 1},
     { "name": "ngc", "bits": 3}
 ]}
