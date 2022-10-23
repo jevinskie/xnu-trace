@@ -7,6 +7,7 @@
 #undef NDEBUG
 #include <cassert>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 #include <boost/hana.hpp>
@@ -28,10 +29,34 @@ template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t
     return (val & bit_mask<T>(sb, eb)) >> sb;
 }
 
+template <typename T, typename DT = int_n<sizeofbits<T>() * 2, std::is_signed_v<T>>>
+static constexpr void extract_bits_from(XNUTRACE_ALIGNED(16) uint8_t *buf, size_t sb,
+                                        uint8_t nbits) {
+    static_assert(sizeof(T) <= sizeof(uint64_t));
+    const auto TBits      = sizeofbits<T>();
+    const auto widx       = sb / TBits;
+    const auto wbidx      = widx * TBits;
+    const auto inner_bidx = sb - wbidx;
+    const auto wptr       = &((T *)buf)[widx];
+    return extract_bits(*(DT *)wptr, inner_bidx, nbits);
+}
+
 template <typename T, typename IT>
 static constexpr T insert_bits(T orig_val, IT insert_val, uint8_t sb, uint8_t nbits) {
     const T orig_val_cleared = orig_val & ~bit_mask<T>(sb, sb + nbits);
     return orig_val_cleared | (T(insert_val) << sb);
+}
+
+template <typename T, typename DT = int_n<sizeofbits<T>() * 2, std::is_signed_v<T>>>
+static constexpr void insert_bits_into(XNUTRACE_ALIGNED(16) uint8_t *buf, T insert_val, size_t sb,
+                                       uint8_t nbits) {
+    static_assert(sizeof(T) <= sizeof(uint64_t));
+    const auto TBits      = sizeofbits<T>();
+    const auto widx       = sb / TBits;
+    const auto wbidx      = widx * TBits;
+    const auto inner_bidx = sb - wbidx;
+    const auto wptr       = &((T *)buf)[widx];
+    *(DT *)wptr           = insert_bits(*(DT *)wptr, insert_val, inner_bidx, nbits);
 }
 
 template <typename T, typename IT>
