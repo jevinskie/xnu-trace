@@ -122,21 +122,22 @@ public:
     using RT                       = typename Base::value_type;
     static constexpr size_t RTBits = sizeofbits<RT>();
 
+    uint8_t *data() {
+        return m_buf.data();
+    }
+    const uint8_t *data() const {
+        return m_buf.data();
+    }
+
 protected:
-    BitVectorBase(size_t sz, size_t byte_sz) : Base(sz), m_buf(byte_sz) {}
+    // padded to 16 bytes (alignment)
+    BitVectorBase(size_t sz, size_t byte_sz) : Base(sz), m_buf(roundup_pow2_mul(byte_sz, 16)) {}
 
     std::vector<uint8_t> &buf() {
         return m_buf;
     }
     const std::vector<uint8_t> &buf() const {
         return m_buf;
-    }
-
-    uint8_t *data() {
-        return m_buf.data();
-    }
-    const uint8_t *data() const {
-        return m_buf.data();
     }
 
 private:
@@ -162,6 +163,9 @@ public:
         ((T *)Base::data())[idx] = T(val);
     }
 
+    size_t bit_sz() const {
+        return Base::size() * NBits;
+    }
     static constexpr size_t byte_sz(size_t sz) {
         return sz * NBits / 8;
     }
@@ -199,6 +203,9 @@ public:
         return idx % TBits;
     }
 
+    size_t bit_sz() const {
+        return Base::size() * NBits;
+    }
     static constexpr size_t byte_sz(size_t sz) {
         return roundup_pow2_mul(sz, TBits) / 8;
     }
@@ -239,6 +246,9 @@ public:
         return idx % TBits;
     }
 
+    size_t bit_sz() const {
+        return Base::size() * NBits;
+    }
     static constexpr size_t byte_sz(size_t sz) {
         return roundup_pow2_mul(sz, TBits) / 8;
     }
@@ -306,6 +316,9 @@ public:
         }
     }
 
+    size_t bit_sz() const {
+        return Base::size() * NBits;
+    }
     static constexpr size_t byte_sz(size_t sz) {
         const auto total_packed_bits = NBits * sz;
         const auto write_total_bit_sz =
@@ -341,6 +354,9 @@ public:
         return;
     }
 
+    size_t bit_sz() const {
+        return Base::size() * NBits;
+    }
     static constexpr size_t byte_sz(size_t sz) {
         const auto total_packed_bits = NBits * sz;
         const auto write_total_bit_sz =
