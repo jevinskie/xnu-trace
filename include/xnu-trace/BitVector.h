@@ -129,9 +129,17 @@ public:
         return m_buf.data();
     }
 
+    uint8_t nbits() const noexcept {
+        return m_nbits;
+    }
+    size_t bit_sz() const noexcept {
+        return nbits() * Base::size();
+    }
+
 protected:
     // padded to 16 bytes (alignment)
-    BitVectorBase(size_t sz, size_t byte_sz) : Base(sz), m_buf(roundup_pow2_mul(byte_sz, 16)) {}
+    BitVectorBase(uint8_t nbits, size_t sz, size_t byte_sz)
+        : Base(sz), m_buf(roundup_pow2_mul(byte_sz, 16)), m_nbits{nbits} {}
 
     std::vector<uint8_t> &buf() {
         return m_buf;
@@ -142,6 +150,7 @@ protected:
 
 private:
     std::vector<uint8_t> m_buf;
+    const uint8_t m_nbits;
 };
 
 template <uint8_t NBits, bool Signed = false, uint8_t NBitsMax = DefaultNBitsMax>
@@ -153,7 +162,7 @@ public:
     static_assert(NBits <= Base::RTBits);
     static_assert(NBits >= 8 && is_pow2(NBits));
 
-    ExactBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
+    ExactBitVectorImpl(size_t sz) : Base(NBits, sz, byte_sz(sz)) {}
 
     RT get(size_t idx) const noexcept final override {
         return ((T *)Base::data())[idx];
@@ -163,9 +172,6 @@ public:
         ((T *)Base::data())[idx] = T(val);
     }
 
-    size_t bit_sz() const {
-        return Base::size() * NBits;
-    }
     static constexpr size_t byte_sz(size_t sz) {
         return sz * NBits / 8;
     }
@@ -180,7 +186,7 @@ public:
     using T                        = uint8_t;
     static constexpr size_t TBits  = sizeofbits<T>();
 
-    NonAtomicSingleBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
+    NonAtomicSingleBitVectorImpl(size_t sz) : Base(NBits, sz, byte_sz(sz)) {}
 
     RT get(size_t idx) const noexcept final override {
         const auto widx = word_idx(idx);
@@ -203,9 +209,6 @@ public:
         return idx % TBits;
     }
 
-    size_t bit_sz() const {
-        return Base::size() * NBits;
-    }
     static constexpr size_t byte_sz(size_t sz) {
         return roundup_pow2_mul(sz, TBits) / 8;
     }
@@ -221,7 +224,7 @@ public:
     static constexpr size_t TBits  = sizeofbits<T>();
     using AT                       = std::atomic<T>;
 
-    AtomicSingleBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
+    AtomicSingleBitVectorImpl(size_t sz) : Base(NBits, sz, byte_sz(sz)) {}
 
     RT get(size_t idx) const noexcept final override {
         const auto widx = word_idx(idx);
@@ -246,9 +249,6 @@ public:
         return idx % TBits;
     }
 
-    size_t bit_sz() const {
-        return Base::size() * NBits;
-    }
     static constexpr size_t byte_sz(size_t sz) {
         return roundup_pow2_mul(sz, TBits) / 8;
     }
@@ -266,7 +266,7 @@ public:
     static_assert(NBits <= Base::RTBits);
     static_assert(NBits != 8 && NBits != 16 && NBits != 32 && NBits != 64);
 
-    NonAtomicBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
+    NonAtomicBitVectorImpl(size_t sz) : Base(NBits, sz, byte_sz(sz)) {}
 
     RT get(size_t idx) const noexcept final override {
         T res;
@@ -316,9 +316,6 @@ public:
         }
     }
 
-    size_t bit_sz() const {
-        return Base::size() * NBits;
-    }
     static constexpr size_t byte_sz(size_t sz) {
         const auto total_packed_bits = NBits * sz;
         const auto write_total_bit_sz =
@@ -339,7 +336,7 @@ public:
     static_assert(NBits <= Base::RTBits);
     static_assert(NBits != 8 && NBits != 16 && NBits != 32 && NBits != 64);
 
-    AtomicBitVectorImpl(size_t sz) : Base(sz, byte_sz(sz)) {}
+    AtomicBitVectorImpl(size_t sz) : Base(NBits, sz, byte_sz(sz)) {}
 
     RT get(size_t idx) const noexcept final override {
         (void)idx;
@@ -354,9 +351,6 @@ public:
         return;
     }
 
-    size_t bit_sz() const {
-        return Base::size() * NBits;
-    }
     static constexpr size_t byte_sz(size_t sz) {
         const auto total_packed_bits = NBits * sz;
         const auto write_total_bit_sz =
