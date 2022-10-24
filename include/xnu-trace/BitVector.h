@@ -40,6 +40,7 @@ static constexpr void extract_bits_from(XNUTRACE_ALIGNED(16) uint8_t *buf, size_
     return extract_bits(*(DT *)wptr, bidx, nbits);
 }
 
+// warning does not mask out high bits of insert_val
 template <typename T, typename IT>
 static constexpr T insert_bits(T orig_val, IT insert_val, uint8_t sb, uint8_t nbits) {
     const T orig_val_cleared = orig_val & ~bit_mask<T>(sb, nbits);
@@ -355,11 +356,16 @@ public:
         const auto lwptr = &((T *)Base::data())[lwidx];
         const auto hwptr = &((T *)Base::data())[hwidx];
 
-        // if (lwidx == hwidx) {
-        // bits do not straddle two words
-        extracted_val = extract_bits(*lwptr, lbidx, NBits);
-        // } else {
-        // }
+        if (lwidx == hwidx) {
+            // bits do not straddle two words
+            extracted_val = extract_bits(*lwptr, lbidx, NBits);
+        } else {
+            const uint8_t num_lo_bits = TBits - lbidx;
+            const uint8_t num_hi_bits = NBits - num_lo_bits;
+            const T extracted_val_lo  = *lwptr >> lbidx;
+            const T extraced_val_hi   = extract_bits(*hwptr, 0, num_hi_bits);
+            extracted_val             = (extraced_val_hi << num_lo_bits) | extracted_val_lo;
+        }
         if constexpr (!Signed) {
             res = extracted_val;
         } else {
@@ -368,7 +374,25 @@ public:
         return res;
     }
 
-    void set(size_t idx, RT val) noexcept final override {}
+    void set(size_t idx, RT val) noexcept final override {
+        const auto lwidx = lo_word_idx(idx);
+        const auto hwidx = hi_word_idx(idx);
+        const auto lbidx = lo_inner_bit_idx(idx);
+        const auto lwptr = &((T *)Base::data())[lwidx];
+        const auto hwptr = &((T *)Base::data())[hwidx];
+
+        if (lwidx == hwidx) {
+            // bits do not straddle two words
+            *lwptr = insert_bits(*lwptr, T(val), lbidx, NBits);
+        } else {
+            const uint8_t num_lo_bits = TBits - lbidx;
+            const uint8_t num_hi_bits = NBits - num_lo_bits;
+            const T val_lo            = T(val) & bit_mask<T>(0, num_lo_bits);
+            const T val_hi            = T(val) >> num_lo_bits;
+            *lwptr                    = insert_bits(*lwptr, val_lo, lbidx, num_lo_bits);
+            *hwptr                    = insert_bits(*hwptr, val_hi, 0, num_hi_bits);
+        }
+    }
 
     static constexpr size_t lo_bit_idx(size_t idx) {
         return NBits * idx;

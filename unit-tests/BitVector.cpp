@@ -151,6 +151,19 @@ TEST_CASE("non_atomic_mid_signed", TS) {
     }
 }
 
+TEST_CASE("non_atomic_big", TS) {
+    constexpr uint8_t nbits = 47;
+    constexpr size_t sz     = 8;
+    auto bv                 = BitVectorFactory<>(nbits, sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv->set(i, hash_n(nbits, i));
+    }
+
+    for (size_t i = 0; i < sz; ++i) {
+        REQUIRE(bv->get(i) == hash_n(nbits, i));
+    }
+}
+
 TEST_CASE("non_atomic_iterator", TS) {
     constexpr uint8_t nbits = 12;
     constexpr size_t sz     = 8;
