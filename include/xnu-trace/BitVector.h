@@ -33,12 +33,11 @@ template <typename T, typename DT = int_n<sizeofbits<T>() * 2, std::is_signed_v<
 static constexpr void extract_bits_from(XNUTRACE_ALIGNED(16) uint8_t *buf, size_t sb,
                                         uint8_t nbits) {
     static_assert(sizeof(T) <= sizeof(uint64_t));
-    const auto TBits      = sizeofbits<T>();
-    const auto widx       = sb / TBits;
-    const auto wbidx      = widx * TBits;
-    const auto inner_bidx = sb - wbidx;
-    const auto wptr       = &((T *)buf)[widx];
-    return extract_bits(*(DT *)wptr, inner_bidx, nbits);
+    const auto TBits = sizeofbits<T>();
+    const auto widx  = sb / TBits;
+    const auto bidx  = sb - widx * TBits;
+    const auto wptr  = &((T *)buf)[widx];
+    return extract_bits(*(DT *)wptr, bidx, bidx);
 }
 
 template <typename T, typename IT>
@@ -51,12 +50,11 @@ template <typename T, typename DT = int_n<sizeofbits<T>() * 2, std::is_signed_v<
 static constexpr void insert_bits_into(XNUTRACE_ALIGNED(16) uint8_t *buf, T insert_val, size_t sb,
                                        uint8_t nbits) {
     static_assert(sizeof(T) <= sizeof(uint64_t));
-    const auto TBits      = sizeofbits<T>();
-    const auto widx       = sb / TBits;
-    const auto wbidx      = widx * TBits;
-    const auto inner_bidx = sb - wbidx;
-    const auto wptr       = &((T *)buf)[widx];
-    *(DT *)wptr           = insert_bits(*(DT *)wptr, insert_val, inner_bidx, nbits);
+    const auto TBits = sizeofbits<T>();
+    const auto widx  = sb / TBits;
+    const auto bidx  = sb - widx * TBits;
+    const auto wptr  = &((T *)buf)[widx];
+    *(DT *)wptr      = insert_bits(*(DT *)wptr, insert_val, bidx, nbits);
 }
 
 template <typename T, typename IT>
@@ -325,20 +323,8 @@ public:
         return bit_idx(idx) / TBits;
     }
 
-    static constexpr size_t even_inner_bit_idx(size_t idx) {
-        return bit_idx(idx) % (2 * TBits);
-    }
-
-    static constexpr size_t odd_inner_bit_idx(size_t idx) {
-        return (bit_idx(idx) + TBits) % (2 * TBits);
-    }
-
     static constexpr size_t inner_bit_idx(size_t idx) {
-        if (word_idx(idx) % 2 == 0) {
-            return even_inner_bit_idx(idx);
-        } else {
-            return odd_inner_bit_idx(idx);
-        }
+        return bit_idx(idx) - (word_idx(idx) * TBits);
     }
 
     static constexpr size_t byte_sz(size_t sz) {
