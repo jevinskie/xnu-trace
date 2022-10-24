@@ -27,27 +27,27 @@ TEST_CASE("extract_bits", TS) {
             BV::bit_mask<uint32_t>(0, 2));
     REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(0, 3), 0, 3) ==
             BV::bit_mask<uint32_t>(0, 3));
-    REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(1, 3), 1, 4) ==
+    REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(1, 3), 1, 3) ==
             BV::bit_mask<uint32_t>(1, 3) >> 1);
-    REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(4, 4), 4, 8) ==
+    REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(4, 4), 4, 4) ==
             BV::bit_mask<uint32_t>(4, 4) >> 4);
 
     REQUIRE(BV::extract_bits<uint32_t>(0b1, 0, 1) == 0b1);
-    REQUIRE(BV::extract_bits<uint32_t>(0b10, 1, 2) == 0b1);
-    REQUIRE(BV::extract_bits<uint32_t>(0b1000'0000, 7, 8) == 0b1);
+    REQUIRE(BV::extract_bits<uint32_t>(0b10, 1, 1) == 0b1);
+    REQUIRE(BV::extract_bits<uint32_t>(0b1000'0000, 7, 1) == 0b1);
 
     REQUIRE(BV::extract_bits<uint32_t>(0b11, 0, 2) == 0b11);
-    REQUIRE(BV::extract_bits<uint32_t>(0b110, 1, 3) == 0b11);
-    REQUIRE(BV::extract_bits<uint32_t>(0b1'1000'0000, 7, 9) == 0b11);
+    REQUIRE(BV::extract_bits<uint32_t>(0b110, 1, 2) == 0b11);
+    REQUIRE(BV::extract_bits<uint32_t>(0b1'1000'0000, 7, 2) == 0b11);
 
     REQUIRE(BV::extract_bits<uint32_t>(0b101, 0, 3) == 0b101);
-    REQUIRE(BV::extract_bits<uint32_t>(0b1010, 1, 4) == 0b101);
+    REQUIRE(BV::extract_bits<uint32_t>(0b1010, 1, 3) == 0b101);
     //                                   98'7654'3210
-    REQUIRE(BV::extract_bits<uint32_t>(0b10'1000'0000, 7, 10) == 0b101);
-    REQUIRE_FALSE(BV::extract_bits<uint32_t>(0b10'1000'0000, 7, 9) == 0b101);
+    REQUIRE(BV::extract_bits<uint32_t>(0b10'1000'0000, 7, 3) == 0b101);
+    REQUIRE_FALSE(BV::extract_bits<uint32_t>(0b10'1000'0000, 7, 2) == 0b101);
 
     //                                   8'7654'3210
-    REQUIRE(BV::extract_bits<uint32_t>(0b1'0101'0000, 4, 9) == 0b1'0101);
+    REQUIRE(BV::extract_bits<uint32_t>(0b1'0101'0000, 4, 5) == 0b1'0101);
 }
 
 TEST_CASE("insert_bits", TS) {

@@ -19,17 +19,15 @@ namespace xnutrace::BitVector {
 
 static constexpr uint8_t DefaultNBitsMax = 64;
 
-// [sb, eb)
 template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t nbits) {
     const T high_mask = (T{1} << (sb + nbits)) - 1;
     const T low_mask  = (T{1} << sb) - 1;
     return high_mask ^ low_mask;
 }
 
-// [sb, eb)
-template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t eb) {
-    // return (val & bit_mask<T>(sb, eb)) >> sb;
-    return (val >> sb) & bit_mask<T>(0, eb - sb);
+template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t nbits) {
+    // return (val & bit_mask<T>(sb, nbits)) >> sb;
+    return (val >> sb) & bit_mask<T>(0, nbits);
 }
 
 template <typename T, typename DT = int_n<sizeofbits<T>() * 2, std::is_signed_v<T>>>
@@ -40,7 +38,7 @@ static constexpr void extract_bits_from(XNUTRACE_ALIGNED(16) uint8_t *buf, size_
     const auto widx  = sb / TBits;
     const auto bidx  = sb - widx * TBits;
     const auto wptr  = &((T *)buf)[widx];
-    return extract_bits(*(DT *)wptr, bidx, bidx + nbits);
+    return extract_bits(*(DT *)wptr, bidx, nbits);
 }
 
 template <typename T, typename IT>
@@ -217,7 +215,7 @@ public:
     RT get(size_t idx) const noexcept final override {
         const auto widx = word_idx(idx);
         const auto bidx = inner_bit_idx(idx);
-        return extract_bits(Base::data()[widx], bidx, bidx + NBits);
+        return extract_bits(Base::data()[widx], bidx, NBits);
     }
 
     void set(size_t idx, RT val) noexcept final override {
@@ -255,7 +253,7 @@ public:
     RT get(size_t idx) const noexcept final override {
         const auto widx = word_idx(idx);
         const auto bidx = inner_bit_idx(idx);
-        return extract_bits(Base::data()[widx], bidx, bidx + NBits);
+        return extract_bits(Base::data()[widx], bidx, NBits);
     }
 
     void set(size_t idx, RT val) noexcept final override {
@@ -300,7 +298,7 @@ public:
         const auto bidx       = inner_bit_idx(idx);
         const auto wptr       = &((T *)Base::data())[widx];
         const DT mixed_dword  = *(DT *)wptr;
-        const T extracted_val = (T)extract_bits(mixed_dword, bidx, bidx + NBits);
+        const T extracted_val = (T)extract_bits(mixed_dword, bidx, NBits);
         if constexpr (!Signed) {
             res = extracted_val;
         } else {
@@ -360,7 +358,7 @@ public:
 
         // if (lwidx == hwidx) {
         // bits do not straddle two words
-        extracted_val = extract_bits(*lwptr, lbidx, lbidx + NBits);
+        extracted_val = extract_bits(*lwptr, lbidx, NBits);
         // } else {
         // }
         if constexpr (!Signed) {
