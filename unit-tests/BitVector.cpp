@@ -15,9 +15,9 @@ TEST_CASE("bit_mask", TS) {
     REQUIRE(BV::bit_mask<uint32_t>(0, 1) == 0b1);
     REQUIRE(BV::bit_mask<uint32_t>(0, 2) == 0b11);
     REQUIRE(BV::bit_mask<uint32_t>(0, 3) == 0b111);
-    REQUIRE(BV::bit_mask<uint32_t>(1, 4) == 0b1110);
-    REQUIRE(BV::bit_mask<uint32_t>(2, 4) == 0b1100);
-    REQUIRE(BV::bit_mask<uint32_t>(4, 8) == 0b1111'0000);
+    REQUIRE(BV::bit_mask<uint32_t>(1, 3) == 0b1110);
+    REQUIRE(BV::bit_mask<uint32_t>(2, 2) == 0b1100);
+    REQUIRE(BV::bit_mask<uint32_t>(4, 4) == 0b1111'0000);
 }
 
 TEST_CASE("extract_bits", TS) {
@@ -27,10 +27,10 @@ TEST_CASE("extract_bits", TS) {
             BV::bit_mask<uint32_t>(0, 2));
     REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(0, 3), 0, 3) ==
             BV::bit_mask<uint32_t>(0, 3));
-    REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(1, 4), 1, 4) ==
-            BV::bit_mask<uint32_t>(1, 4) >> 1);
-    REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(4, 8), 4, 8) ==
-            BV::bit_mask<uint32_t>(4, 8) >> 4);
+    REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(1, 3), 1, 4) ==
+            BV::bit_mask<uint32_t>(1, 3) >> 1);
+    REQUIRE(BV::extract_bits<uint32_t>(BV::bit_mask<uint32_t>(4, 4), 4, 8) ==
+            BV::bit_mask<uint32_t>(4, 4) >> 4);
 
     REQUIRE(BV::extract_bits<uint32_t>(0b1, 0, 1) == 0b1);
     REQUIRE(BV::extract_bits<uint32_t>(0b10, 1, 2) == 0b1);

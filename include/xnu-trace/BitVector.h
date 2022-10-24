@@ -20,8 +20,8 @@ namespace xnutrace::BitVector {
 static constexpr uint8_t DefaultNBitsMax = 64;
 
 // [sb, eb)
-template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t eb) {
-    const T high_mask = (T{1} << eb) - 1;
+template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t nbits) {
+    const T high_mask = (T{1} << (sb + nbits)) - 1;
     const T low_mask  = (T{1} << sb) - 1;
     return high_mask ^ low_mask;
 }
@@ -45,7 +45,7 @@ static constexpr void extract_bits_from(XNUTRACE_ALIGNED(16) uint8_t *buf, size_
 
 template <typename T, typename IT>
 static constexpr T insert_bits(T orig_val, IT insert_val, uint8_t sb, uint8_t nbits) {
-    const T orig_val_cleared = orig_val & ~bit_mask<T>(sb, sb + nbits);
+    const T orig_val_cleared = orig_val & ~bit_mask<T>(sb, nbits);
     return orig_val_cleared | (T(insert_val) << sb);
 }
 
@@ -62,7 +62,7 @@ static constexpr void insert_bits_into(XNUTRACE_ALIGNED(16) uint8_t *buf, T inse
 
 template <typename T, typename IT>
 static void insert_bits_atomic(T &orig_val, IT insert_val, uint8_t sb, uint8_t nbits) {
-    orig_val.fetch_and(~bit_mask<T>(sb, sb + nbits));
+    orig_val.fetch_and(~bit_mask<T>(sb, nbits));
     orig_val.fetch_or((T(insert_val) << sb));
 }
 
@@ -263,7 +263,7 @@ public:
         const auto bidx = inner_bit_idx(idx);
         const auto wptr = (AT *)&Base::data()[widx];
         if (get(idx) != val) {
-            wptr->fetch_xor(bit_mask<T>(bidx, bidx + NBits));
+            wptr->fetch_xor(bit_mask<T>(bidx, NBits));
         }
     }
 
