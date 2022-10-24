@@ -26,7 +26,6 @@ template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t nbits) {
 }
 
 template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t nbits) {
-    // return (val & bit_mask<T>(sb, nbits)) >> sb;
     return (val >> sb) & bit_mask<T>(0, nbits);
 }
 
