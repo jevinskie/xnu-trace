@@ -19,14 +19,17 @@ namespace xnutrace::BitVector {
 
 static constexpr uint8_t DefaultNBitsMax = 64;
 
+// [sb, eb)
 template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t eb) {
     const T high_mask = (T{1} << eb) - 1;
     const T low_mask  = (T{1} << sb) - 1;
     return high_mask ^ low_mask;
 }
 
+// [sb, eb)
 template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t eb) {
-    return (val & bit_mask<T>(sb, eb)) >> sb;
+    // return (val & bit_mask<T>(sb, eb)) >> sb;
+    return (val >> sb) & bit_mask<T>(0, eb - sb);
 }
 
 template <typename T, typename DT = int_n<sizeofbits<T>() * 2, std::is_signed_v<T>>>
@@ -37,7 +40,7 @@ static constexpr void extract_bits_from(XNUTRACE_ALIGNED(16) uint8_t *buf, size_
     const auto widx  = sb / TBits;
     const auto bidx  = sb - widx * TBits;
     const auto wptr  = &((T *)buf)[widx];
-    return extract_bits(*(DT *)wptr, bidx, bidx);
+    return extract_bits(*(DT *)wptr, bidx, bidx + nbits);
 }
 
 template <typename T, typename IT>
@@ -336,6 +339,68 @@ public:
 };
 
 template <uint8_t NBits, bool Signed = false, uint8_t NBitsMax = DefaultNBitsMax>
+class NonAtomicSplitBitVectorImpl : public BitVectorBase<Signed, NBitsMax> {
+public:
+    using Base                    = BitVectorBase<Signed, NBitsMax>;
+    using RT                      = typename Base::RT;
+    using T                       = int_n<NBits, Signed>;
+    static constexpr size_t TBits = sizeofbits<T>();
+    static_assert(NBits <= Base::RTBits);
+    static_assert(NBits != 8 && NBits != 16 && NBits != 32 && NBits != 64);
+
+    NonAtomicSplitBitVectorImpl(size_t sz) : Base(NBits, sz, byte_sz(sz)) {}
+
+    RT get(size_t idx) const noexcept final override {
+        T res, extracted_val;
+        const auto lwidx = lo_word_idx(idx);
+        const auto hwidx = hi_word_idx(idx);
+        const auto lbidx = lo_inner_bit_idx(idx);
+        const auto lwptr = &((T *)Base::data())[lwidx];
+        const auto hwptr = &((T *)Base::data())[hwidx];
+
+        // if (lwidx == hwidx) {
+        // bits do not straddle two words
+        extracted_val = extract_bits(*lwptr, lbidx, lbidx + NBits);
+        // } else {
+        // }
+        if constexpr (!Signed) {
+            res = extracted_val;
+        } else {
+            res = sign_extend(extracted_val, NBits);
+        }
+        return res;
+    }
+
+    void set(size_t idx, RT val) noexcept final override {}
+
+    static constexpr size_t lo_bit_idx(size_t idx) {
+        return NBits * idx;
+    }
+
+    static constexpr size_t hi_bit_idx(size_t idx) {
+        return NBits * (idx + 1);
+    }
+
+    static constexpr size_t lo_word_idx(size_t idx) {
+        return lo_bit_idx(idx) / TBits;
+    }
+
+    static constexpr size_t hi_word_idx(size_t idx) {
+        return hi_bit_idx(idx) / TBits;
+    }
+
+    static constexpr size_t lo_inner_bit_idx(size_t idx) {
+        return lo_bit_idx(idx) - (lo_word_idx(idx) * TBits);
+    }
+
+    static constexpr size_t byte_sz(size_t sz) {
+        const auto total_packed_bits  = NBits * sz;
+        const auto write_total_bit_sz = ((total_packed_bits + TBits - 1) / TBits) * TBits;
+        return write_total_bit_sz / 8;
+    }
+};
+
+template <uint8_t NBits, bool Signed = false, uint8_t NBitsMax = DefaultNBitsMax>
 class AtomicBitVectorImpl : public BitVectorBase<Signed, NBitsMax> {
 public:
     using Base                      = BitVectorBase<Signed, NBitsMax>;
@@ -406,8 +471,14 @@ std::unique_ptr<BitVectorBase<Signed, NBitsMax>> BitVectorFactory(uint8_t nbits,
                 if constexpr (NBitsMax >= n.value &&
                               !(n.value >= 8 && n.value <= 64 && is_pow2(n.value))) {
                     if (n.value == nbits) {
-                        res =
-                            std::make_unique<NonAtomicBitVectorImpl<n.value, Signed, NBitsMax>>(sz);
+                        if constexpr (n.value <= 32) {
+                            res =
+                                std::make_unique<NonAtomicBitVectorImpl<n.value, Signed, NBitsMax>>(
+                                    sz);
+                        } else {
+                            res = std::make_unique<
+                                NonAtomicSplitBitVectorImpl<n.value, Signed, NBitsMax>>(sz);
+                        }
                     }
                 }
             });
