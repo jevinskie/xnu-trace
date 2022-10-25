@@ -90,13 +90,25 @@ public:
         struct mixin : ranges::basic_mixin<cursor> {
             using ranges::basic_mixin<cursor>::basic_mixin;
 
+            struct value : ranges::basic_mixin<cursor> {
+                value() : value{cursor()} {}
+                operator value_type() {
+                    m_val = this->get().read();
+                    return m_val;
+                }
+                value &operator=(value_type val) {
+                    m_val = val;
+                    this->get().write(val);
+                }
+                value_type m_val;
+            };
+
             // It is necessary to expose constructor in this way
-            mixin() : mixin{cursor()} {}
-            value_type &val() {
-                m_val = this->get().read();
+            mixin() : mixin{cursor()}, m_val{cursor()} {}
+            value &val() {
                 return m_val;
             }
-            value_type m_val;
+            value m_val;
         };
 
         std::conditional_t<Const, const GetSetIdxBase<T>, GetSetIdxBase<T>> *m_tbl{};
@@ -156,7 +168,7 @@ public:
         return const_iterator(cursor<true>{&std::as_const(*this), size()});
     }
 
-    value_type &operator[](size_t idx) {
+    typename cursor<false>::mixin::value &operator[](size_t idx) {
         return iterator(cursor<false>{this, idx}).val();
     }
 
