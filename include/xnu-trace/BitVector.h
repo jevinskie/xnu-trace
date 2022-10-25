@@ -83,7 +83,7 @@ template <typename T> class GetSetIdxBase {
 public:
     using value_type = T;
 
-    template <bool Const> struct RangeProxyCursor {
+    template <bool Const> struct cursor {
         using difference_type = ssize_t;
         using value_type      = T;
 
@@ -96,7 +96,7 @@ public:
         void write(value_type val) const noexcept {
             m_tbl->set(m_idx, val);
         }
-        bool equal(RangeProxyCursor<Const> other) const noexcept {
+        bool equal(cursor<Const> other) const noexcept {
             assert(m_tbl == other.m_tbl);
             return m_idx == other.m_idx;
         }
@@ -109,7 +109,7 @@ public:
         void advance(ssize_t i) noexcept {
             m_idx += i;
         }
-        ssize_t distance_to(RangeProxyCursor<Const> other) const noexcept {
+        ssize_t distance_to(cursor<Const> other) const noexcept {
             return other.m_idx - m_idx;
         }
     };
@@ -123,13 +123,13 @@ public:
         return m_sz;
     }
 
-    using iterator       = ranges::basic_iterator<RangeProxyCursor<false>>;
-    using const_iterator = ranges::basic_iterator<RangeProxyCursor<true>>;
+    using iterator       = ranges::basic_iterator<cursor<false>>;
+    using const_iterator = ranges::basic_iterator<cursor<true>>;
     iterator begin() {
-        return iterator(RangeProxyCursor<false>{this, 0});
+        return iterator(cursor<false>{this, 0});
     }
     iterator end() {
-        return iterator(RangeProxyCursor<false>{this, size()});
+        return iterator(cursor<false>{this, size()});
     }
     const_iterator begin() const {
         return cbegin();
@@ -138,10 +138,10 @@ public:
         return cend();
     }
     const_iterator cbegin() const {
-        return const_iterator(RangeProxyCursor<true>{&std::as_const(*this), 0});
+        return const_iterator(cursor<true>{&std::as_const(*this), 0});
     }
     const_iterator cend() const {
-        return const_iterator(RangeProxyCursor<true>{&std::as_const(*this), size()});
+        return const_iterator(cursor<true>{&std::as_const(*this), size()});
     }
 
 private:
