@@ -225,8 +225,16 @@ TEST_CASE("non_atomic_iterator", TS) {
         REQUIRE((*bv)[i] == uint64_t{0});
     }
 
+    for (size_t i = 0; i < sz; ++i) {
+        (*bv)[i] = uint64_t{i};
+    }
+
+    for (size_t i = 0; i < sz; ++i) {
+        REQUIRE(bv->get(i) == uint64_t{i});
+    }
+
     // for (size_t i = 0; i < sz; ++i) {
-    //     (*bv)[i] = uint64_t{i};
+    //     REQUIRE((*bv)[i] == uint64_t{i});
     // }
 }
 

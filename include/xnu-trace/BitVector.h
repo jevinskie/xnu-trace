@@ -87,6 +87,18 @@ public:
         using difference_type = ssize_t;
         using value_type      = T;
 
+        struct mixin : ranges::basic_mixin<cursor> {
+            using ranges::basic_mixin<cursor>::basic_mixin;
+
+            // It is necessary to expose constructor in this way
+            mixin() : mixin{cursor()} {}
+            value_type &val() {
+                m_val = this->get().read();
+                return m_val;
+            }
+            value_type m_val;
+        };
+
         std::conditional_t<Const, const GetSetIdxBase<T>, GetSetIdxBase<T>> *m_tbl{};
         size_t m_idx{};
 
@@ -142,6 +154,10 @@ public:
     }
     const_iterator cend() const {
         return const_iterator(cursor<true>{&std::as_const(*this), size()});
+    }
+
+    value_type &operator[](size_t idx) {
+        return iterator(cursor<false>{this, idx}).val();
     }
 
 private:
