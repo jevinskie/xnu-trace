@@ -211,7 +211,41 @@ static void BM_NonAtomicBitVector(benchmark::State &state) {
 
 BENCHMARK(BM_NonAtomicBitVector);
 
-static void BM_NonAtomicBitVectorImpl64(benchmark::State &state) {
+static void BM_NonAtomicBitVectorImpl_33(benchmark::State &state) {
+    constexpr uint8_t nbits = 33;
+    constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint64_t);
+    auto bv                 = NonAtomicBitVectorImpl<nbits>(sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, hash_n(i, nbits));
+    }
+
+    size_t i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(bv.get(i % sz));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_NonAtomicBitVectorImpl_33);
+
+static void BM_NonAtomicSplitBitVectorImpl_33(benchmark::State &state) {
+    constexpr uint8_t nbits = 33;
+    constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint64_t);
+    auto bv                 = NonAtomicSplitBitVectorImpl<nbits>(sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, hash_n(i, nbits));
+    }
+
+    size_t i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(bv.get(i % sz));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_NonAtomicSplitBitVectorImpl_33);
+
+static void BM_NonAtomicBitVectorImpl_47(benchmark::State &state) {
     constexpr uint8_t nbits = 47;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint64_t);
     auto bv                 = NonAtomicBitVectorImpl<nbits>(sz);
@@ -226,9 +260,9 @@ static void BM_NonAtomicBitVectorImpl64(benchmark::State &state) {
     }
 }
 
-BENCHMARK(BM_NonAtomicBitVectorImpl64);
+BENCHMARK(BM_NonAtomicBitVectorImpl_47);
 
-static void BM_NonAtomicSplitBitVectorImpl64(benchmark::State &state) {
+static void BM_NonAtomicSplitBitVectorImpl_47(benchmark::State &state) {
     constexpr uint8_t nbits = 47;
     constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint64_t);
     auto bv                 = NonAtomicSplitBitVectorImpl<nbits>(sz);
@@ -243,6 +277,40 @@ static void BM_NonAtomicSplitBitVectorImpl64(benchmark::State &state) {
     }
 }
 
-BENCHMARK(BM_NonAtomicSplitBitVectorImpl64);
+BENCHMARK(BM_NonAtomicSplitBitVectorImpl_47);
+
+static void BM_NonAtomicBitVectorImpl_63(benchmark::State &state) {
+    constexpr uint8_t nbits = 63;
+    constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint64_t);
+    auto bv                 = NonAtomicBitVectorImpl<nbits>(sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, hash_n(i, nbits));
+    }
+
+    size_t i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(bv.get(i % sz));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_NonAtomicBitVectorImpl_63);
+
+static void BM_NonAtomicSplitBitVectorImpl_63(benchmark::State &state) {
+    constexpr uint8_t nbits = 63;
+    constexpr size_t sz     = 128 * 1024 * 1024 / sizeof(uint64_t);
+    auto bv                 = NonAtomicSplitBitVectorImpl<nbits>(sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv.set(i, hash_n(i, nbits));
+    }
+
+    size_t i = 0;
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(bv.get(i % sz));
+        ++i;
+    }
+}
+
+BENCHMARK(BM_NonAtomicSplitBitVectorImpl_63);
 
 BENCHMARK_MAIN();
