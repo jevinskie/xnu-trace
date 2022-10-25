@@ -547,6 +547,11 @@ using NonAtomicBitVectorImpl = xnutrace::BitVector::NonAtomicBitVectorImpl<NBits
 
 template <uint8_t NBits, bool Signed = false,
           uint8_t NBitsMax = xnutrace::BitVector::DefaultNBitsMax>
+using NonAtomicSplitBitVectorImpl =
+    xnutrace::BitVector::NonAtomicSplitBitVectorImpl<NBits, Signed, NBitsMax>;
+
+template <uint8_t NBits, bool Signed = false,
+          uint8_t NBitsMax = xnutrace::BitVector::DefaultNBitsMax>
 using AtomicBitVectorImpl = xnutrace::BitVector::AtomicBitVectorImpl<NBits, Signed, NBitsMax>;
 
 template <bool Signed = false, uint8_t NBitsMax = xnutrace::BitVector::DefaultNBitsMax>
