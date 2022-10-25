@@ -18,6 +18,8 @@ TEST_CASE("bit_mask", TS) {
     REQUIRE(BV::bit_mask<uint32_t>(1, 3) == 0b1110);
     REQUIRE(BV::bit_mask<uint32_t>(2, 2) == 0b1100);
     REQUIRE(BV::bit_mask<uint32_t>(4, 4) == 0b1111'0000);
+    REQUIRE(BV::bit_mask<uint32_t>(0, 31) == UINT32_MAX >> 1);
+    REQUIRE(BV::bit_mask<uint32_t>(0, 32) == UINT32_MAX);
 }
 
 TEST_CASE("extract_bits", TS) {
@@ -151,7 +153,20 @@ TEST_CASE("non_atomic_mid_signed", TS) {
     }
 }
 
-TEST_CASE("non_atomic_big", TS) {
+TEST_CASE("non_atomic_big_all_ones", TS) {
+    constexpr uint8_t nbits = 47;
+    constexpr size_t sz     = 8;
+    auto bv                 = BitVectorFactory<>(nbits, sz);
+    for (size_t i = 0; i < sz; ++i) {
+        bv->set(i, BV::bit_mask<uint64_t>(0, nbits));
+    }
+
+    for (size_t i = 0; i < sz; ++i) {
+        REQUIRE(bv->get(i) == BV::bit_mask<uint64_t>(0, nbits));
+    }
+}
+
+TEST_CASE("non_atomic_big_hash", TS) {
     constexpr uint8_t nbits = 47;
     constexpr size_t sz     = 8;
     auto bv                 = BitVectorFactory<>(nbits, sz);

@@ -13,16 +13,26 @@
 #include <boost/hana.hpp>
 namespace hana = boost::hana;
 #include <fmt/format.h>
+#include <icecream.hpp>
 #include <range/v3/iterator/basic_iterator.hpp>
 
 namespace xnutrace::BitVector {
 
 static constexpr uint8_t DefaultNBitsMax = 64;
 
+// nbits = 0 invokes UB
+template <typename T> static constexpr T bit_mask_unsafe(uint8_t nbits) {
+    return std::make_unsigned_t<T>(-1) >> (sizeofbits<T>() - nbits);
+}
+
+// nbits = 0 doesn't invoke UB
+template <typename T> static constexpr T bit_mask_safe(uint8_t nbits) {
+    return nbits ? bit_mask_unsafe<T>(nbits) : 0;
+}
+
+// nbits = 0 invokes UB
 template <typename T> static constexpr T bit_mask(uint8_t sb, uint8_t nbits) {
-    const T high_mask = (T{1} << (sb + nbits)) - 1;
-    const T low_mask  = (T{1} << sb) - 1;
-    return high_mask ^ low_mask;
+    return bit_mask_unsafe<T>(nbits) << sb;
 }
 
 template <typename T> static constexpr T extract_bits(T val, uint8_t sb, uint8_t nbits) {
@@ -355,7 +365,6 @@ public:
         const auto lbidx = lo_inner_bit_idx(idx);
         const auto lwptr = &((T *)Base::data())[lwidx];
         const auto hwptr = &((T *)Base::data())[hwidx];
-
         if (lwidx == hwidx) {
             // bits do not straddle two words
             extracted_val = extract_bits(*lwptr, lbidx, NBits);
@@ -380,7 +389,6 @@ public:
         const auto lbidx = lo_inner_bit_idx(idx);
         const auto lwptr = &((T *)Base::data())[lwidx];
         const auto hwptr = &((T *)Base::data())[hwidx];
-
         if (lwidx == hwidx) {
             // bits do not straddle two words
             *lwptr = insert_bits(*lwptr, T(val), lbidx, NBits);
