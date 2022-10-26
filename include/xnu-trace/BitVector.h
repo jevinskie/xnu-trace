@@ -86,22 +86,6 @@ public:
         using difference_type = ssize_t;
         using value_type      = T;
 
-        // struct mixin : ranges::basic_mixin<cursor> {
-        //     using ranges::basic_mixin<cursor>::basic_mixin;
-
-        //     // It is necessary to expose constructor in this way
-        //     mixin() : mixin{cursor()} {}
-        //     void operator=(const value_type &rhs) {
-        //         m_val = rhs;
-        //         this->get().write(rhs);
-        //     }
-        //     operator value_type &() {
-        //         m_val = this->get().read();
-        //         return m_val;
-        //     };
-        //     value_type m_val;
-        // };
-
         std::conditional_t<Const, const GetSetIdxBase<T>, GetSetIdxBase<T>> *m_tbl{};
         size_t m_idx{};
 
