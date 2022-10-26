@@ -12,8 +12,6 @@
 
 #include <boost/hana.hpp>
 namespace hana = boost::hana;
-#include <fmt/format.h>
-#include <icecream.hpp>
 #include <range/v3/iterator/basic_iterator.hpp>
 
 namespace xnutrace::BitVector {
@@ -87,21 +85,21 @@ public:
         using difference_type = ssize_t;
         using value_type      = T;
 
-        struct mixin : ranges::basic_mixin<cursor> {
-            using ranges::basic_mixin<cursor>::basic_mixin;
+        // struct mixin : ranges::basic_mixin<cursor> {
+        //     using ranges::basic_mixin<cursor>::basic_mixin;
 
-            // It is necessary to expose constructor in this way
-            mixin() : mixin{cursor()} {}
-            void operator=(const value_type &rhs) {
-                m_val = rhs;
-                this->get().write(rhs);
-            }
-            operator value_type &() {
-                m_val = this->get().read();
-                return m_val;
-            };
-            value_type m_val;
-        };
+        //     // It is necessary to expose constructor in this way
+        //     mixin() : mixin{cursor()} {}
+        //     void operator=(const value_type &rhs) {
+        //         m_val = rhs;
+        //         this->get().write(rhs);
+        //     }
+        //     operator value_type &() {
+        //         m_val = this->get().read();
+        //         return m_val;
+        //     };
+        //     value_type m_val;
+        // };
 
         std::conditional_t<Const, const GetSetIdxBase<T>, GetSetIdxBase<T>> *m_tbl{};
         size_t m_idx{};
@@ -128,6 +126,19 @@ public:
         ssize_t distance_to(cursor<Const> other) const noexcept {
             return other.m_idx - m_idx;
         }
+    };
+
+    template <bool Const> struct proxy : cursor<Const> {
+        proxy(cursor<Const> cur) : cursor<Const>(cur) {}
+        template <typename = std::enable_if_t<!Const>> void operator=(const value_type &rhs) {
+            m_val = rhs;
+            this->write(rhs);
+        }
+        operator value_type &() {
+            m_val = this->read();
+            return m_val;
+        };
+        value_type m_val;
     };
 
     GetSetIdxBase(size_t sz) : m_sz(sz) {}
@@ -160,8 +171,14 @@ public:
         return const_iterator(cursor<true>{&std::as_const(*this), size()});
     }
 
-    auto &operator[](size_t idx) {
-        return iterator(cursor<false>{this, idx});
+    using reference       = proxy<false>;
+    using const_reference = proxy<true>;
+    reference operator[](size_t idx) {
+        return reference{cursor<false>{this, idx}};
+    }
+
+    const_reference operator[](size_t idx) const {
+        return const_reference{cursor<true>{this, idx}};
     }
 
 private:

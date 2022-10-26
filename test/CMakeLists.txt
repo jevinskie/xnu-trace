@@ -20,6 +20,9 @@ target_link_libraries(hana-101 fmt Boost::headers)
 add_executable(vtable-opt vtable-opt.cpp)
 target_link_libraries(vtable-opt xnu-trace benchmark)
 
+add_executable(iterator-proxy iterator-proxy.cpp)
+target_link_libraries(iterator-proxy xnu-trace)
+
 install(TARGETS yield-loop-step-test xnu-trace-bench xnu-trace-nanobench xnu-fast-timeout xnu-trace-mph
     RUNTIME DESTINATION bin
 )
