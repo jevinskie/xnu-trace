@@ -140,8 +140,7 @@ public:
             return m_val;
         }
         bool operator==(const auto &rhs) const {
-            m_val = this->read();
-            return m_val == rhs;
+            return this->read() == rhs;
         }
         value_type m_val;
     };
