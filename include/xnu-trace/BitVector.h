@@ -12,6 +12,7 @@
 
 #include <boost/hana.hpp>
 namespace hana = boost::hana;
+#include <fmt/format.h>
 #include <range/v3/iterator/basic_iterator.hpp>
 
 namespace xnutrace::BitVector {
@@ -137,7 +138,10 @@ public:
         operator value_type &() {
             m_val = this->read();
             return m_val;
-        };
+        }
+        bool operator==(const auto &rhs) const {
+            return *this == rhs;
+        }
         value_type m_val;
     };
 
