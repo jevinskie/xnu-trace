@@ -21,3 +21,5 @@ build/
 # nbdev
 .last_checked
 .irecovery
+
+/.cache/
