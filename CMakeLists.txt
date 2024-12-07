@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.31)
 
 project(xnu-trace CXX C)
 
@@ -52,6 +52,7 @@ add_link_options(-fsanitize=address)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
    add_compile_options(-ferror-limit=100)
+   add_compile_options(-Wno-documentation)
 endif()
 
 set(CMAKE_CXX_STANDARD 23)

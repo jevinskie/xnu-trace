@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <concepts>
@@ -38,9 +39,7 @@ template <typename T> constexpr bool is_pow2(T num) {
 // roundup_pow2_mul(16, 16) = 16
 // roundup_pow2_mul(17, 16) = 32
 template <typename U>
-requires requires() {
-    requires std::unsigned_integral<U>;
-}
+    requires requires() { requires std::unsigned_integral<U>; }
 constexpr U roundup_pow2_mul(U num, size_t pow2_mul) {
     const U mask = static_cast<U>(pow2_mul) - 1;
     return (num + mask) & ~mask;
@@ -50,9 +49,7 @@ constexpr U roundup_pow2_mul(U num, size_t pow2_mul) {
 // roundup_pow2_mul(16, 16) = 16
 // roundup_pow2_mul(17, 16) = 16
 template <typename U>
-requires requires() {
-    requires std::unsigned_integral<U>;
-}
+    requires requires() { requires std::unsigned_integral<U>; }
 constexpr U rounddown_pow2_mul(U num, size_t pow2_mul) {
     const U mask = static_cast<U>(pow2_mul) - 1;
     return num & ~mask;
