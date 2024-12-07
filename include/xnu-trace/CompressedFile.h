@@ -36,7 +36,8 @@ public:
     std::vector<uint8_t> read(size_t size);
     void read(uint8_t *buf, size_t size);
     template <typename T>
-    requires POD<T> T read() {
+        requires POD<T>
+    T read() {
         T buf;
         read((uint8_t *)&buf, sizeof(T));
         return buf;
@@ -47,7 +48,8 @@ public:
     XNUTRACE_INLINE void write(const uint8_t *buf, size_t size);
     XNUTRACE_INLINE void write(const char *buf, size_t size);
     template <typename T>
-    requires POD<T> XNUTRACE_INLINE void write(const T &buf) {
+        requires POD<T>
+    XNUTRACE_INLINE void write(const T &buf) {
         write({(uint8_t *)&buf, sizeof(buf)});
     }
 

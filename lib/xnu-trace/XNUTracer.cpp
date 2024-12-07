@@ -31,8 +31,8 @@ extern "C" boolean_t mach_exc_trace_server(mach_msg_header_t *message, mach_msg_
 XNUTracer *g_tracer;
 
 XNUTracer::XNUTracer(task_t target_task, const opts &options)
-    : m_target_task(target_task), m_log{options.trace_path, options.compression_level,
-                                        options.stream} {
+    : m_target_task(target_task),
+      m_log{options.trace_path, options.compression_level, options.stream} {
     suspend();
     common_ctor(false, false, options.symbolicate);
 }

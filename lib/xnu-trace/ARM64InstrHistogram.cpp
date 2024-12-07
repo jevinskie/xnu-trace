@@ -58,9 +58,9 @@ void ARM64InstrHistogram::print(int max_num, unsigned int width) const {
     for (const auto &it : op_counts) {
         sorted.emplace_back(it);
     }
-    std::sort(
-        sorted.begin(), sorted.end(),
-        [](const auto &a, const auto &b) -> auto{ return a.second > b.second; });
+    std::sort(sorted.begin(), sorted.end(), [](const auto &a, const auto &b) -> auto {
+        return a.second > b.second;
+    });
     sorted.resize(max_num);
     const auto max_count = sorted[0].second;
     i                    = 1;

@@ -15,7 +15,7 @@ concept VoidVoidCallback = requires(T cb) {
     { cb() } -> std::same_as<void>;
 };
 
-static inline void xnu_fast_timeout_dummy_cb(){};
+static inline void xnu_fast_timeout_dummy_cb() {};
 
 template <VoidVoidCallback T = decltype(xnu_fast_timeout_dummy_cb)>
 class XNUTRACE_EXPORT XNUFastTimeout {
@@ -26,7 +26,8 @@ public:
         const auto num_atus = (double)nanoseconds * tb_info.denom / tb_info.numer;
         m_end_deadline      = xnu_commpage_time_atus() + num_atus;
     };
-    XNUFastTimeout(uint64_t nanoseconds) : XNUFastTimeout(nanoseconds, xnu_fast_timeout_dummy_cb){};
+    XNUFastTimeout(uint64_t nanoseconds)
+        : XNUFastTimeout(nanoseconds, xnu_fast_timeout_dummy_cb) {};
     XNUTRACE_INLINE void check() const {
         if (XNUTRACE_UNLIKELY(xnu_commpage_time_atus() >= m_end_deadline)) {
             m_cb();

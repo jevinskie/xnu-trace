@@ -125,4 +125,3 @@ install(TARGETS xnu-trace xnu-trace-shared
 )
 
 # target_compile_options(xnu-trace PRIVATE -Xclang -fdump-record-layouts)
-
