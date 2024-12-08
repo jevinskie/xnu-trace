@@ -79,7 +79,7 @@ set(XNUTRACE_PRIVATE_LIBS
     CoreSymbolication
     fmt
     libzstd_static
-    mbedcrypto
+    mbedtls
     xxhash-xnu-trace
     xnu-trace-mach-exc
     fastmod

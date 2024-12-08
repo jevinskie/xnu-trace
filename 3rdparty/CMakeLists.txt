@@ -62,7 +62,7 @@ include(FetchContent)
 FetchContent_Declare(
     frida-gum-prebuilt
     FETCHCONTENT_TRY_FIND_PACKAGE_MODE NEVER
-    URL https://github.com/frida/frida/releases/download/15.2.2/frida-gum-devkit-15.2.2-macos-arm64.tar.xz
+    URL https://github.com/frida/frida/releases/download/16.5.7/frida-gum-devkit-16.5.7-macos-arm64.tar.xz
 )
 FetchContent_MakeAvailable(frida-gum-prebuilt)
 FetchContent_GetProperties(frida-gum-prebuilt SOURCE_DIR FRIDA_GUM_SRC_DIR)
